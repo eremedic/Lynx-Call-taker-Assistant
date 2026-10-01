@@ -357,3 +357,19 @@ fieldset.group legend { font-size: 12px; font-weight: 700; color: var(--ink-700)
   .console > .col { overflow: visible; }
   .card { box-shadow: none; break-inside: avoid; margin-bottom: 12px; }
 }
+
+/* ---------------------------------------------------------- user menu */
+.user-menu { position: relative; }
+.user-chip { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); color: #fff; border-radius: 8px; padding: 3px 10px 3px 4px; cursor: pointer; }
+.user-chip:hover { background: rgba(255,255,255,.16); }
+.user-chip .avatar { width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, #3b82f6, #22d3ee); display: grid; place-items: center; font-weight: 800; font-size: 12px; }
+.user-chip .who { display: flex; flex-direction: column; line-height: 1.15; text-align: left; }
+.user-chip .who strong { font-size: 12.5px; }
+.user-chip .who small { font-size: 10.5px; color: #9fb3d9; }
+.user-menu .menu { position: absolute; right: 0; top: calc(100% + 6px); background: #fff; color: var(--ink-900); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-lg); min-width: 180px; padding: 6px; z-index: 40; }
+.user-menu .menu a, .user-menu .menu button { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; background: none; border-radius: 6px; color: inherit; text-decoration: none; font-size: 13px; cursor: pointer; }
+.user-menu .menu a:hover, .user-menu .menu button:hover { background: var(--surface-2); }
+
+.secret { font-family: var(--mono); font-size: 18px; letter-spacing: .04em; padding: 10px 14px; background: var(--surface-2); border: 1px dashed var(--line-strong); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-500); }
+.audit-details { font-family: var(--mono); font-size: 11.5px; color: var(--ink-700); max-width: 460px; white-space: pre-wrap; word-break: break-word; }

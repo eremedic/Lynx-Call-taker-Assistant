@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Lynx</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="card login-card">
+      <div class="brand" style="color: var(--ink-900)"><div class="brand-mark" style="color:#fff">L</div><div>Lynx <small id="org-name" style="color: var(--ink-500)">Call-Taker Assistant</small></div></div>
+
+      <form id="login-form" hidden>
+        <h1>Sign in</h1>
+        <p class="muted" style="margin-top: 0">Use the account your administrator created for you.</p>
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" class="input" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" class="input" type="password" autocomplete="current-password" required>
+        </div>
+        <p id="login-error" class="small" style="color: var(--red-600)" role="alert" hidden></p>
+        <button class="btn btn-primary btn-lg" style="width: 100%" type="submit">Sign in</button>
+        <p class="small muted" style="margin-bottom: 0">Forgot your password? Ask an administrator to reset it.</p>
+      </form>
+
+      <form id="change-form" hidden>
+        <h1>Choose a new password</h1>
+        <p id="change-intro" class="muted" style="margin-top: 0"></p>
+        <div class="field">
+          <label for="current">Current or temporary password</label>
+          <input id="current" class="input" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="field">
+          <label for="new">New password</label>
+          <input id="new" class="input" type="password" autocomplete="new-password" required>
+          <span class="hint">At least 10 characters, with letters and numbers.</span>
+        </div>
+        <div class="field">
+          <label for="confirm">Confirm new password</label>
+          <input id="confirm" class="input" type="password" autocomplete="new-password" required>
+        </div>
+        <p id="change-error" class="small" style="color: var(--red-600)" role="alert" hidden></p>
+        <button class="btn btn-primary btn-lg" style="width: 100%" type="submit">Save password</button>
+        <p class="small" style="margin-bottom: 0"><a href="#" id="change-cancel">Cancel</a></p>
+      </form>
+    </div>
+  </div>
+  <script type="module" src="js/login.js"></script>
+</body>
+</html>

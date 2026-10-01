@@ -66,7 +66,48 @@ export function openDb(file = process.env.DB_PATH || path.resolve('data/lynx.db'
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      display_name TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('admin', 'call_taker')),
+      password_hash TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      must_change_password INTEGER NOT NULL DEFAULT 0,
+      last_login_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      token_hash TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+      user_id INTEGER,
+      username TEXT,
+      action TEXT NOT NULL,
+      entity_type TEXT,
+      entity_id TEXT,
+      details TEXT NOT NULL DEFAULT '{}',
+      ip TEXT
+    );
+    CREATE INDEX IF NOT EXISTS audit_log_created ON audit_log (created_at);
+    CREATE INDEX IF NOT EXISTS audit_log_user ON audit_log (user_id);
+    -- The audit trail is append-only.
+    CREATE TRIGGER IF NOT EXISTS audit_log_no_update BEFORE UPDATE ON audit_log
+      BEGIN SELECT RAISE(ABORT, 'audit_log is append-only'); END;
+    CREATE TRIGGER IF NOT EXISTS audit_log_no_delete BEFORE DELETE ON audit_log
+      BEGIN SELECT RAISE(ABORT, 'audit_log is append-only'); END;
   `);
+  db.exec('PRAGMA foreign_keys = ON');
+
+  // Migrations for databases created by earlier versions.
+  const callCols = db.prepare('PRAGMA table_info(calls)').all().map((c) => c.name);
+  if (!callCols.includes('user_id')) db.exec('ALTER TABLE calls ADD COLUMN user_id INTEGER REFERENCES users(id)');
 
   const count = db.prepare('SELECT COUNT(*) AS n FROM questions').get().n;
   if (count === 0) {
@@ -146,9 +187,9 @@ export function callRepo(db) {
     assessment: JSON.parse(row.assessment),
   };
   return {
-    create({ callType, details, answers, transcript, assessment, callTaker }) {
-      const info = db.prepare(`INSERT INTO calls (call_type, details, answers, transcript, assessment, status, level_of_service, call_taker)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    create({ callType, details, answers, transcript, assessment, callTaker, userId }) {
+      const info = db.prepare(`INSERT INTO calls (call_type, details, answers, transcript, assessment, status, level_of_service, call_taker, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         callType,
         JSON.stringify(details || {}),
         JSON.stringify(answers || {}),
@@ -157,6 +198,7 @@ export function callRepo(db) {
         assessment?.status || 'incomplete',
         assessment?.levelOfService?.label || null,
         callTaker || null,
+        userId ?? null,
       );
       return this.get(Number(info.lastInsertRowid));
     },
@@ -182,6 +224,102 @@ export function settingsRepo(db) {
     },
     set(key, value) {
       db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, String(value));
+    },
+  };
+}
+
+// ------------------------------------------------------------------ users
+const USER_COLUMNS = 'id, username, display_name, role, active, must_change_password, last_login_at, created_at, updated_at';
+const toUser = (row) => row && { ...row, active: Boolean(row.active), must_change_password: Boolean(row.must_change_password) };
+
+export function userRepo(db) {
+  return {
+    count() {
+      return db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
+    },
+    countActiveAdmins() {
+      return db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND active = 1").get().n;
+    },
+    list() {
+      return db.prepare(`SELECT ${USER_COLUMNS} FROM users ORDER BY active DESC, display_name COLLATE NOCASE`).all().map(toUser);
+    },
+    get(id) {
+      return toUser(db.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE id = ?`).get(id));
+    },
+    // Includes the password hash — only for authentication.
+    getForLogin(username) {
+      return toUser(db.prepare('SELECT * FROM users WHERE username = ?').get(String(username || '')));
+    },
+    getPasswordHash(id) {
+      return db.prepare('SELECT password_hash FROM users WHERE id = ?').get(id)?.password_hash;
+    },
+    create({ username, display_name, role, password_hash, must_change_password = true }) {
+      const info = db.prepare(`INSERT INTO users (username, display_name, role, password_hash, must_change_password)
+        VALUES (?, ?, ?, ?, ?)`).run(username, display_name, role, password_hash, must_change_password ? 1 : 0);
+      return this.get(Number(info.lastInsertRowid));
+    },
+    update(id, fields) {
+      const allowed = ['display_name', 'role', 'active', 'password_hash', 'must_change_password', 'last_login_at'];
+      const cols = Object.keys(fields).filter((k) => allowed.includes(k));
+      if (cols.length) {
+        const vals = cols.map((c) => (typeof fields[c] === 'boolean' ? (fields[c] ? 1 : 0) : fields[c]));
+        db.prepare(`UPDATE users SET ${cols.map((c) => `${c} = ?`).join(', ')}, updated_at = datetime('now') WHERE id = ?`).run(...vals, id);
+      }
+      return this.get(id);
+    },
+  };
+}
+
+// --------------------------------------------------------------- sessions
+export function sessionRepo(db) {
+  return {
+    create(tokenHash, userId, expiresAt) {
+      db.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(tokenHash, userId, expiresAt);
+    },
+    get(tokenHash) {
+      return db.prepare('SELECT * FROM sessions WHERE token_hash = ?').get(tokenHash);
+    },
+    remove(tokenHash) {
+      db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash);
+    },
+    removeForUser(userId, { except } = {}) {
+      db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(userId, except || '');
+    },
+    purgeExpired(now = Date.now()) {
+      db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(now);
+    },
+  };
+}
+
+// ------------------------------------------------------------------ audit
+export function auditRepo(db) {
+  const insert = db.prepare(`INSERT INTO audit_log (user_id, username, action, entity_type, entity_id, details, ip)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`);
+  const where = ({ userId, action, from, to, q }) => {
+    const clauses = [];
+    const params = [];
+    if (userId) { clauses.push('user_id = ?'); params.push(Number(userId)); }
+    if (action) { clauses.push('action LIKE ?'); params.push(`${action}%`); }
+    if (from) { clauses.push('created_at >= ?'); params.push(from); }
+    if (to) { clauses.push('created_at < ?'); params.push(to); }
+    if (q) { clauses.push('(username LIKE ? OR details LIKE ? OR entity_id = ?)'); params.push(`%${q}%`, `%${q}%`, q); }
+    return { sql: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '', params };
+  };
+  return {
+    log({ user, action, entityType = null, entityId = null, details = {}, ip = null }) {
+      insert.run(user?.id ?? null, user?.username ?? details.username ?? null, action, entityType,
+        entityId == null ? null : String(entityId), JSON.stringify(details), ip);
+    },
+    list(filters = {}, { limit = 100, offset = 0 } = {}) {
+      const { sql, params } = where(filters);
+      const total = db.prepare(`SELECT COUNT(*) AS n FROM audit_log ${sql}`).get(...params).n;
+      const rows = db.prepare(`SELECT * FROM audit_log ${sql} ORDER BY id DESC LIMIT ? OFFSET ?`)
+        .all(...params, limit, offset)
+        .map((r) => ({ ...r, details: JSON.parse(r.details) }));
+      return { total, rows };
+    },
+    actions() {
+      return db.prepare('SELECT DISTINCT action FROM audit_log ORDER BY action').all().map((r) => r.action);
     },
   };
 }

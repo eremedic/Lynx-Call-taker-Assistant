@@ -4,9 +4,23 @@ Real-time decision support for ambulance call takers. While the caller is on the
 
 An **admin dashboard** lets supervisors add, edit, reorder, and deactivate questions, so anything the built-in bank or the AI misses can be added without touching code.
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/eremedic/Lynx-Call-taker-Assistant?quickstart=1)
+
 > **Decision support only.** Lynx does not make coverage determinations. Final decisions must rest on complete documentation, 42 CFR 410.40, the Medicare Benefit Policy Manual (Pub. 100-02) Ch. 10, and your MAC's local coverage policies.
 
 ## Features
+
+**Accounts and sign-in** (`/login.html`)
+- **Two roles.** *Call Taker* uses the console. *Administrator* also manages questions, users, settings, and the audit log.
+- **Temporary passwords.** Each new account gets one, and the user must choose their own at first sign-in. Passwords need at least 10 characters with letters and numbers, and can't contain the username.
+- **Lockout.** Five failed sign-ins lock the account for 15 minutes. An administrator password reset clears the lock.
+- **Sessions** last 12 hours. Deactivating an account or resetting its password signs that user out everywhere. Accounts are deactivated, never deleted, so the audit trail stays intact.
+
+**Audit log**
+- **Append-only.** Database triggers block every update and delete.
+- **What's recorded:** sign-ins, failed sign-ins, lockouts, sign-outs, and password changes; access denials; every call saved; every time an administrator opens the call log or a call record (PHI access); every transcript sent to the AI service; question, user, and settings changes, with before and after values; audit exports.
+- **Each entry** has a timestamp (UTC), user, action, record, details, and IP address.
+- **Filtering and export:** filter by user, action, date, or text, and export to CSV.
 
 **Call-taker console** (`/`)
 - **Live conversation capture.** Uses the browser's speech recognition (Chrome or Edge) to transcribe as the caller talks. Call takers can also type or paste notes.
@@ -16,7 +30,7 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 - **Live CMS assessment.** Shows the status (meets / likely / needs review / does not meet / gathering info), the three-part bed-confinement test, supporting conditions, disqualifiers, alerts, missing required items, and documentation requirements (PCS, the 60-day rule for repetitive transports, the 48-hour rule for non-repetitive ones).
 - **Recommended level of service.** BLS, ALS1, or SCT, emergency or non-emergency, with the HCPCS code (A0428/A0429/A0426/A0427/A0434).
 - **Emergency screening.** A banner tells the call taker to transfer to 911 when red-flag symptoms come up on a non-emergency call.
-- **Save, copy, and print.** Save the call record, copy a narrative for the trip record or PCS request, or print a summary.
+- **Save, copy, and print.** Save the call record (attributed to the signed-in call taker), copy a narrative for the trip record or PCS request, or print a summary.
 - **Optional AI analysis (Claude).** Suggests answers, writes a short summary, and proposes follow-up questions the bank doesn't cover.
 
 **Admin dashboard** (`/admin.html`, password protected)
@@ -28,31 +42,55 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
   - **trigger words** (only ask when heard), **detection phrases** for yes and no, and follow-up rules
   - **alerts** shown to the call taker for a specific answer
 - **Call Log:** every saved call with its assessment, responses, and transcript.
+- **Users:** add call takers and administrators, change roles, deactivate accounts, and reset passwords.
+- **Audit Log:** search, filter, and export the audit trail.
 - **Settings:** organization name and AI on/off and auto-analyze toggles.
 
-## Quick start
+## Try it in your browser (GitHub Codespaces)
+
+1. Click **[Open in GitHub Codespaces](https://codespaces.new/eremedic/Lynx-Call-taker-Assistant?quickstart=1)** and then **Create codespace**.
+2. Wait a minute or two while it installs. The server starts automatically in the terminal panel.
+3. The terminal shows the **first-run administrator username and temporary password**. Copy the password.
+4. The app opens in a new browser tab. If it doesn't, open the **Ports** tab and click the globe icon next to port 3000. Sign in as `admin` and choose your own password.
+5. Go to **Admin → Users** to create call-taker accounts. To test as a call taker, sign in with a different browser or a private window.
+
+Lost the first-run password? Run `npm run reset-password -- admin` in the terminal.
+
+Codespaces stops after a period of inactivity. Your data stays in the codespace until you delete it. Personal GitHub accounts include free monthly Codespaces hours.
+
+## Run it on your own computer
 
 Requires **Node.js 22.13+** (uses the built-in `node:sqlite`).
 
 ```bash
 npm install
-ADMIN_PASSWORD='choose-a-strong-password' npm start
+npm start
 ```
 
-- Console: http://localhost:3000/
-- Admin: http://localhost:3000/admin.html
-
-On first run, the database (`data/lynx.db`) is created and loaded with the default CMS question bank.
+Then open http://localhost:3000. On first run:
+- The database (`data/lynx.db`) is created and loaded with the default CMS question bank.
+- An administrator account is created. Its temporary password is printed in the terminal, or it's the value of `ADMIN_PASSWORD` if you set one. A new password is required at first sign-in.
 
 ### Configuration
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `PORT` | `3000` | HTTP port |
-| `ADMIN_PASSWORD` | `admin` (warns at startup) | Admin dashboard password |
+| `ADMIN_USERNAME` | `admin` | Username for the first administrator (first run only) |
+| `ADMIN_PASSWORD` | randomly generated | Temporary password for the first administrator (first run only) |
+| `COOKIE_SECURE` | — | Set to `true` to mark session cookies Secure (when served over HTTPS) |
+| `TRUST_PROXY` | — | Express `trust proxy` setting, so the audit log records real client IPs behind a reverse proxy |
 | `DB_PATH` | `data/lynx.db` | SQLite database file |
 | `ANTHROPIC_API_KEY` | — | Turns on Claude-powered transcript analysis |
 | `CLAUDE_MODEL` | `claude-opus-5-5` | Model used for AI analysis |
+
+### Account recovery
+
+```bash
+npm run reset-password -- <username>
+```
+
+This issues a new temporary password, reactivates the account, and records the reset in the audit log.
 
 ### Tests
 
@@ -88,13 +126,16 @@ The client sends call state to `POST /api/evaluate`, so admin changes to the que
 ```
 server/
   index.js            entry point
-  app.js              Express app, REST API, admin auth
-  db.js               SQLite schema and repositories (questions, calls, settings)
+  app.js              Express app, REST API, access control, audit hooks
+  auth.js             password hashing (scrypt), sessions, lockout
+  reset-password.js   command-line password recovery
+  db.js               SQLite schema and repositories (questions, calls, settings, users, sessions, audit log)
   seed-questions.js   default CMS question bank
   ai.js               optional Claude transcript analysis
   engine/detect.js    phrase detection with negation handling
   engine/evaluate.js  medical-necessity evaluation and question prioritization
 public/
+  login.html, js/login.js     sign-in and password change
   index.html, js/console.js   call-taker console
   admin.html, js/admin.js     admin dashboard
   css/app.css                 shared styles
@@ -108,14 +149,15 @@ Browser speech recognition listens to the computer's **microphone**. To capture 
 ## Security and PHI
 
 Call records and transcripts contain protected health information. Before production use:
-- Run behind HTTPS and set a strong `ADMIN_PASSWORD`.
-- Add call-taker authentication. The console is currently open to anyone who can reach the server.
+- Run behind HTTPS with `COOKIE_SECURE=true`, and set `TRUST_PROXY` if behind a load balancer.
+- Give each person their own account. Never share logins; the audit trail depends on it.
+- Review the audit log regularly, and export it to your long-term retention system.
 - Only enable AI analysis under a Business Associate Agreement that covers the AI provider.
 - Set backup, retention, and access-audit policies for `data/lynx.db`.
 
 ## Roadmap ideas
 
-- Call-taker accounts and role-based access, with audit logging
+- Single sign-on (SAML/OIDC) and multi-factor authentication
 - HIPAA-eligible streaming speech-to-text with speaker separation (caller vs. call taker)
 - Per-payer and per-MAC rule sets (Medicaid, Medicare Advantage, commercial)
 - PCS form generation and e-signature request to the facility

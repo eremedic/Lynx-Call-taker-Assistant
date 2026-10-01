@@ -1,58 +1,28 @@
-import { api, esc, toast, STATUS_LABELS, STATUS_CHIPS, CRITERION_LABELS, CRITERION_CHIPS, PRIORITY_LABELS, formatAnswer, formatDate } from './common.js';
+import { api, esc, toast, requireUser, mountUserMenu, ROLE_LABELS, STATUS_LABELS, STATUS_CHIPS, CRITERION_LABELS, CRITERION_CHIPS, PRIORITY_LABELS, formatAnswer, formatDate } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
 
-const state = { config: null, questions: [], editing: null };
+const state = { user: null, config: null, questions: [], editing: null, users: [], editingUser: null, auditOffset: 0 };
+const AUDIT_PAGE = 50;
 
 const TYPE_LABELS = { yes_no: 'Yes / No', choice: 'Choice', text: 'Text', number: 'Number' };
 
-// ------------------------------------------------------------------- auth
+// ------------------------------------------------------------------- init
 async function init() {
+  state.user = await requireUser({ role: 'admin' });
   state.config = await api('/api/config');
-  const { authenticated } = await api('/api/admin/session');
-  if (authenticated) showApp();
-  else showLogin();
-
-  $('#login-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    try {
-      await api('/api/admin/login', { method: 'POST', body: { password: $('#password').value } });
-      $('#password').value = '';
-      showApp();
-    } catch (err) {
-      $('#login-error').textContent = err.message;
-      $('#login-error').hidden = false;
-    }
-  });
-  $('#logout').addEventListener('click', async () => {
-    await api('/api/admin/logout', { method: 'POST' });
-    showLogin();
-  });
-}
-
-function showLogin() {
-  $('#app').hidden = true;
-  $('#login').hidden = false;
-  $('#password').focus();
-}
-
-let bound = false;
-async function showApp() {
-  $('#login').hidden = true;
-  $('#app').hidden = false;
-  $('#login-error').hidden = true;
+  mountUserMenu($('#user-menu'), state.user);
   $('#org-name').textContent = `${state.config.orgName || ''} · Admin Dashboard`;
-  if (!bound) { bindEvents(); bound = true; }
+  $('#app').hidden = false;
+  bindEvents();
   showView(location.hash.slice(1) || 'overview');
 }
 
-// Any 401 means the session expired.
 async function guarded(fn) {
   try {
     return await fn();
   } catch (err) {
-    if (err.status === 401) { showLogin(); return null; }
     toast(err.message, 'error');
     return null;
   }
@@ -76,6 +46,22 @@ function bindEvents() {
   $('#f-answer_type').addEventListener('change', syncTypeFields);
   $('#refresh-calls').addEventListener('click', loadCalls);
   $('#settings-form').addEventListener('submit', saveSettings);
+  $('#add-user').addEventListener('click', () => openUser(null));
+  $('#user-form').addEventListener('submit', saveUser);
+  $('#copy-password').addEventListener('click', () => {
+    navigator.clipboard.writeText($('#temp-password').textContent).then(() => toast('Copied.', 'success'), () => toast('Clipboard unavailable.', 'error'));
+  });
+  $('#user-rows').addEventListener('click', (e) => {
+    const edit = e.target.closest('[data-edit-user]');
+    if (edit) return openUser(state.users.find((u) => u.id === Number(edit.dataset.editUser)));
+    const reset = e.target.closest('[data-reset-user]');
+    if (reset) return resetPassword(state.users.find((u) => u.id === Number(reset.dataset.resetUser)));
+  });
+  $('#audit-filters').addEventListener('input', debounceAudit);
+  $('#audit-filters').addEventListener('submit', (e) => e.preventDefault());
+  $('#audit-prev').addEventListener('click', () => { state.auditOffset = Math.max(0, state.auditOffset - AUDIT_PAGE); loadAudit(); });
+  $('#audit-next').addEventListener('click', () => { state.auditOffset += AUDIT_PAGE; loadAudit(); });
+  $('#export-audit').addEventListener('click', () => { location.href = `/api/admin/audit/export.csv?${auditQuery()}`; });
 
   $('#q-rows').addEventListener('click', async (e) => {
     const edit = e.target.closest('[data-edit]');
@@ -112,7 +98,7 @@ function bindEvents() {
 }
 
 function showView(view) {
-  if (!['overview', 'questions', 'calls', 'settings'].includes(view)) view = 'overview';
+  if (!['overview', 'questions', 'calls', 'users', 'audit', 'settings'].includes(view)) view = 'overview';
   history.replaceState(null, '', `#${view}`);
   $$('.sidenav [data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
   $$('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== view; });
@@ -120,6 +106,8 @@ function showView(view) {
   if (view === 'questions') loadQuestions();
   if (view === 'calls') loadCalls();
   if (view === 'settings') loadSettings();
+  if (view === 'users') loadUsers();
+  if (view === 'audit') { state.auditOffset = 0; loadAuditUsers().then(loadAudit); }
 }
 
 function closeModals() {
@@ -136,8 +124,8 @@ async function loadOverview() {
   const card = (label, value, sub = '') => `<div class="card stat"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div>${sub ? `<div class="small muted">${esc(sub)}</div>` : ''}</div>`;
   $('#stats').innerHTML = [
     card('Active questions', stats.questions.active, `${stats.questions.total} total`),
-    card('Custom questions', stats.questions.custom, 'Added by administrators'),
     card('Calls today', stats.calls.today, `${totalCalls} all time`),
+    card('Active users', stats.users.active, `${stats.users.total} accounts`),
     card('Meeting necessity', totalCalls ? `${Math.round((meeting / totalCalls) * 100)}%` : '—', `${meeting} of ${totalCalls} calls`),
   ].join('');
   $('#recent-calls').innerHTML = callsTable((calls || []).slice(0, 8));
@@ -287,7 +275,6 @@ async function saveQuestion(e) {
     if (state.editing) await api(`/api/admin/questions/${state.editing.id}`, { method: 'PUT', body });
     else await api('/api/admin/questions', { method: 'POST', body });
   } catch (err) {
-    if (err.status === 401) return showLogin();
     $('#q-error').textContent = err.message;
     $('#q-error').hidden = false;
     return;
@@ -368,6 +355,168 @@ async function openCall(id) {
     <div class="section-label">Transcript</div>
     <div class="card-body" style="background: var(--surface-2); border-radius: var(--radius-sm); white-space: pre-wrap; max-height: 260px; overflow-y: auto">${esc(c.transcript) || '<span class="muted">No transcript.</span>'}</div>`;
   $('#call-modal').hidden = false;
+}
+
+// ------------------------------------------------------------------ users
+async function loadUsers() {
+  const list = await guarded(() => api('/api/admin/users'));
+  if (!list) return;
+  state.users = list;
+  $('#user-rows').innerHTML = list.map((u) => `
+    <tr class="${u.active ? '' : 'inactive'}">
+      <td><strong>${esc(u.display_name)}</strong>${u.id === state.user.id ? ' <span class="chip">You</span>' : ''}</td>
+      <td class="code">${esc(u.username)}</td>
+      <td><span class="chip ${u.role === 'admin' ? 'chip-violet' : 'chip-blue'}">${esc(ROLE_LABELS[u.role])}</span></td>
+      <td>${!u.active ? '<span class="chip">Inactive</span>' : u.must_change_password ? '<span class="chip chip-amber">Password change pending</span>' : '<span class="chip chip-green">Active</span>'}</td>
+      <td class="nowrap">${u.last_login_at ? esc(formatDate(u.last_login_at)) : '<span class="muted">Never</span>'}</td>
+      <td class="actions">
+        <button type="button" class="btn btn-sm" data-edit-user="${u.id}">Edit</button>
+        <button type="button" class="btn btn-sm" data-reset-user="${u.id}">Reset password</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No users.</td></tr>';
+}
+
+function openUser(u) {
+  state.editingUser = u;
+  const el = $('#user-form').elements;
+  $('#user-form').reset();
+  $('#user-error').hidden = true;
+  $('#user-modal-title').textContent = u ? `Edit ${u.display_name}` : 'Add User';
+  el.display_name.value = u?.display_name || '';
+  el.username.value = u?.username || '';
+  el.username.disabled = Boolean(u);
+  el.role.value = u?.role || 'call_taker';
+  el.active.checked = u ? u.active : true;
+  $('#u-active-wrap').hidden = !u;
+  $('#u-hint').textContent = u
+    ? 'Deactivating an account signs the user out immediately. Accounts are never deleted so the audit trail stays intact.'
+    : 'A temporary password will be generated. The user must change it at first sign-in.';
+  $('#user-modal').hidden = false;
+  el.display_name.focus();
+}
+
+async function saveUser(e) {
+  e.preventDefault();
+  const el = e.target.elements;
+  const u = state.editingUser;
+  try {
+    if (u) {
+      await api(`/api/admin/users/${u.id}`, { method: 'PUT', body: { display_name: el.display_name.value.trim(), role: el.role.value, active: el.active.checked } });
+      closeModals();
+      toast('User updated.', 'success');
+    } else {
+      const r = await api('/api/admin/users', { method: 'POST', body: { display_name: el.display_name.value.trim(), username: el.username.value.trim(), role: el.role.value } });
+      closeModals();
+      showTempPassword(r.user, r.temporaryPassword, 'created');
+    }
+    loadUsers();
+  } catch (err) {
+    $('#user-error').textContent = err.message;
+    $('#user-error').hidden = false;
+  }
+}
+
+async function resetPassword(u) {
+  if (!u || !confirm(`Reset the password for ${u.display_name}? They will be signed out everywhere.`)) return;
+  const r = await guarded(() => api(`/api/admin/users/${u.id}/reset-password`, { method: 'POST' }));
+  if (!r) return;
+  showTempPassword(r.user, r.temporaryPassword, 'reset');
+  loadUsers();
+}
+
+function showTempPassword(user, password, what) {
+  $('#password-intro').innerHTML = what === 'created'
+    ? `Account <strong>${esc(user.username)}</strong> created for ${esc(user.display_name)}.`
+    : `Password reset for <strong>${esc(user.username)}</strong>.`;
+  $('#temp-password').textContent = password;
+  $('#password-modal').hidden = false;
+}
+
+// ------------------------------------------------------------------ audit
+const ACTION_LABELS = {
+  'auth.login': 'Signed in',
+  'auth.logout': 'Signed out',
+  'auth.login_failed': 'Failed sign-in',
+  'auth.login_blocked': 'Sign-in blocked (locked)',
+  'auth.password_changed': 'Changed password',
+  'auth.password_change_failed': 'Password change failed',
+  'access.denied': 'Access denied',
+  'call.saved': 'Saved call',
+  'call.viewed': 'Viewed call record',
+  'call.list_viewed': 'Viewed call log',
+  'ai.analyze': 'Sent transcript to AI',
+  'question.created': 'Created question',
+  'question.updated': 'Edited question',
+  'question.deleted': 'Deleted question',
+  'user.created': 'Created user',
+  'user.updated': 'Edited user',
+  'user.activated': 'Activated user',
+  'user.deactivated': 'Deactivated user',
+  'user.password_reset': 'Reset password',
+  'settings.updated': 'Changed settings',
+  'audit.exported': 'Exported audit log',
+};
+const ACTION_CHIPS = { 'auth.login_failed': 'chip-red', 'auth.login_blocked': 'chip-red', 'access.denied': 'chip-red', 'user.deactivated': 'chip-amber', 'user.password_reset': 'chip-amber', 'ai.analyze': 'chip-violet', 'call.viewed': 'chip-blue', 'call.list_viewed': 'chip-blue' };
+
+// Local calendar dates → UTC timestamps matching the stored format.
+const toUtc = (date, addDays = 0) => {
+  const d = new Date(`${date}T00:00`);
+  d.setDate(d.getDate() + addDays);
+  return d.toISOString().replace('T', ' ').slice(0, 23);
+};
+
+function auditQuery() {
+  const f = $('#audit-filters').elements;
+  const p = new URLSearchParams();
+  if (f.q.value.trim()) p.set('q', f.q.value.trim());
+  if (f.user_id.value) p.set('user_id', f.user_id.value);
+  if (f.action.value) p.set('action', f.action.value);
+  if (f.from.value) p.set('from', toUtc(f.from.value));
+  if (f.to.value) p.set('to', toUtc(f.to.value, 1));
+  return p.toString();
+}
+
+let auditTimer;
+function debounceAudit() {
+  clearTimeout(auditTimer);
+  auditTimer = setTimeout(() => { state.auditOffset = 0; loadAudit(); }, 250);
+}
+
+async function loadAuditUsers() {
+  const list = await guarded(() => api('/api/admin/users'));
+  if (!list) return;
+  const sel = $('#audit-filters').elements.user_id;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All users</option>' + list.map((u) => `<option value="${u.id}" ${String(u.id) === current ? 'selected' : ''}>${esc(u.display_name)} (${esc(u.username)})</option>`).join('');
+}
+
+function describeDetails(d) {
+  if (!d || !Object.keys(d).length) return '';
+  if (d.changes) {
+    return Object.entries(d.changes).map(([k, v]) => `${k}: ${JSON.stringify(v.from)} → ${JSON.stringify(v.to)}`).join('\n');
+  }
+  return Object.entries(d).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join('\n');
+}
+
+async function loadAudit() {
+  const r = await guarded(() => api(`/api/admin/audit?${auditQuery()}&limit=${AUDIT_PAGE}&offset=${state.auditOffset}`));
+  if (!r) return;
+  const actionSel = $('#audit-filters').elements.action;
+  const current = actionSel.value;
+  actionSel.innerHTML = '<option value="">All actions</option>' + r.actions.map((a) => `<option value="${esc(a)}" ${a === current ? 'selected' : ''}>${esc(ACTION_LABELS[a] || a)}</option>`).join('');
+  $('#audit-rows').innerHTML = r.rows.map((row) => `
+    <tr>
+      <td class="nowrap">${esc(formatDate(row.created_at.slice(0, 19)))}<div class="small muted">#${row.id}</div></td>
+      <td>${esc(row.username || 'system')}</td>
+      <td><span class="chip ${ACTION_CHIPS[row.action] || ''}" title="${esc(row.action)}">${esc(ACTION_LABELS[row.action] || row.action)}</span></td>
+      <td class="code">${row.entity_type ? `${esc(row.entity_type)} ${esc(row.entity_id ?? '')}` : ''}</td>
+      <td><div class="audit-details">${esc(describeDetails(row.details))}</div></td>
+      <td class="code">${esc(row.ip || '')}</td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No audit entries match these filters.</td></tr>';
+  const first = r.total ? state.auditOffset + 1 : 0;
+  $('#audit-count').textContent = `${first}–${state.auditOffset + r.rows.length} of ${r.total} entries`;
+  $('#audit-prev').disabled = state.auditOffset === 0;
+  $('#audit-next').disabled = state.auditOffset + r.rows.length >= r.total;
 }
 
 // --------------------------------------------------------------- settings

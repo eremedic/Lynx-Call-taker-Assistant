@@ -1,8 +1,9 @@
-import { api, esc, toast, debounce, STATUS_LABELS, CRITERION_LABELS, CRITERION_CHIPS, formatAnswer } from './common.js';
+import { api, esc, toast, debounce, requireUser, mountUserMenu, STATUS_LABELS, CRITERION_LABELS, CRITERION_CHIPS, formatAnswer } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
 
 const state = {
+  user: null,
   config: null,
   questions: [],
   byCode: new Map(),
@@ -25,6 +26,14 @@ const state = {
 
 // ------------------------------------------------------------------ setup
 async function init() {
+  state.user = await requireUser();
+  mountUserMenu($('#user-menu'), state.user);
+  $('#admin-link').hidden = state.user.role !== 'admin';
+  if (new URLSearchParams(location.search).has('denied')) {
+    toast('That page requires administrator access.', 'error');
+    history.replaceState(null, '', location.pathname);
+  }
+  window.lynxBeforeSignOut = () => !state.dirty || confirm('Sign out and discard the current call? It has unsaved changes.');
   try {
     const [config, questions] = await Promise.all([api('/api/config'), api('/api/questions')]);
     state.config = config;
@@ -531,6 +540,7 @@ function buildNarrative() {
   const d = state.details;
   const lines = [];
   lines.push(`Call type: ${state.config.callTypes[state.callType]}`);
+  lines.push(`Call taker: ${state.user.display_name}`);
   if (d.patient_name) lines.push(`Patient: ${d.patient_name}${d.patient_dob ? ` (DOB ${d.patient_dob})` : ''}`);
   if (d.caller_name || d.caller_facility) lines.push(`Caller: ${[d.caller_name, d.caller_facility].filter(Boolean).join(', ')}${d.caller_phone ? ` — ${d.caller_phone}` : ''}`);
   if (d.pickup_location || d.destination) lines.push(`Trip: ${d.pickup_location || '?'} → ${d.destination || '?'}${d.appointment ? ` (appt ${d.appointment.replace('T', ' ')})` : ''}`);
@@ -573,7 +583,6 @@ async function saveCall() {
         details: { ...state.details, ai_summary: state.aiSummary, ai_questions: state.aiQuestions, duration_seconds: state.startedAt ? Math.round((Date.now() - state.startedAt) / 1000) : 0 },
         answers: state.answers,
         transcript: state.transcript,
-        callTaker: state.details.call_taker || '',
       },
     });
     state.savedId = r.id;
@@ -589,13 +598,12 @@ async function saveCall() {
 async function newCall() {
   if (state.dirty && !confirm('Discard the current call? It has unsaved changes.')) return;
   if (listening) stopListening();
-  const keepTaker = state.details.call_taker;
   Object.assign(state, {
-    callType: 'non_emergency', details: keepTaker ? { call_taker: keepTaker } : {}, answers: {}, transcript: '', evaluation: null,
+    callType: 'non_emergency', details: {}, answers: {}, transcript: '', evaluation: null,
     rejected: new Set(), skipped: new Set(), aiSuggestions: {}, aiQuestions: [], aiSummary: '', aiAnalyzedLength: 0,
     startedAt: null, dirty: false, savedId: null,
   });
-  document.querySelectorAll('[data-detail]').forEach((i) => { i.value = state.details[i.dataset.detail] || ''; });
+  document.querySelectorAll('[data-detail]').forEach((i) => { i.value = ''; });
   $('#transcript').value = '';
   renderAiQuestions();
   try {

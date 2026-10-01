@@ -7,22 +7,6 @@
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-  <!-- =========================================================== LOGIN -->
-  <div id="login" class="login-wrap" hidden>
-    <form id="login-form" class="card login-card">
-      <div class="brand" style="color: var(--ink-900)"><div class="brand-mark" style="color:#fff">L</div><div>Lynx</div></div>
-      <h1>Admin Dashboard</h1>
-      <p class="muted" style="margin-top: 0">Sign in to manage the question bank and review calls.</p>
-      <div class="field">
-        <label for="password">Admin password</label>
-        <input id="password" class="input" type="password" autocomplete="current-password" required autofocus>
-      </div>
-      <p id="login-error" class="small" style="color: var(--red-600)" hidden></p>
-      <button class="btn btn-primary btn-lg" style="width: 100%" type="submit">Sign in</button>
-      <p class="small muted" style="text-align:center; margin-bottom: 0"><a href="index.html">← Back to call-taker console</a></p>
-    </form>
-  </div>
-
   <!-- =========================================================== APP -->
   <div id="app" hidden>
     <header class="topbar">
@@ -33,7 +17,7 @@
       <div class="spacer"></div>
       <div class="meta">
         <a class="btn btn-dark btn-sm" href="index.html">Open Console</a>
-        <button id="logout" class="btn btn-dark btn-sm" type="button">Sign out</button>
+        <div id="user-menu"></div>
       </div>
     </header>
 
@@ -42,6 +26,8 @@
         <button type="button" data-view="overview" class="active"><span class="nav-icon">◧</span>Overview</button>
         <button type="button" data-view="questions"><span class="nav-icon">☰</span>Question Bank</button>
         <button type="button" data-view="calls"><span class="nav-icon">☏</span>Call Log</button>
+        <button type="button" data-view="users"><span class="nav-icon">◉</span>Users</button>
+        <button type="button" data-view="audit"><span class="nav-icon">⧉</span>Audit Log</button>
         <button type="button" data-view="settings"><span class="nav-icon">⚙</span>Settings</button>
       </nav>
 
@@ -105,6 +91,49 @@
             <button id="refresh-calls" class="btn" type="button">Refresh</button>
           </div>
           <div class="card"><div class="table-wrap" id="calls-table"></div></div>
+        </section>
+
+        <!-- ---------------------------------------------------- users -->
+        <section data-panel="users" hidden>
+          <div class="page-head">
+            <div><h1>Users</h1><p>Call-taker and administrator accounts. Every action is recorded in the audit log.</p></div>
+            <button id="add-user" class="btn btn-primary" type="button">+ Add User</button>
+          </div>
+          <div class="card">
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Last sign-in</th><th></th></tr></thead>
+                <tbody id="user-rows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------------- audit -->
+        <section data-panel="audit" hidden>
+          <div class="page-head">
+            <div><h1>Audit Log</h1><p>Append-only record of sign-ins, record access, and configuration changes. Entries cannot be edited or deleted.</p></div>
+            <button id="export-audit" class="btn" type="button">Export CSV</button>
+          </div>
+          <div class="card">
+            <form id="audit-filters" class="toolbar">
+              <input name="q" class="input grow" type="search" placeholder="Search username, details, record ID…" aria-label="Search audit log">
+              <select name="user_id" class="select" aria-label="Filter by user"><option value="">All users</option></select>
+              <select name="action" class="select" aria-label="Filter by action"><option value="">All actions</option></select>
+              <label class="small muted">From <input name="from" class="input" type="date" style="min-width: 0"></label>
+              <label class="small muted">To <input name="to" class="input" type="date" style="min-width: 0"></label>
+            </form>
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Record</th><th>Details</th><th>IP</th></tr></thead>
+                <tbody id="audit-rows"></tbody>
+              </table>
+            </div>
+            <div class="pager">
+              <span id="audit-count"></span>
+              <span><button id="audit-prev" class="btn btn-sm" type="button">← Newer</button> <button id="audit-next" class="btn btn-sm" type="button">Older →</button></span>
+            </div>
+          </div>
         </section>
 
         <!-- ------------------------------------------------- settings -->
@@ -273,6 +302,59 @@
         <button type="submit" class="btn btn-primary">Save question</button>
       </div>
     </form>
+  </div>
+
+  <!-- ====================================================== USER MODAL -->
+  <div id="user-modal" class="modal-backdrop" hidden>
+    <form id="user-form" class="modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title" style="max-width: 480px" novalidate>
+      <div class="modal-head">
+        <h2 id="user-modal-title">Add User</h2>
+        <button type="button" class="btn btn-ghost btn-sm" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="u-display_name">Full name</label>
+          <input id="u-display_name" name="display_name" class="input" required>
+        </div>
+        <div class="field">
+          <label for="u-username">Username</label>
+          <input id="u-username" name="username" class="input" autocapitalize="none" spellcheck="false" required>
+          <span class="hint">3–32 characters: letters, digits, dot, dash or underscore. Cannot be changed later.</span>
+        </div>
+        <div class="field">
+          <label for="u-role">Role</label>
+          <select id="u-role" name="role" class="select">
+            <option value="call_taker">Call Taker — uses the console</option>
+            <option value="admin">Administrator — console, question bank, users, audit log</option>
+          </select>
+        </div>
+        <label class="switch" id="u-active-wrap">
+          <input type="checkbox" name="active"><span class="track"></span><span>Account active</span>
+        </label>
+        <p id="u-hint" class="small muted"></p>
+        <p id="user-error" class="small" style="color: var(--red-600)" role="alert" hidden></p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save user</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ============================================ TEMP PASSWORD MODAL -->
+  <div id="password-modal" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="password-modal-title" style="max-width: 480px">
+      <div class="modal-head">
+        <h2 id="password-modal-title">Temporary password</h2>
+        <button type="button" class="btn btn-ghost btn-sm" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="password-intro" style="margin-top: 0"></p>
+        <div class="secret"><span id="temp-password"></span><button id="copy-password" type="button" class="btn btn-sm">Copy</button></div>
+        <p class="small muted">Give this to the user privately. It is shown only once. They must choose a new password the first time they sign in.</p>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-primary" data-close>Done</button></div>
+    </div>
   </div>
 
   <!-- ====================================================== CALL MODAL -->

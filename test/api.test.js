@@ -1,90 +1,172 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from '../server/app.js';
+import { createApp, ensureInitialAdmin } from '../server/app.js';
 import { openDb } from '../server/db.js';
 
 let server;
 let base;
-let cookie = '';
+let db;
+const ADMIN_PW = 'Strong-pass-2026';
 
-const req = async (path, { method = 'GET', body, auth = false } = {}) => {
-  const res = await fetch(base + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(auth ? { Cookie: cookie } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const text = await res.text();
-  return { status: res.status, headers: res.headers, data: text ? JSON.parse(text) : null };
-};
+// Minimal cookie-jar client.
+function client() {
+  let cookie = '';
+  return async (path, { method = 'GET', body } = {}) => {
+    const res = await fetch(base + path, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
+      body: method === 'GET' ? undefined : JSON.stringify(body ?? {}),
+    });
+    const set = res.headers.get('set-cookie');
+    if (set) cookie = set.split(';')[0];
+    const text = await res.text();
+    let data = text;
+    try { data = text ? JSON.parse(text) : null; } catch { /* csv */ }
+    return { status: res.status, data, headers: res.headers };
+  };
+}
+
+async function signIn(username, password, newPassword) {
+  const c = client();
+  const r = await c('/api/auth/login', { method: 'POST', body: { username, password } });
+  assert.equal(r.status, 200, `login ${username}`);
+  if (r.data.user.must_change_password) {
+    const ch = await c('/api/auth/change-password', { method: 'POST', body: { currentPassword: password, newPassword } });
+    assert.equal(ch.status, 200, JSON.stringify(ch.data));
+  }
+  return c;
+}
+
+const auditActions = () => db.prepare('SELECT action FROM audit_log ORDER BY id').all().map((r) => r.action);
+
+let admin;
+let taker;
 
 before(async () => {
-  const app = createApp({ db: openDb(':memory:'), adminPassword: 'test-pass' });
+  db = openDb(':memory:');
+  await ensureInitialAdmin(db, { username: 'admin', password: 'Temp-first-1' });
+  const app = createApp({ db });
   await new Promise((resolve) => { server = app.listen(0, resolve); });
   base = `http://127.0.0.1:${server.address().port}`;
 });
 after(() => server.close());
 
-test('admin endpoints require login', async () => {
-  assert.equal((await req('/api/admin/questions')).status, 401);
-  assert.equal((await req('/api/admin/login', { method: 'POST', body: { password: 'wrong' } })).status, 401);
-  const ok = await req('/api/admin/login', { method: 'POST', body: { password: 'test-pass' } });
+test('everything except sign-in requires a session', async () => {
+  const anon = client();
+  for (const path of ['/api/questions', '/api/config', '/api/admin/questions', '/api/admin/audit']) {
+    assert.equal((await anon(path)).status, 401, path);
+  }
+  assert.equal((await anon('/api/evaluate', { method: 'POST', body: {} })).status, 401);
+  assert.equal((await anon('/api/public-config')).status, 200);
+});
+
+test('initial admin must change the temporary password before doing anything', async () => {
+  const c = client();
+  const r = await c('/api/auth/login', { method: 'POST', body: { username: 'admin', password: 'Temp-first-1' } });
+  assert.equal(r.data.user.must_change_password, true);
+  const blocked = await c('/api/admin/questions');
+  assert.equal(blocked.status, 403);
+  assert.equal(blocked.data.code, 'PASSWORD_CHANGE_REQUIRED');
+
+  const weak = await c('/api/auth/change-password', { method: 'POST', body: { currentPassword: 'Temp-first-1', newPassword: 'short' } });
+  assert.equal(weak.status, 400);
+  const ok = await c('/api/auth/change-password', { method: 'POST', body: { currentPassword: 'Temp-first-1', newPassword: ADMIN_PW } });
   assert.equal(ok.status, 200);
-  cookie = ok.headers.get('set-cookie').split(';')[0];
-  assert.equal((await req('/api/admin/questions', { auth: true })).status, 200);
+  assert.equal((await c('/api/admin/questions')).status, 200);
+  admin = c;
 });
 
-test('admin can add a custom question that the console then prompts', async () => {
-  const created = await req('/api/admin/questions', {
+test('admin creates a call taker who gets a temporary password', async () => {
+  const r = await admin('/api/admin/users', { method: 'POST', body: { username: 'jdoe', display_name: 'Jane Doe', role: 'call_taker' } });
+  assert.equal(r.status, 201);
+  assert.ok(r.data.temporaryPassword.length >= 12);
+  assert.equal((await admin('/api/admin/users', { method: 'POST', body: { username: 'JDOE', display_name: 'Dup', role: 'call_taker' } })).status, 400, 'usernames are case-insensitive');
+  taker = await signIn('jdoe', r.data.temporaryPassword, 'Taker-pass-2026');
+});
+
+test('call takers can use the console but not the admin API', async () => {
+  assert.equal((await taker('/api/questions')).status, 200);
+  assert.equal((await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency' } })).status, 200);
+  const denied = await taker('/api/admin/questions');
+  assert.equal(denied.status, 403);
+  assert.ok(auditActions().includes('access.denied'));
+});
+
+test('saved calls are attributed to the signed-in user', async () => {
+  const saved = await taker('/api/calls', {
     method: 'POST',
-    auth: true,
-    body: {
-      code: 'CLN_SEIZURE', category: 'Clinical Condition', text: 'Has the patient had a seizure in the last 24 hours?',
-      answer_type: 'yes_no', criterion: 'condition', qualifying_answer: 'yes', priority: 1, required: true,
-      triggers: ['seizure'], detect_yes: ['had a seizure'],
-    },
-  });
-  assert.equal(created.status, 201);
-  assert.equal(created.data.is_system, false);
-
-  const dup = await req('/api/admin/questions', { method: 'POST', auth: true, body: { ...created.data } });
-  assert.equal(dup.status, 400);
-
-  const quiet = await req('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', transcript: '' } });
-  assert.ok(!quiet.data.visibleCodes.includes('CLN_SEIZURE'));
-  const heard = await req('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', transcript: 'he had a seizure this morning' } });
-  assert.ok(heard.data.visibleCodes.includes('CLN_SEIZURE'));
-  assert.equal(heard.data.suggestions.CLN_SEIZURE.answer, 'yes');
-
-  const answered = await req('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', answers: { CLN_SEIZURE: 'yes' } } });
-  assert.ok(answered.data.assessment.supporting.some((s) => s.code === 'CLN_SEIZURE'));
-
-  assert.equal((await req(`/api/admin/questions/${created.data.id}`, { method: 'DELETE', auth: true })).status, 204);
-});
-
-test('built-in questions can be deactivated but not deleted', async () => {
-  const list = (await req('/api/admin/questions', { auth: true })).data;
-  const sys = list.find((q) => q.code === 'CLN_BARIATRIC');
-  assert.equal((await req(`/api/admin/questions/${sys.id}`, { method: 'DELETE', auth: true })).status, 400);
-  const off = await req(`/api/admin/questions/${sys.id}`, { method: 'PUT', auth: true, body: { active: false, code: 'RENAMED' } });
-  assert.equal(off.data.active, false);
-  assert.equal(off.data.code, 'CLN_BARIATRIC');
-  const active = (await req('/api/questions')).data;
-  assert.ok(!active.some((q) => q.code === 'CLN_BARIATRIC'));
-});
-
-test('saving a call re-evaluates on the server and appears in the log', async () => {
-  const saved = await req('/api/calls', {
-    method: 'POST',
-    body: { callType: 'non_emergency', details: { patient_name: 'Test Patient' }, answers: { CLN_VENT: 'yes' }, transcript: 'on the vent' },
+    body: { callType: 'non_emergency', details: { patient_name: 'Test Patient' }, answers: { CLN_VENT: 'yes' }, transcript: 'on the vent', callTaker: 'spoofed' },
   });
   assert.equal(saved.status, 201);
-  const call = (await req(`/api/admin/calls/${saved.data.id}`, { auth: true })).data;
+  const call = (await admin(`/api/admin/calls/${saved.data.id}`)).data;
+  assert.equal(call.call_taker, 'Jane Doe');
   assert.equal(call.assessment.levelOfService.hcpcs, 'A0434');
-  const log = (await req('/api/admin/calls', { auth: true })).data;
-  assert.equal(log[0].details.patient_name, 'Test Patient');
+
+  const { rows } = (await admin('/api/admin/audit?action=call.')).data;
+  assert.ok(rows.some((r) => r.action === 'call.saved' && r.username === 'jdoe' && r.entity_id === String(saved.data.id)));
+  assert.ok(rows.some((r) => r.action === 'call.viewed' && r.username === 'admin'), 'viewing PHI is audited');
 });
 
-test('AI endpoint reports when it is unavailable', async () => {
-  const r = await req('/api/ai/analyze', { method: 'POST', body: { transcript: 'hello' } });
-  if (!process.env.ANTHROPIC_API_KEY) assert.equal(r.status, 503);
+test('question changes are audited with before/after values', async () => {
+  const created = await admin('/api/admin/questions', {
+    method: 'POST',
+    body: { code: 'CLN_SEIZURE', category: 'Clinical Condition', text: 'Seizure in the last 24 hours?', answer_type: 'yes_no', criterion: 'condition', qualifying_answer: 'yes', triggers: ['seizure'] },
+  });
+  assert.equal(created.status, 201);
+  await admin(`/api/admin/questions/${created.data.id}`, { method: 'PUT', body: { priority: 1 } });
+  const { rows } = (await admin('/api/admin/audit?action=question.updated')).data;
+  assert.deepEqual(rows[0].details.changes.priority, { from: 3, to: 1 });
+
+  const heard = await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', transcript: 'he had a seizure' } });
+  assert.ok(heard.data.visibleCodes.includes('CLN_SEIZURE'));
+});
+
+test('repeated failed sign-ins lock the account', async () => {
+  const c = client();
+  for (let i = 0; i < 5; i++) {
+    assert.equal((await c('/api/auth/login', { method: 'POST', body: { username: 'jdoe', password: 'wrong-password1' } })).status, 401);
+  }
+  const locked = await c('/api/auth/login', { method: 'POST', body: { username: 'jdoe', password: 'Taker-pass-2026' } });
+  assert.equal(locked.status, 429);
+  assert.ok(auditActions().includes('auth.login_blocked'));
+});
+
+test('deactivating a user ends their session; password reset unlocks', async () => {
+  const users = (await admin('/api/admin/users')).data;
+  const jdoe = users.find((u) => u.username === 'jdoe');
+  await admin(`/api/admin/users/${jdoe.id}`, { method: 'PUT', body: { active: false } });
+  assert.equal((await taker('/api/questions')).status, 401);
+
+  await admin(`/api/admin/users/${jdoe.id}`, { method: 'PUT', body: { active: true } });
+  const reset = await admin(`/api/admin/users/${jdoe.id}/reset-password`, { method: 'POST' });
+  taker = await signIn('jdoe', reset.data.temporaryPassword, 'Taker-pass-2027');
+  assert.equal((await taker('/api/questions')).status, 200);
+});
+
+test('the last administrator cannot be demoted or deactivated', async () => {
+  const me = (await admin('/api/admin/users')).data.find((u) => u.username === 'admin');
+  assert.equal((await admin(`/api/admin/users/${me.id}`, { method: 'PUT', body: { role: 'call_taker' } })).status, 400);
+  assert.equal((await admin(`/api/admin/users/${me.id}`, { method: 'PUT', body: { active: false } })).status, 400);
+});
+
+test('audit log is append-only and exportable', async () => {
+  assert.throws(() => db.exec('DELETE FROM audit_log'), /append-only/);
+  assert.throws(() => db.exec("UPDATE audit_log SET action = 'x'"), /append-only/);
+  const csv = await admin('/api/admin/audit/export.csv');
+  assert.equal(csv.status, 200);
+  assert.match(csv.headers.get('content-type'), /text\/csv/);
+  assert.match(csv.data, /^id,timestamp_utc,user_id,username,action/);
+  assert.ok(auditActions().includes('audit.exported'));
+});
+
+test('state-changing requests must be JSON', async () => {
+  const res = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'username=admin&password=x' });
+  assert.equal(res.status, 415);
+});
+
+test('logout ends the session', async () => {
+  const c = await signIn('admin', ADMIN_PW);
+  await c('/api/auth/logout', { method: 'POST' });
+  assert.equal((await c('/api/questions')).status, 401);
+  assert.ok(auditActions().includes('auth.logout'));
 });

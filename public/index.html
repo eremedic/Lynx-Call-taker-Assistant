@@ -16,7 +16,8 @@
     <div class="meta">
       <span id="call-timer" class="call-timer">00:00</span>
       <button id="new-call" class="btn btn-dark btn-sm" type="button">New Call</button>
-      <a class="btn btn-dark btn-sm" href="admin.html">Admin</a>
+      <a id="admin-link" class="btn btn-dark btn-sm" href="admin.html" hidden>Admin</a>
+      <div id="user-menu"></div>
     </div>
   </header>
 
@@ -63,7 +64,6 @@
           <div class="row">
             <div class="field"><label for="d-appointment">Appointment</label><input class="input" id="d-appointment" type="datetime-local" data-detail="appointment"></div>
           </div>
-          <div class="field"><label for="d-call_taker">Call taker</label><input class="input" id="d-call_taker" data-detail="call_taker"></div>
         </div>
       </div>
     </section>
