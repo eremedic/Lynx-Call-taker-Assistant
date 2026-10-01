@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lynx Call-Taker Console</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">L</div>
+      <div>Lynx <small id="org-name">Call-Taker Assistant</small></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="meta">
+      <span id="call-timer" class="call-timer">00:00</span>
+      <button id="new-call" class="btn btn-dark btn-sm" type="button">New Call</button>
+      <a class="btn btn-dark btn-sm" href="admin.html">Admin</a>
+    </div>
+  </header>
+
+  <div id="emergency-bar" class="emergency-bar" role="alert" hidden>
+    <span>⚠</span>
+    <span>Possible emergency — transfer the caller to 911 / emergency dispatch per protocol.</span>
+  </div>
+
+  <main class="console">
+    <!-- ======================================================= LEFT -->
+    <section class="col left">
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Call Type</h2></div>
+        <div class="card-body">
+          <div id="call-type" class="segmented" role="radiogroup" aria-label="Call type">
+            <button type="button" data-type="non_emergency" role="radio">Non-emergency<small>Scheduled or unscheduled, one-time</small></button>
+            <button type="button" data-type="repetitive" role="radio">Repetitive scheduled<small>Dialysis, wound care, chemo…</small></button>
+            <button type="button" data-type="emergency" role="radio">Emergency<small>Emergency response</small></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Call Details</h2></div>
+        <div class="card-body" id="details-form">
+          <div class="section-label">Caller</div>
+          <div class="field"><label for="d-caller_name">Caller name</label><input class="input" id="d-caller_name" data-detail="caller_name"></div>
+          <div class="row">
+            <div class="field"><label for="d-caller_phone">Callback #</label><input class="input" id="d-caller_phone" data-detail="caller_phone" inputmode="tel"></div>
+            <div class="field"><label for="d-caller_facility">Facility</label><input class="input" id="d-caller_facility" data-detail="caller_facility"></div>
+          </div>
+
+          <div class="section-label">Patient</div>
+          <div class="field"><label for="d-patient_name">Patient name</label><input class="input" id="d-patient_name" data-detail="patient_name"></div>
+          <div class="row">
+            <div class="field"><label for="d-patient_dob">Date of birth</label><input class="input" id="d-patient_dob" type="date" data-detail="patient_dob"></div>
+            <div class="field"><label for="d-patient_weight">Weight (lbs)</label><input class="input" id="d-patient_weight" inputmode="numeric" data-detail="patient_weight"></div>
+          </div>
+          <div class="field"><label for="d-member_id">Medicare / member ID</label><input class="input" id="d-member_id" data-detail="member_id"></div>
+
+          <div class="section-label">Trip</div>
+          <div class="field"><label for="d-pickup_location">Pick-up location</label><input class="input" id="d-pickup_location" data-detail="pickup_location"></div>
+          <div class="field"><label for="d-destination">Destination</label><input class="input" id="d-destination" data-detail="destination"></div>
+          <div class="row">
+            <div class="field"><label for="d-appointment">Appointment</label><input class="input" id="d-appointment" type="datetime-local" data-detail="appointment"></div>
+          </div>
+          <div class="field"><label for="d-call_taker">Call taker</label><input class="input" id="d-call_taker" data-detail="call_taker"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== CENTER -->
+    <section class="col center">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Live Conversation</h2>
+          <div class="header-actions">
+            <span id="mic-status" class="mic-status"></span>
+            <button id="mic-btn" class="btn btn-sm mic-btn" type="button">🎙 Start listening</button>
+            <button id="ai-btn" class="btn btn-sm" type="button" hidden>✦ Analyze with AI</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <textarea id="transcript" class="textarea transcript-box" placeholder="Speech is transcribed here as the caller talks. You can also type or paste notes — e.g. &quot;Patient is bedbound with contractures, on 2 liters oxygen, going to dialysis Monday, Wednesday, Friday.&quot;"></textarea>
+          <div id="interim" class="interim" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div id="ask-next" class="ask-next" aria-live="polite"></div>
+
+      <div id="suggestions-card" class="card" hidden>
+        <div class="card-header">
+          <h2 class="card-title">Detected From Conversation</h2>
+          <button id="accept-all" class="btn btn-sm" type="button">Accept all</button>
+        </div>
+        <div class="card-body" id="suggestions" style="padding-top: 4px; padding-bottom: 4px;"></div>
+      </div>
+
+      <div id="ai-questions-card" class="card" hidden>
+        <div class="card-header">
+          <h2 class="card-title">AI-Suggested Follow-ups</h2>
+          <span class="chip chip-violet">AI</span>
+        </div>
+        <div class="card-body" id="ai-questions"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Question Checklist</h2>
+          <span id="checklist-count" class="muted small"></span>
+        </div>
+        <div id="checklist"></div>
+      </div>
+    </section>
+
+    <!-- ====================================================== RIGHT -->
+    <section class="col right">
+      <div id="status-banner" class="status-banner status-incomplete">
+        <div class="label">CMS Medical Necessity</div>
+        <div class="value" id="status-value">Gathering Information</div>
+        <p id="status-summary"></p>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="row" style="justify-content: space-between; margin-bottom: 6px;">
+            <span class="label">Interview progress</span>
+            <span id="progress-text" class="muted small"></span>
+          </div>
+          <div class="progress"><span id="progress-bar" style="width: 0"></span></div>
+          <div class="section-label" style="margin-top: 14px;">Recommended level of service</div>
+          <div class="los"><span id="los-name" class="name">—</span><code id="los-code" hidden></code></div>
+        </div>
+      </div>
+
+      <div id="alerts-card" class="card" hidden>
+        <div class="card-header"><h2 class="card-title">Alerts</h2></div>
+        <div class="card-body" id="alerts"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Necessity Criteria</h2></div>
+        <div class="card-body">
+          <div class="section-label">Bed confinement (all 3 required)</div>
+          <ul id="bed-list" class="checklist"></ul>
+          <div class="section-label">Supporting conditions</div>
+          <ul id="support-list" class="checklist"></ul>
+          <div id="disq-wrap" hidden>
+            <div class="section-label">Disqualifying factors</div>
+            <ul id="disq-list" class="checklist"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div id="missing-card" class="card" hidden>
+        <div class="card-header"><h2 class="card-title">Required — Not Yet Answered</h2></div>
+        <div class="card-body"><ul id="missing-list" class="checklist"></ul></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Documentation</h2></div>
+        <div class="card-body"><ul id="doc-list" class="checklist"></ul></div>
+      </div>
+
+      <div class="card no-print">
+        <div class="card-body" style="display: flex; flex-direction: column; gap: 8px;">
+          <button id="save-call" class="btn btn-primary btn-lg" type="button">Save Call Record</button>
+          <div class="row">
+            <button id="copy-summary" class="btn" type="button">Copy narrative</button>
+            <button id="print" class="btn" type="button">Print</button>
+          </div>
+          <p class="disclaimer">Decision-support only. This tool does not make coverage determinations. Final medical-necessity decisions must be based on complete documentation, CMS regulations (42 CFR 410.40; Medicare Benefit Policy Manual Ch. 10) and your MAC's local coverage policies.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="js/console.js"></script>
+</body>
+</html>

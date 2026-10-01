@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lynx Admin Dashboard</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <!-- =========================================================== LOGIN -->
+  <div id="login" class="login-wrap" hidden>
+    <form id="login-form" class="card login-card">
+      <div class="brand" style="color: var(--ink-900)"><div class="brand-mark" style="color:#fff">L</div><div>Lynx</div></div>
+      <h1>Admin Dashboard</h1>
+      <p class="muted" style="margin-top: 0">Sign in to manage the question bank and review calls.</p>
+      <div class="field">
+        <label for="password">Admin password</label>
+        <input id="password" class="input" type="password" autocomplete="current-password" required autofocus>
+      </div>
+      <p id="login-error" class="small" style="color: var(--red-600)" hidden></p>
+      <button class="btn btn-primary btn-lg" style="width: 100%" type="submit">Sign in</button>
+      <p class="small muted" style="text-align:center; margin-bottom: 0"><a href="index.html">← Back to call-taker console</a></p>
+    </form>
+  </div>
+
+  <!-- =========================================================== APP -->
+  <div id="app" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">L</div>
+        <div>Lynx <small id="org-name">Admin Dashboard</small></div>
+      </div>
+      <div class="spacer"></div>
+      <div class="meta">
+        <a class="btn btn-dark btn-sm" href="index.html">Open Console</a>
+        <button id="logout" class="btn btn-dark btn-sm" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <div class="admin-layout">
+      <nav class="sidenav" aria-label="Admin sections">
+        <button type="button" data-view="overview" class="active"><span class="nav-icon">◧</span>Overview</button>
+        <button type="button" data-view="questions"><span class="nav-icon">☰</span>Question Bank</button>
+        <button type="button" data-view="calls"><span class="nav-icon">☏</span>Call Log</button>
+        <button type="button" data-view="settings"><span class="nav-icon">⚙</span>Settings</button>
+      </nav>
+
+      <main class="admin-main">
+        <!-- ------------------------------------------------- overview -->
+        <section data-panel="overview">
+          <div class="page-head">
+            <div><h1>Overview</h1><p>Question bank and call activity at a glance.</p></div>
+          </div>
+          <div class="stats" id="stats"></div>
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Recent Calls</h2><button class="btn btn-sm" type="button" data-goto="calls">View all</button></div>
+            <div class="table-wrap" id="recent-calls"></div>
+          </div>
+          <div class="card" style="margin-top: 16px">
+            <div class="card-header"><h2 class="card-title">How questions drive the assessment</h2></div>
+            <div class="card-body">
+              <dl class="kv" style="grid-template-columns: 180px 1fr">
+                <dt><span class="chip chip-red">Emergency screen</span></dt><dd>A qualifying answer raises an emergency alert on the console.</dd>
+                <dt><span class="chip chip-blue">Bed confinement</span></dt><dd>CMS three-part test — all questions with this criterion must have the qualifying answer.</dd>
+                <dt><span class="chip chip-green">Supports necessity</span></dt><dd>Any single qualifying answer supports medical necessity for ambulance transport.</dd>
+                <dt><span class="chip chip-violet">ALS / SCT indicator</span></dt><dd>Supports necessity and raises the recommended level of service.</dd>
+                <dt><span class="chip chip-amber">Disqualifier</span></dt><dd>A qualifying answer indicates the patient can travel by other means.</dd>
+                <dt><span class="chip">Documentation</span></dt><dd>Paperwork needed to support the claim; a non-qualifying answer is flagged as a gap.</dd>
+                <dt><span class="chip">Information</span></dt><dd>Collected for the record only. Use alerts to warn the call taker about specific answers.</dd>
+              </dl>
+            </div>
+          </div>
+        </section>
+
+        <!-- ------------------------------------------------ questions -->
+        <section data-panel="questions" hidden>
+          <div class="page-head">
+            <div><h1>Question Bank</h1><p>Questions the console prompts the call taker to ask. Add questions the AI or built-in bank does not cover.</p></div>
+            <button id="add-question" class="btn btn-primary" type="button">+ Add Question</button>
+          </div>
+          <div class="card">
+            <div class="toolbar">
+              <input id="q-search" class="input grow" type="search" placeholder="Search questions, codes, keywords…" aria-label="Search questions">
+              <select id="q-category" class="select" aria-label="Filter by category"><option value="">All categories</option></select>
+              <select id="q-status" class="select" aria-label="Filter by status">
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="custom">Custom only</option>
+              </select>
+            </div>
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr><th style="width:60px">Order</th><th>Question</th><th>Type</th><th>Criterion</th><th>Priority</th><th>Active</th><th></th></tr></thead>
+                <tbody id="q-rows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------------- calls -->
+        <section data-panel="calls" hidden>
+          <div class="page-head">
+            <div><h1>Call Log</h1><p>Saved call records with their medical-necessity assessment.</p></div>
+            <button id="refresh-calls" class="btn" type="button">Refresh</button>
+          </div>
+          <div class="card"><div class="table-wrap" id="calls-table"></div></div>
+        </section>
+
+        <!-- ------------------------------------------------- settings -->
+        <section data-panel="settings" hidden>
+          <div class="page-head">
+            <div><h1>Settings</h1><p>Organization and AI assistant configuration.</p></div>
+          </div>
+          <form id="settings-form" class="card" style="max-width: 720px">
+            <div class="card-body">
+              <div class="field">
+                <label for="s-org">Organization name</label>
+                <input id="s-org" class="input" name="org_name" maxlength="80">
+              </div>
+              <div class="section-label">AI assistant</div>
+              <div id="ai-status" class="alert" style="margin-bottom: 12px"></div>
+              <label class="switch" style="margin-bottom: 10px">
+                <input type="checkbox" name="ai_enabled"><span class="track"></span>
+                <span>Enable AI transcript analysis</span>
+              </label>
+              <br>
+              <label class="switch">
+                <input type="checkbox" name="ai_auto_analyze"><span class="track"></span>
+                <span>Analyze automatically as the conversation progresses</span>
+              </label>
+              <p class="small muted" style="margin-top: 14px">Transcripts contain protected health information (PHI). Only enable AI analysis when a Business Associate Agreement covering the AI provider is in place.</p>
+            </div>
+            <div class="modal-foot" style="border-radius: 0 0 var(--radius) var(--radius)">
+              <button class="btn btn-primary" type="submit">Save settings</button>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- ================================================== QUESTION MODAL -->
+  <div id="q-modal" class="modal-backdrop" hidden>
+    <form id="q-form" class="modal" role="dialog" aria-modal="true" aria-labelledby="q-modal-title" novalidate>
+      <div class="modal-head">
+        <h2 id="q-modal-title">Add Question</h2>
+        <button type="button" class="btn btn-ghost btn-sm" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field span-2">
+            <label for="f-text">Question (as the call taker should ask it)</label>
+            <textarea id="f-text" name="text" class="textarea" rows="2" required></textarea>
+          </div>
+          <div class="field">
+            <label for="f-code">Code</label>
+            <input id="f-code" name="code" class="input" placeholder="e.g. CLN_SEIZURE" required>
+            <span class="hint">Unique ID. Capital letters, digits, underscores.</span>
+          </div>
+          <div class="field">
+            <label for="f-category">Category</label>
+            <input id="f-category" name="category" class="input" list="category-list" required>
+            <datalist id="category-list"></datalist>
+          </div>
+          <div class="field">
+            <label for="f-answer_type">Answer type</label>
+            <select id="f-answer_type" name="answer_type" class="select">
+              <option value="yes_no">Yes / No</option>
+              <option value="choice">Multiple choice</option>
+              <option value="text">Free text</option>
+              <option value="number">Number</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="f-priority">Priority</label>
+            <select id="f-priority" name="priority" class="select">
+              <option value="1">1 — Critical (ask first)</option>
+              <option value="2">2 — High</option>
+              <option value="3">3 — Normal</option>
+            </select>
+          </div>
+          <div class="field span-2" data-show-for="choice">
+            <label for="f-options">Answer options (one per line)</label>
+            <textarea id="f-options" name="options" class="textarea" rows="3"></textarea>
+          </div>
+          <div class="field span-2">
+            <label for="f-guidance">Guidance for the call taker</label>
+            <textarea id="f-guidance" name="guidance" class="textarea" rows="2" placeholder="Why this matters / CMS reference / what to document"></textarea>
+          </div>
+        </div>
+
+        <fieldset class="group">
+          <legend>Medical necessity</legend>
+          <div class="form-grid">
+            <div class="field">
+              <label for="f-criterion">Criterion</label>
+              <select id="f-criterion" name="criterion" class="select"></select>
+            </div>
+            <div class="field">
+              <label for="f-qualifying_answer">Qualifying answer</label>
+              <input id="f-qualifying_answer" name="qualifying_answer" class="input" list="answer-list" placeholder="e.g. yes">
+              <datalist id="answer-list"><option value="yes"><option value="no"></datalist>
+              <span class="hint">The answer that meets this criterion.</span>
+            </div>
+            <div class="field span-2">
+              <span class="label">Applies to call types</span>
+              <div class="checkbox-row" id="f-call_types"></div>
+              <span class="hint">Leave all unchecked to ask on every call.</span>
+            </div>
+            <div class="field span-2">
+              <span class="label">Options</span>
+              <div class="checkbox-row">
+                <label><input type="checkbox" name="required"> Required before the call is complete</label>
+                <label><input type="checkbox" name="active"> Active</label>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Conversation detection</legend>
+          <div class="form-grid">
+            <div class="field span-2">
+              <label for="f-triggers">Only ask when these words are heard (one per line)</label>
+              <textarea id="f-triggers" name="triggers" class="textarea" rows="2" placeholder="Leave empty to always ask"></textarea>
+              <span class="hint">Matches the start of a word, so “titrat” matches “titrating”.</span>
+            </div>
+            <div class="field" data-show-for="yes_no">
+              <label for="f-detect_yes">Phrases that suggest “Yes”</label>
+              <textarea id="f-detect_yes" name="detect_yes" class="textarea" rows="3"></textarea>
+            </div>
+            <div class="field" data-show-for="yes_no">
+              <label for="f-detect_no">Phrases that suggest “No”</label>
+              <textarea id="f-detect_no" name="detect_no" class="textarea" rows="3"></textarea>
+            </div>
+            <div class="field">
+              <label for="f-depends_on_code">Follow-up to question (code)</label>
+              <select id="f-depends_on_code" name="depends_on_code" class="select"></select>
+            </div>
+            <div class="field">
+              <label for="f-depends_on_answer">…when its answer is</label>
+              <input id="f-depends_on_answer" name="depends_on_answer" class="input" list="answer-list">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Alert</legend>
+          <div class="form-grid">
+            <div class="field">
+              <label for="f-alert_answer">Show an alert when the answer is</label>
+              <input id="f-alert_answer" name="alert_answer" class="input" list="answer-list">
+            </div>
+            <div class="field">
+              <label for="f-alert_level">Alert level</label>
+              <select id="f-alert_level" name="alert_level" class="select">
+                <option value="info">Info</option>
+                <option value="warning">Warning</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+            <div class="field span-2">
+              <label for="f-alert_text">Alert message</label>
+              <input id="f-alert_text" name="alert_text" class="input">
+            </div>
+          </div>
+        </fieldset>
+        <p id="q-error" class="small" style="color: var(--red-600)" hidden></p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save question</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ====================================================== CALL MODAL -->
+  <div id="call-modal" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="call-modal-title" style="max-width: 900px">
+      <div class="modal-head">
+        <h2 id="call-modal-title">Call</h2>
+        <button type="button" class="btn btn-ghost btn-sm" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" id="call-detail"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

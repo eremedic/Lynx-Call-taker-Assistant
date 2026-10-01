@@ -1,0 +1,30 @@
+{
+  "name": "lynx-call-taker-assistant",
+  "version": "1.0.0",
+  "description": "Call-taker decision support for ambulance transport medical necessity (CMS) with an admin question-bank dashboard",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server/index.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eremedic/Lynx-Call-taker-Assistant.git"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/eremedic/Lynx-Call-taker-Assistant/issues"
+  },
+  "homepage": "https://github.com/eremedic/Lynx-Call-taker-Assistant#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "express": "^5.2.1"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "private": true
+}
