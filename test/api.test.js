@@ -170,3 +170,54 @@ test('logout ends the session', async () => {
   assert.equal((await c('/api/questions')).status, 401);
   assert.ok(auditActions().includes('auth.logout'));
 });
+
+test('admin manages payer profiles; changes are validated and audited', async () => {
+  const list = (await admin('/api/admin/payers')).data;
+  assert.deepEqual(list.map((p) => p.code), ['medicare', 'medicare_advantage', 'medicaid', 'commercial']);
+  assert.equal((await taker('/api/admin/payers')).status, 403);
+
+  const bad = await admin('/api/admin/payers', { method: 'POST', body: { code: 'tx_medicaid', name: 'Texas Medicaid', prior_auth: { emergency: 'never' } } });
+  assert.equal(bad.status, 400);
+
+  const created = await admin('/api/admin/payers', {
+    method: 'POST',
+    body: {
+      code: 'tx_medicaid', name: 'Texas Medicaid', prior_auth: { emergency: 'not_required', non_emergency: 'required', repetitive: 'required' },
+      certification: 'Texas Medicaid nonemergency ambulance prior authorization request form.', documentation: ['Fax the form to the PA unit.'],
+      contact_name: 'TMHP Ambulance PA Unit', contact_url: 'https://example.org/pa',
+    },
+  });
+  assert.equal(created.status, 201);
+  assert.ok((await taker('/api/config')).data.payers.some((p) => p.code === 'tx_medicaid'));
+
+  const r = await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'tx_medicaid' } });
+  assert.equal(r.data.assessment.payer.priorAuth, 'required');
+  assert.ok(r.data.assessment.missing.some((m) => m.code === 'DOC_PRIOR_AUTH'));
+
+  await admin(`/api/admin/payers/${created.data.id}`, { method: 'PUT', body: { prior_auth: { emergency: 'not_required', non_emergency: 'varies', repetitive: 'required' } } });
+  const { rows } = (await admin('/api/admin/audit?action=payer.')).data;
+  assert.equal(rows[0].action, 'payer.updated');
+  assert.equal(rows[0].details.changes.prior_auth.to.non_emergency, 'varies');
+
+  // A payer used by questions can't be deleted; built-ins can't be deleted at all.
+  const q = await admin('/api/admin/questions', { method: 'POST', body: { code: 'TX_FORM', category: 'Payer & Authorization', text: 'Form faxed?', answer_type: 'yes_no', criterion: 'info', payers: ['tx_medicaid'] } });
+  assert.equal(q.status, 201);
+  assert.equal((await admin(`/api/admin/payers/${created.data.id}`, { method: 'DELETE' })).status, 400);
+  await admin(`/api/admin/questions/${q.data.id}`, { method: 'DELETE' });
+  assert.equal((await admin(`/api/admin/payers/${created.data.id}`, { method: 'DELETE' })).status, 204);
+  assert.equal((await admin(`/api/admin/payers/${list[0].id}`, { method: 'DELETE' })).status, 400);
+  assert.equal((await admin('/api/admin/questions', { method: 'POST', body: { code: 'X_Q', category: 'X', text: 'x', criterion: 'info', payers: ['nope'] } })).status, 400);
+});
+
+test('saved calls record the payer and inactive payers are ignored', async () => {
+  const saved = await taker('/api/calls', { method: 'POST', body: { callType: 'non_emergency', payer: 'medicaid', answers: { MCD_DUAL: 'yes' } } });
+  const call = (await admin(`/api/admin/calls/${saved.data.id}`)).data;
+  assert.equal(call.payer, 'medicaid');
+  assert.equal(call.assessment.payer.name, 'Medicaid');
+
+  const commercial = (await admin('/api/admin/payers')).data.find((p) => p.code === 'commercial');
+  await admin(`/api/admin/payers/${commercial.id}`, { method: 'PUT', body: { active: false } });
+  const r = await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'commercial' } });
+  assert.equal(r.data.assessment.payer, null);
+  await admin(`/api/admin/payers/${commercial.id}`, { method: 'PUT', body: { active: true } });
+});

@@ -1,8 +1,9 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openDb, questionRepo, callRepo, settingsRepo, userRepo, sessionRepo, auditRepo } from './db.js';
-import { evaluateCall, CALL_TYPES } from './engine/evaluate.js';
+import { openDb, questionRepo, callRepo, settingsRepo, userRepo, sessionRepo, auditRepo, payerRepo } from './db.js';
+import { PRIOR_AUTH_POLICIES } from './seed-payers.js';
+import { evaluateCall, appliesToPayer, CALL_TYPES } from './engine/evaluate.js';
 import { CATEGORIES } from './seed-questions.js';
 import { analyzeTranscript, aiConfigured, AiError } from './ai.js';
 import {
@@ -13,9 +14,23 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 const ANSWER_TYPES = ['yes_no', 'choice', 'text', 'number'];
-const CRITERIA = ['emergency', 'bed_confined', 'condition', 'als', 'sct', 'disqualifier', 'documentation', 'info'];
+const CRITERIA = ['emergency', 'bed_confined', 'condition', 'als', 'sct', 'disqualifier', 'documentation', 'prior_auth', 'info'];
 const ALERT_LEVELS = ['info', 'warning', 'critical'];
 const USERNAME_RE = /^[a-zA-Z0-9._-]{3,32}$/;
+
+function validatePayer(input, { partial = false } = {}) {
+  const errors = [];
+  const need = (f) => !partial || f in input;
+  if (need('code') && !/^[a-z][a-z0-9_]{1,40}$/.test(input.code || '')) errors.push('Code must be 2–40 characters: lowercase letters, digits, underscores.');
+  if (need('name') && !String(input.name || '').trim()) errors.push('Payer name is required.');
+  if ('prior_auth' in input) {
+    const pa = input.prior_auth || {};
+    if (Object.keys(CALL_TYPES).some((t) => !(pa[t] in PRIOR_AUTH_POLICIES))) errors.push('Choose a prior-authorization policy for every call type.');
+  }
+  if ('documentation' in input && !Array.isArray(input.documentation)) errors.push('Documentation must be a list.');
+  if ('contact_url' in input && input.contact_url && !/^https:\/\//i.test(input.contact_url)) errors.push('Contact URL must start with https://');
+  return errors;
+}
 
 function validateQuestion(input, { partial = false } = {}) {
   const errors = [];
@@ -71,7 +86,12 @@ export function createApp({ db = openDb() } = {}) {
   const users = userRepo(db);
   const sessions = sessionRepo(db);
   const audit = auditRepo(db);
+  const payers = payerRepo(db);
   const lockout = createLockout();
+  const activePayer = (code) => {
+    const p = code ? payers.getByCode(code) : null;
+    return p?.active ? p : null;
+  };
 
   const app = express();
   app.disable('x-powered-by');
@@ -195,7 +215,8 @@ export function createApp({ db = openDb() } = {}) {
   app.get('/api/config', requireAuth, (req, res) => {
     res.json({
       ...publicSettings(), callTypes: CALL_TYPES, categories: CATEGORIES, answerTypes: ANSWER_TYPES,
-      criteria: CRITERIA, alertLevels: ALERT_LEVELS, roles: ROLES,
+      criteria: CRITERIA, alertLevels: ALERT_LEVELS, roles: ROLES, priorAuthPolicies: PRIOR_AUTH_POLICIES,
+      payers: payers.list({ activeOnly: true }).map((p) => ({ code: p.code, name: p.name })),
     });
   });
 
@@ -203,19 +224,25 @@ export function createApp({ db = openDb() } = {}) {
   app.get('/api/questions', requireAuth, (req, res) => res.json(questions.list({ activeOnly: true })));
 
   app.post('/api/evaluate', requireAuth, (req, res) => {
-    const { callType = 'non_emergency', answers = {}, transcript = '' } = req.body || {};
+    const { callType = 'non_emergency', answers = {}, transcript = '', payer = '' } = req.body || {};
     if (!(callType in CALL_TYPES)) return res.status(400).json({ error: 'Invalid call type.' });
-    res.json(evaluateCall({ callType, answers, transcript, questions: questions.list({ activeOnly: true }) }));
+    res.json(evaluateCall({ callType, answers, transcript, payer: activePayer(payer), questions: questions.list({ activeOnly: true }) }));
   });
 
   app.post('/api/ai/analyze', requireAuth, async (req, res) => {
-    const { callType = 'non_emergency', answers = {}, transcript = '' } = req.body || {};
+    const { callType = 'non_emergency', answers = {}, transcript = '', payer: payerCode = '' } = req.body || {};
     if (!publicSettings().aiAvailable) return res.status(503).json({ error: 'AI analysis is not enabled.' });
     if (!String(transcript).trim()) return res.status(400).json({ error: 'Transcript is empty.' });
     // PHI leaves the system here, so every request is recorded.
     log(req, 'ai.analyze', { details: { transcript_chars: String(transcript).length, call_type: callType } });
     try {
-      res.json(await analyzeTranscript({ transcript, callType, answers, questions: questions.list({ activeOnly: true }) }));
+      const payer = activePayer(payerCode);
+      res.json(await analyzeTranscript({
+        transcript,
+        callType: payer ? `${callType} — payer: ${payer.name}` : callType,
+        answers,
+        questions: questions.list({ activeOnly: true }).filter((q) => appliesToPayer(q, payer)),
+      }));
     } catch (err) {
       if (err instanceof AiError) return res.status(err.status).json({ error: err.message });
       console.error('AI analysis failed:', err);
@@ -224,24 +251,28 @@ export function createApp({ db = openDb() } = {}) {
   });
 
   app.post('/api/calls', requireAuth, (req, res) => {
-    const { callType, details = {}, answers = {}, transcript = '' } = req.body || {};
+    const { callType, details = {}, answers = {}, transcript = '', payer: payerCode = '' } = req.body || {};
     if (!(callType in CALL_TYPES)) return res.status(400).json({ error: 'Invalid call type.' });
+    const payer = activePayer(payerCode);
     // Re-evaluate server-side so the stored assessment can't be tampered with.
-    const { assessment } = evaluateCall({ callType, answers, transcript, questions: questions.list({ activeOnly: true }) });
-    const call = calls.create({ callType, details, answers, transcript, assessment, callTaker: req.user.display_name, userId: req.user.id });
-    log(req, 'call.saved', { entityType: 'call', entityId: call.id, details: { call_type: callType, status: call.status } });
+    const { assessment } = evaluateCall({ callType, answers, transcript, payer, questions: questions.list({ activeOnly: true }) });
+    const call = calls.create({ callType, payer: payer?.code, details, answers, transcript, assessment, callTaker: req.user.display_name, userId: req.user.id });
+    log(req, 'call.saved', { entityType: 'call', entityId: call.id, details: { call_type: callType, payer: payer?.code || null, status: call.status } });
     res.status(201).json({ id: call.id, status: call.status, created_at: call.created_at });
   });
 
   // -------------------------------------------------- admin: questions
-  const QUESTION_AUDIT_FIELDS = ['code', 'category', 'text', 'guidance', 'answer_type', 'options', 'call_types', 'criterion', 'qualifying_answer',
+  const QUESTION_AUDIT_FIELDS = ['code', 'category', 'text', 'guidance', 'answer_type', 'options', 'call_types', 'payers', 'criterion', 'qualifying_answer',
     'triggers', 'detect_yes', 'detect_no', 'depends_on_code', 'depends_on_answer', 'priority', 'sort_order', 'required', 'alert_answer',
     'alert_text', 'alert_level', 'active'];
 
   app.get('/api/admin/questions', requireAdmin, (req, res) => res.json(questions.list()));
 
+  const unknownPayers = (input) => (input.payers || []).filter((c) => !payers.getByCode(c));
+
   app.post('/api/admin/questions', requireAdmin, (req, res) => {
     const errors = validateQuestion(req.body || {});
+    if (unknownPayers(req.body || {}).length) errors.push('Unknown payer.');
     if (questions.getByCode(req.body?.code)) errors.push('A question with this code already exists.');
     if (errors.length) return res.status(400).json({ error: errors.join(' ') });
     const q = questions.create(req.body);
@@ -255,6 +286,7 @@ export function createApp({ db = openDb() } = {}) {
     const input = { ...req.body };
     if (existing.is_system) delete input.code; // system codes are referenced by the engine
     const errors = validateQuestion({ answer_type: existing.answer_type, ...input }, { partial: true });
+    if (unknownPayers(input).length) errors.push('Unknown payer.');
     if (input.code && input.code !== existing.code && questions.getByCode(input.code)) errors.push('A question with this code already exists.');
     if (errors.length) return res.status(400).json({ error: errors.join(' ') });
     const updated = questions.update(existing.id, input);
@@ -269,6 +301,46 @@ export function createApp({ db = openDb() } = {}) {
     if (existing.is_system) return res.status(400).json({ error: 'Built-in questions cannot be deleted. Deactivate it instead.' });
     questions.remove(existing.id);
     log(req, 'question.deleted', { entityType: 'question', entityId: existing.code, details: { text: existing.text } });
+    res.status(204).end();
+  });
+
+  // ----------------------------------------------------- admin: payers
+  const PAYER_AUDIT_FIELDS = ['code', 'name', 'description', 'prior_auth', 'prior_auth_note', 'certification', 'documentation',
+    'alternate_transport', 'contact_name', 'contact_phone', 'contact_url', 'sort_order', 'active'];
+
+  app.get('/api/admin/payers', requireAdmin, (req, res) => res.json(payers.list()));
+
+  app.post('/api/admin/payers', requireAdmin, (req, res) => {
+    const errors = validatePayer(req.body || {});
+    if (!('prior_auth' in (req.body || {}))) errors.push('Choose a prior-authorization policy for every call type.');
+    if (payers.getByCode(req.body?.code)) errors.push('A payer with this code already exists.');
+    if (errors.length) return res.status(400).json({ error: errors.join(' ') });
+    const p = payers.create(req.body);
+    log(req, 'payer.created', { entityType: 'payer', entityId: p.code, details: { name: p.name, prior_auth: p.prior_auth } });
+    res.status(201).json(p);
+  });
+
+  app.put('/api/admin/payers/:id', requireAdmin, (req, res) => {
+    const existing = payers.get(Number(req.params.id));
+    if (!existing) return res.status(404).json({ error: 'Payer not found.' });
+    const input = { ...req.body };
+    delete input.code; // questions reference payers by code
+    const errors = validatePayer(input, { partial: true });
+    if (errors.length) return res.status(400).json({ error: errors.join(' ') });
+    const updated = payers.update(existing.id, input);
+    const changes = diff(existing, updated, PAYER_AUDIT_FIELDS);
+    if (Object.keys(changes).length) log(req, 'payer.updated', { entityType: 'payer', entityId: existing.code, details: { changes } });
+    res.json(updated);
+  });
+
+  app.delete('/api/admin/payers/:id', requireAdmin, (req, res) => {
+    const existing = payers.get(Number(req.params.id));
+    if (!existing) return res.status(404).json({ error: 'Payer not found.' });
+    if (existing.is_system) return res.status(400).json({ error: 'Built-in payers cannot be deleted. Deactivate it instead.' });
+    const used = questions.list().filter((q) => q.payers.includes(existing.code)).map((q) => q.code);
+    if (used.length) return res.status(400).json({ error: `Remove this payer from these questions first: ${used.join(', ')}.` });
+    payers.remove(existing.id);
+    log(req, 'payer.deleted', { entityType: 'payer', entityId: existing.code, details: { name: existing.name } });
     res.status(204).end();
   });
 

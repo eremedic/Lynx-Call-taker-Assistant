@@ -8,6 +8,7 @@ const state = {
   questions: [],
   byCode: new Map(),
   callType: 'non_emergency',
+  payer: '',
   details: {},
   answers: {},
   transcript: '',
@@ -40,6 +41,8 @@ async function init() {
     setQuestions(questions);
     $('#org-name').textContent = config.orgName ? `${config.orgName} · Call-Taker Assistant` : 'Call-Taker Assistant';
     $('#ai-btn').hidden = !config.aiAvailable;
+    $('#payer').innerHTML = '<option value="">Select payer…</option>'
+      + config.payers.map((p) => `<option value="${esc(p.code)}">${esc(p.name)}</option>`).join('');
   } catch (err) {
     toast(`Could not load configuration: ${err.message}`, 'error');
     return;
@@ -64,6 +67,12 @@ function bindEvents() {
       markActive();
       state.details[input.dataset.detail] = input.value;
     }));
+
+  $('#payer').addEventListener('change', (e) => {
+    markActive();
+    state.payer = e.target.value;
+    evaluate();
+  });
 
   const transcript = $('#transcript');
   transcript.addEventListener('input', () => {
@@ -168,7 +177,7 @@ async function evaluate() {
   try {
     const result = await api('/api/evaluate', {
       method: 'POST',
-      body: { callType: state.callType, answers: state.answers, transcript: state.transcript },
+      body: { callType: state.callType, payer: state.payer, answers: state.answers, transcript: state.transcript },
     });
     if (seq !== evalSeq) return; // a newer evaluation is in flight
     state.evaluation = result;
@@ -190,6 +199,7 @@ function currentSuggestions() {
     const q = state.byCode.get(code);
     if (!q || out.has(code)) continue;
     if (q.call_types.length && !q.call_types.includes(state.callType)) continue;
+    if (q.payers.length && !q.payers.includes(state.payer)) continue;
     out.set(code, { code, answer: s.answer, evidence: s.evidence, source: 'AI' });
   }
   return [...out.values()].filter((s) =>
@@ -352,11 +362,31 @@ function checkItem(mark, text) {
   return `<li><span class="mark ${mark}">${symbol}</span><span>${esc(text)}</span></li>`;
 }
 
+const PA_CHIPS = { required: 'chip-red', varies: 'chip-amber', not_required: 'chip-green' };
+
+function renderPayer(p) {
+  $('#payer-card').hidden = !p;
+  if (!p) return;
+  $('#payer-name').textContent = p.name;
+  const pa = $('#payer-pa');
+  pa.className = `chip ${PA_CHIPS[p.priorAuth] || ''}`;
+  pa.textContent = p.priorAuthLabel;
+  $('#payer-pa-note').textContent = p.priorAuthNote;
+  const c = p.contact;
+  const safeUrl = /^https:\/\//i.test(c.url) ? c.url : '';
+  $('#payer-contact').innerHTML = [
+    c.name && `<div><strong>Contact:</strong> ${esc(c.name)}</div>`,
+    c.phone && `<div><strong>Phone:</strong> <a href="tel:${esc(c.phone.replace(/[^0-9+]/g, ''))}">${esc(c.phone)}</a></div>`,
+    safeUrl && `<div><strong>Portal:</strong> <a href="${esc(safeUrl)}" target="_blank" rel="noopener noreferrer">${esc(safeUrl)}</a></div>`,
+  ].filter(Boolean).join('');
+}
+
 function renderAssessment() {
   const a = state.evaluation.assessment;
   const banner = $('#status-banner');
   banner.className = `status-banner status-${a.status}`;
   $('#status-value').textContent = STATUS_LABELS[a.status] || a.status;
+  $('#status-label').textContent = `Medical necessity · ${a.payer ? a.payer.name : 'CMS criteria'}`;
   $('#status-summary').textContent = a.summary;
   $('#emergency-bar').hidden = !(a.emergencyFlag && state.callType !== 'emergency');
 
@@ -365,6 +395,8 @@ function renderAssessment() {
   $('#los-name').textContent = a.levelOfService.label;
   $('#los-code').hidden = !a.levelOfService.hcpcs;
   $('#los-code').textContent = a.levelOfService.hcpcs ? `HCPCS ${a.levelOfService.hcpcs}` : '';
+
+  renderPayer(a.payer);
 
   $('#alerts-card').hidden = a.alerts.length === 0;
   const icons = { critical: '⚠', warning: '!', info: 'i' };
@@ -413,7 +445,7 @@ async function runAi({ quiet = false } = {}) {
   try {
     const r = await api('/api/ai/analyze', {
       method: 'POST',
-      body: { callType: state.callType, answers: state.answers, transcript: state.transcript },
+      body: { callType: state.callType, payer: state.payer, answers: state.answers, transcript: state.transcript },
     });
     state.aiAnalyzedLength = analyzedLength;
     state.aiSuggestions = Object.fromEntries(r.suggested_answers.map((s) => [s.code, s]));
@@ -540,6 +572,7 @@ function buildNarrative() {
   const d = state.details;
   const lines = [];
   lines.push(`Call type: ${state.config.callTypes[state.callType]}`);
+  if (a?.payer) lines.push(`Payer: ${a.payer.name}${d.member_id ? ` — member ID ${d.member_id}` : ''} (prior authorization: ${a.payer.priorAuthLabel})`);
   lines.push(`Call taker: ${state.user.display_name}`);
   if (d.patient_name) lines.push(`Patient: ${d.patient_name}${d.patient_dob ? ` (DOB ${d.patient_dob})` : ''}`);
   if (d.caller_name || d.caller_facility) lines.push(`Caller: ${[d.caller_name, d.caller_facility].filter(Boolean).join(', ')}${d.caller_phone ? ` — ${d.caller_phone}` : ''}`);
@@ -580,6 +613,7 @@ async function saveCall() {
       method: 'POST',
       body: {
         callType: state.callType,
+        payer: state.payer,
         details: { ...state.details, ai_summary: state.aiSummary, ai_questions: state.aiQuestions, duration_seconds: state.startedAt ? Math.round((Date.now() - state.startedAt) / 1000) : 0 },
         answers: state.answers,
         transcript: state.transcript,
@@ -599,12 +633,13 @@ async function newCall() {
   if (state.dirty && !confirm('Discard the current call? It has unsaved changes.')) return;
   if (listening) stopListening();
   Object.assign(state, {
-    callType: 'non_emergency', details: {}, answers: {}, transcript: '', evaluation: null,
+    callType: 'non_emergency', payer: '', details: {}, answers: {}, transcript: '', evaluation: null,
     rejected: new Set(), skipped: new Set(), aiSuggestions: {}, aiQuestions: [], aiSummary: '', aiAnalyzedLength: 0,
     startedAt: null, dirty: false, savedId: null,
   });
   document.querySelectorAll('[data-detail]').forEach((i) => { i.value = ''; });
   $('#transcript').value = '';
+  $('#payer').value = '';
   renderAiQuestions();
   try {
     setQuestions(await api('/api/questions')); // pick up any admin changes

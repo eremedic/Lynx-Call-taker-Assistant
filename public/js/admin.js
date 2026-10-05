@@ -3,7 +3,7 @@ import { api, esc, toast, requireUser, mountUserMenu, ROLE_LABELS, STATUS_LABELS
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
 
-const state = { user: null, config: null, questions: [], editing: null, users: [], editingUser: null, auditOffset: 0 };
+const state = { payers: [], editingPayer: null, user: null, config: null, questions: [], editing: null, users: [], editingUser: null, auditOffset: 0 };
 const AUDIT_PAGE = 50;
 
 const TYPE_LABELS = { yes_no: 'Yes / No', choice: 'Choice', text: 'Text', number: 'Number' };
@@ -12,6 +12,7 @@ const TYPE_LABELS = { yes_no: 'Yes / No', choice: 'Choice', text: 'Text', number
 async function init() {
   state.user = await requireUser({ role: 'admin' });
   state.config = await api('/api/config');
+  state.payers = await api('/api/admin/payers');
   mountUserMenu($('#user-menu'), state.user);
   $('#org-name').textContent = `${state.config.orgName || ''} · Admin Dashboard`;
   $('#app').hidden = false;
@@ -47,6 +48,22 @@ function bindEvents() {
   $('#refresh-calls').addEventListener('click', loadCalls);
   $('#settings-form').addEventListener('submit', saveSettings);
   $('#add-user').addEventListener('click', () => openUser(null));
+  $('#add-payer').addEventListener('click', () => openPayer(null));
+  $('#payer-form').addEventListener('submit', savePayer);
+  $('#payer-rows').addEventListener('click', (e) => {
+    const edit = e.target.closest('[data-edit-payer]');
+    if (edit) return openPayer(state.payers.find((p) => p.id === Number(edit.dataset.editPayer)));
+    const del = e.target.closest('[data-delete-payer]');
+    if (del) return deletePayer(state.payers.find((p) => p.id === Number(del.dataset.deletePayer)));
+  });
+  $('#payer-rows').addEventListener('change', async (e) => {
+    const toggle = e.target.closest('[data-payer-active]');
+    if (!toggle) return;
+    const updated = await guarded(() => api(`/api/admin/payers/${toggle.dataset.payerActive}`, { method: 'PUT', body: { active: toggle.checked } }));
+    if (!updated) { toggle.checked = !toggle.checked; return; }
+    toast(`${updated.name} ${updated.active ? 'activated' : 'deactivated'}.`, 'success');
+    loadPayers();
+  });
   $('#user-form').addEventListener('submit', saveUser);
   $('#copy-password').addEventListener('click', () => {
     navigator.clipboard.writeText($('#temp-password').textContent).then(() => toast('Copied.', 'success'), () => toast('Clipboard unavailable.', 'error'));
@@ -98,7 +115,7 @@ function bindEvents() {
 }
 
 function showView(view) {
-  if (!['overview', 'questions', 'calls', 'users', 'audit', 'settings'].includes(view)) view = 'overview';
+  if (!['overview', 'questions', 'payers', 'calls', 'users', 'audit', 'settings'].includes(view)) view = 'overview';
   history.replaceState(null, '', `#${view}`);
   $$('.sidenav [data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
   $$('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== view; });
@@ -107,6 +124,7 @@ function showView(view) {
   if (view === 'calls') loadCalls();
   if (view === 'settings') loadSettings();
   if (view === 'users') loadUsers();
+  if (view === 'payers') loadPayers();
   if (view === 'audit') { state.auditOffset = 0; loadAuditUsers().then(loadAudit); }
 }
 
@@ -167,6 +185,7 @@ function renderQuestions() {
           ${q.required ? '<span class="chip chip-amber">Required</span>' : ''}
           ${q.triggers.length ? `<span class="chip chip-violet" title="${esc(q.triggers.join(', '))}">Conditional</span>` : ''}
           ${q.call_types.length ? `<span class="chip">${esc(q.call_types.map((t) => state.config.callTypes[t]?.split(' ')[0]).join(', '))}</span>` : ''}
+          ${q.payers.length ? `<span class="chip chip-green">${esc(q.payers.map(payerName).join(', '))}</span>` : ''}
         </div>
       </td>
       <td class="nowrap">${esc(TYPE_LABELS[q.answer_type])}</td>
@@ -190,6 +209,8 @@ function openQuestion(q) {
   $('#q-modal-title').textContent = q ? 'Edit Question' : 'Add Question';
 
   $('#f-criterion').innerHTML = state.config.criteria.map((c) => `<option value="${c}">${esc(CRITERION_LABELS[c])}</option>`).join('');
+  $('#f-payers').innerHTML = state.payers.map((p) =>
+    `<label><input type="checkbox" name="payers" value="${esc(p.code)}"> ${esc(p.name)}</label>`).join('');
   $('#f-call_types').innerHTML = Object.entries(state.config.callTypes).map(([k, label]) =>
     `<label><input type="checkbox" name="call_types" value="${k}"> ${esc(label)}</label>`).join('');
   $('#f-depends_on_code').innerHTML = '<option value="">— Not a follow-up —</option>' + state.questions
@@ -197,7 +218,7 @@ function openQuestion(q) {
     .map((o) => `<option value="${esc(o.code)}">${esc(o.code)} — ${esc(o.text.slice(0, 60))}</option>`).join('');
 
   const v = q || {
-    code: '', category: '', text: '', guidance: '', answer_type: 'yes_no', options: [], call_types: [], criterion: 'condition',
+    code: '', category: '', text: '', guidance: '', answer_type: 'yes_no', options: [], call_types: [], payers: [], criterion: 'condition',
     qualifying_answer: 'yes', triggers: [], detect_yes: [], detect_no: [], depends_on_code: '', depends_on_answer: '',
     priority: 2, required: false, active: true, alert_answer: '', alert_text: '', alert_level: 'warning',
   };
@@ -223,6 +244,7 @@ function openQuestion(q) {
   el.alert_text.value = v.alert_text || '';
   el.alert_level.value = v.alert_level || 'warning';
   $$('#f-call_types input').forEach((cb) => { cb.checked = v.call_types.includes(cb.value); });
+  $$('#f-payers input').forEach((cb) => { cb.checked = v.payers.includes(cb.value); });
   syncTypeFields();
 
   $('#q-modal').hidden = false;
@@ -244,6 +266,7 @@ async function saveQuestion(e) {
     answer_type: el.answer_type.value,
     options: el.answer_type.value === 'choice' ? lines(el.options.value) : [],
     call_types: $$('#f-call_types input:checked').map((cb) => cb.value),
+    payers: $$('#f-payers input:checked').map((cb) => cb.value),
     criterion: el.criterion.value,
     qualifying_answer: el.qualifying_answer.value.trim(),
     priority: Number(el.priority.value),
@@ -294,17 +317,114 @@ async function deleteQuestion(id) {
   }
 }
 
+// ----------------------------------------------------------------- payers
+const payerName = (code) => state.payers.find((p) => p.code === code)?.name || code;
+const PA_CHIPS = { required: 'chip-red', varies: 'chip-amber', not_required: 'chip-green' };
+const paChip = (policy) => `<span class="chip ${PA_CHIPS[policy] || ''}">${esc(state.config.priorAuthPolicies[policy] || '—')}</span>`;
+
+async function loadPayers() {
+  const [list, qs] = await Promise.all([guarded(() => api('/api/admin/payers')), guarded(() => api('/api/admin/questions'))]);
+  if (!list) return;
+  state.payers = list;
+  if (qs) state.questions = qs;
+  $('#payer-rows').innerHTML = list.map((p) => {
+    const count = state.questions.filter((q) => q.payers.includes(p.code)).length;
+    return `
+      <tr class="${p.active ? '' : 'inactive'}">
+        <td><strong>${esc(p.name)}</strong> ${p.is_system ? '' : '<span class="chip chip-blue">Custom</span>'}
+          <div class="code" style="margin-top: 2px">${esc(p.code)}</div>
+          <div class="small muted" style="margin-top: 4px; max-width: 420px">${esc(p.description)}</div></td>
+        <td>${paChip(p.prior_auth.non_emergency)}</td>
+        <td>${paChip(p.prior_auth.repetitive)}</td>
+        <td>${paChip(p.prior_auth.emergency)}</td>
+        <td class="nowrap">${count ? `${count} payer-specific` : '<span class="muted">—</span>'}</td>
+        <td><label class="switch"><input type="checkbox" data-payer-active="${p.id}" ${p.active ? 'checked' : ''} aria-label="Active"><span class="track"></span></label></td>
+        <td class="actions">
+          <button type="button" class="btn btn-sm" data-edit-payer="${p.id}">Edit</button>
+          ${p.is_system ? '' : `<button type="button" class="btn btn-sm btn-danger" data-delete-payer="${p.id}">Delete</button>`}
+        </td>
+      </tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty">No payers configured.</td></tr>';
+}
+
+function openPayer(p) {
+  state.editingPayer = p;
+  const form = $('#payer-form');
+  form.reset();
+  $('#payer-error').hidden = true;
+  $('#payer-modal-title').textContent = p ? `Edit ${p.name}` : 'Add Payer';
+  $('#p-prior-auth').innerHTML = Object.entries(state.config.callTypes).map(([type, label]) => `
+    <div class="field">
+      <label for="pa-${type}">${esc(label)}</label>
+      <select id="pa-${type}" class="select" data-pa="${type}">
+        ${Object.entries(state.config.priorAuthPolicies).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}
+      </select>
+    </div>`).join('');
+  const v = p || {
+    code: '', name: '', description: '', prior_auth: { emergency: 'not_required', non_emergency: 'varies', repetitive: 'varies' },
+    prior_auth_note: '', certification: '', documentation: [], alternate_transport: '', contact_name: '', contact_phone: '', contact_url: '', active: true,
+  };
+  const el = form.elements;
+  for (const f of ['name', 'code', 'description', 'prior_auth_note', 'certification', 'alternate_transport', 'contact_name', 'contact_phone', 'contact_url']) el[f].value = v[f] || '';
+  el.code.disabled = Boolean(p);
+  el.documentation.value = v.documentation.join('\n');
+  el.active.checked = v.active;
+  $$('[data-pa]').forEach((sel) => { sel.value = v.prior_auth[sel.dataset.pa] || 'varies'; });
+  $('#payer-modal').hidden = false;
+  el.name.focus();
+}
+
+async function savePayer(e) {
+  e.preventDefault();
+  const el = e.target.elements;
+  const body = {
+    name: el.name.value.trim(),
+    description: el.description.value.trim(),
+    prior_auth: Object.fromEntries($$('[data-pa]').map((sel) => [sel.dataset.pa, sel.value])),
+    prior_auth_note: el.prior_auth_note.value.trim(),
+    certification: el.certification.value.trim(),
+    documentation: lines(el.documentation.value),
+    alternate_transport: el.alternate_transport.value.trim(),
+    contact_name: el.contact_name.value.trim(),
+    contact_phone: el.contact_phone.value.trim(),
+    contact_url: el.contact_url.value.trim(),
+    active: el.active.checked,
+  };
+  if (!state.editingPayer) body.code = el.code.value.trim().toLowerCase();
+  try {
+    if (state.editingPayer) await api(`/api/admin/payers/${state.editingPayer.id}`, { method: 'PUT', body });
+    else await api('/api/admin/payers', { method: 'POST', body });
+  } catch (err) {
+    $('#payer-error').textContent = err.message;
+    $('#payer-error').hidden = false;
+    return;
+  }
+  closeModals();
+  toast(state.editingPayer ? 'Payer updated.' : 'Payer added. Assign payer-specific questions in the Question Bank.', 'success');
+  loadPayers();
+}
+
+async function deletePayer(p) {
+  if (!p || !confirm(`Delete payer "${p.name}"? This cannot be undone.`)) return;
+  const ok = await guarded(() => api(`/api/admin/payers/${p.id}`, { method: 'DELETE' }).then(() => true));
+  if (ok) {
+    toast('Payer deleted.', 'success');
+    loadPayers();
+  }
+}
+
 // ------------------------------------------------------------------ calls
 function callsTable(calls) {
   if (!calls.length) return '<div class="empty">No calls saved yet. Calls appear here after the call taker clicks “Save Call Record”.</div>';
   return `<table class="table">
-    <thead><tr><th>#</th><th>Date</th><th>Patient</th><th>Type</th><th>Assessment</th><th>Level of service</th><th>Call taker</th></tr></thead>
+    <thead><tr><th>#</th><th>Date</th><th>Patient</th><th>Type</th><th>Payer</th><th>Assessment</th><th>Level of service</th><th>Call taker</th></tr></thead>
     <tbody>${calls.map((c) => `
       <tr class="clickable" data-call="${c.id}">
         <td>${c.id}</td>
         <td>${esc(formatDate(c.created_at))}</td>
         <td>${esc(c.details.patient_name || '—')}</td>
         <td>${esc(state.config.callTypes[c.call_type]?.split(' (')[0] || c.call_type)}</td>
+        <td>${esc(c.payer ? payerName(c.payer) : '—')}</td>
         <td><span class="chip ${STATUS_CHIPS[c.status] || ''}">${esc(STATUS_LABELS[c.status] || c.status)}</span></td>
         <td>${esc(c.level_of_service || '—')}</td>
         <td>${esc(c.call_taker || '—')}</td>
@@ -327,6 +447,7 @@ async function openCall(id) {
   }
   const detailRows = [
     ['Call type', state.config.callTypes[c.call_type]],
+    ['Payer', c.payer ? `${payerName(c.payer)}${a.payer ? ` — prior authorization: ${a.payer.priorAuthLabel}` : ''}` : 'Not selected'],
     ['Patient', [d.patient_name, d.patient_dob && `DOB ${d.patient_dob}`].filter(Boolean).join(' · ')],
     ['Member ID', d.member_id],
     ['Caller', [d.caller_name, d.caller_facility, d.caller_phone].filter(Boolean).join(' · ')],
@@ -340,7 +461,7 @@ async function openCall(id) {
   $('#call-modal-title').textContent = `Call #${c.id} — ${formatDate(c.created_at)}`;
   $('#call-detail').innerHTML = `
     <div class="status-banner status-${esc(a.status)}" style="margin-bottom: 16px">
-      <div class="label">CMS Medical Necessity</div>
+      <div class="label">Medical Necessity${a.payer ? ` · ${esc(a.payer.name)}` : ''}</div>
       <div class="value">${esc(STATUS_LABELS[a.status])}</div>
       <p>${esc(a.summary)} <strong>${esc(a.levelOfService?.label || '')}${a.levelOfService?.hcpcs ? ` (${esc(a.levelOfService.hcpcs)})` : ''}</strong></p>
     </div>
@@ -454,6 +575,9 @@ const ACTION_LABELS = {
   'user.deactivated': 'Deactivated user',
   'user.password_reset': 'Reset password',
   'settings.updated': 'Changed settings',
+  'payer.created': 'Created payer',
+  'payer.updated': 'Edited payer',
+  'payer.deleted': 'Deleted payer',
   'audit.exported': 'Exported audit log',
 };
 const ACTION_CHIPS = { 'auth.login_failed': 'chip-red', 'auth.login_blocked': 'chip-red', 'access.denied': 'chip-red', 'user.deactivated': 'chip-amber', 'user.password_reset': 'chip-amber', 'ai.analyze': 'chip-violet', 'call.viewed': 'chip-blue', 'call.list_viewed': 'chip-blue' };

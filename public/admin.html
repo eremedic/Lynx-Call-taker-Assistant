@@ -25,6 +25,7 @@
       <nav class="sidenav" aria-label="Admin sections">
         <button type="button" data-view="overview" class="active"><span class="nav-icon">◧</span>Overview</button>
         <button type="button" data-view="questions"><span class="nav-icon">☰</span>Question Bank</button>
+        <button type="button" data-view="payers"><span class="nav-icon">$</span>Payers</button>
         <button type="button" data-view="calls"><span class="nav-icon">☏</span>Call Log</button>
         <button type="button" data-view="users"><span class="nav-icon">◉</span>Users</button>
         <button type="button" data-view="audit"><span class="nav-icon">⧉</span>Audit Log</button>
@@ -52,6 +53,7 @@
                 <dt><span class="chip chip-violet">ALS / SCT indicator</span></dt><dd>Supports necessity and raises the recommended level of service.</dd>
                 <dt><span class="chip chip-amber">Disqualifier</span></dt><dd>A qualifying answer indicates the patient can travel by other means.</dd>
                 <dt><span class="chip">Documentation</span></dt><dd>Paperwork needed to support the claim; a non-qualifying answer is flagged as a gap.</dd>
+                <dt><span class="chip chip-amber">Prior authorization</span></dt><dd>Asked only when the selected payer's prior-authorization policy for the call type is "Required" or "Varies"; required when it is "Required".</dd>
                 <dt><span class="chip">Information</span></dt><dd>Collected for the record only. Use alerts to warn the call taker about specific answers.</dd>
               </dl>
             </div>
@@ -79,6 +81,23 @@
               <table class="table">
                 <thead><tr><th style="width:60px">Order</th><th>Question</th><th>Type</th><th>Criterion</th><th>Priority</th><th>Active</th><th></th></tr></thead>
                 <tbody id="q-rows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- --------------------------------------------------- payers -->
+        <section data-panel="payers" hidden>
+          <div class="page-head">
+            <div><h1>Payers</h1><p>Payer-specific rules: prior authorization by call type, certification and documentation requirements, and where to refer patients who don't qualify for ambulance transport.</p></div>
+            <button id="add-payer" class="btn btn-primary" type="button">+ Add Payer</button>
+          </div>
+          <div class="alert alert-info" style="margin-bottom: 16px"><span class="icon">i</span><span>Medicaid and Medicare Advantage rules vary by state and plan. Review the built-in profiles against your state Medicaid provider manual and your contracted plans, and add a separate profile for each state program or plan whose rules differ.</span></div>
+          <div class="card">
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr><th>Payer</th><th>Prior auth — Non-emergency</th><th>Repetitive</th><th>Emergency</th><th>Questions</th><th>Active</th><th></th></tr></thead>
+                <tbody id="payer-rows"></tbody>
               </table>
             </div>
           </div>
@@ -238,6 +257,11 @@
               <span class="hint">Leave all unchecked to ask on every call.</span>
             </div>
             <div class="field span-2">
+              <span class="label">Applies to payers</span>
+              <div class="checkbox-row" id="f-payers"></div>
+              <span class="hint">Leave all unchecked to ask regardless of payer.</span>
+            </div>
+            <div class="field span-2">
               <span class="label">Options</span>
               <div class="checkbox-row">
                 <label><input type="checkbox" name="required"> Required before the call is complete</label>
@@ -300,6 +324,70 @@
       <div class="modal-foot">
         <button type="button" class="btn" data-close>Cancel</button>
         <button type="submit" class="btn btn-primary">Save question</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ===================================================== PAYER MODAL -->
+  <div id="payer-modal" class="modal-backdrop" hidden>
+    <form id="payer-form" class="modal" role="dialog" aria-modal="true" aria-labelledby="payer-modal-title" novalidate>
+      <div class="modal-head">
+        <h2 id="payer-modal-title">Add Payer</h2>
+        <button type="button" class="btn btn-ghost btn-sm" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field">
+            <label for="p-name">Payer name</label>
+            <input id="p-name" name="name" class="input" placeholder="e.g. Texas Medicaid — Superior HealthPlan" required>
+          </div>
+          <div class="field">
+            <label for="p-code">Code</label>
+            <input id="p-code" name="code" class="input" placeholder="e.g. medicaid_tx_superior" autocapitalize="none" spellcheck="false" required>
+            <span class="hint">Lowercase letters, digits, underscores. Cannot be changed later.</span>
+          </div>
+          <div class="field span-2">
+            <label for="p-description">Description</label>
+            <textarea id="p-description" name="description" class="textarea" rows="2"></textarea>
+          </div>
+        </div>
+        <fieldset class="group">
+          <legend>Prior authorization</legend>
+          <div class="form-grid" id="p-prior-auth"></div>
+          <div class="field">
+            <label for="p-prior_auth_note">Note shown to call takers</label>
+            <textarea id="p-prior_auth_note" name="prior_auth_note" class="textarea" rows="2"></textarea>
+          </div>
+        </fieldset>
+        <fieldset class="group">
+          <legend>Requirements</legend>
+          <div class="field">
+            <label for="p-certification">Certification required for non-emergency transport</label>
+            <textarea id="p-certification" name="certification" class="textarea" rows="2"></textarea>
+          </div>
+          <div class="field">
+            <label for="p-documentation">Documentation reminders (one per line)</label>
+            <textarea id="p-documentation" name="documentation" class="textarea" rows="3"></textarea>
+          </div>
+          <div class="field">
+            <label for="p-alternate_transport">If ambulance is not indicated, tell the caller…</label>
+            <textarea id="p-alternate_transport" name="alternate_transport" class="textarea" rows="2"></textarea>
+          </div>
+        </fieldset>
+        <fieldset class="group">
+          <legend>Authorization contact</legend>
+          <div class="form-grid">
+            <div class="field span-2"><label for="p-contact_name">Name / department</label><input id="p-contact_name" name="contact_name" class="input"></div>
+            <div class="field"><label for="p-contact_phone">Phone</label><input id="p-contact_phone" name="contact_phone" class="input" inputmode="tel"></div>
+            <div class="field"><label for="p-contact_url">Portal URL</label><input id="p-contact_url" name="contact_url" class="input" placeholder="https://"></div>
+          </div>
+        </fieldset>
+        <label class="checkbox-row" style="font-size: 13px"><span><input type="checkbox" name="active"> Active (available to call takers)</span></label>
+        <p id="payer-error" class="small" style="color: var(--red-600)" role="alert" hidden></p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save payer</button>
       </div>
     </form>
   </div>

@@ -22,6 +22,13 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 - **Each entry** has a timestamp (UTC), user, action, record, details, and IP address.
 - **Filtering and export:** filter by user, action, date, or text, and export to CSV.
 
+**Payer rules** (Original Medicare, Medicare Advantage, Medicaid, Commercial; more can be added)
+- **Choose the payer at the start of the call.** That selection sets which questions are asked, how prior authorization is handled, the documentation checklist, and the authorization contacts shown to the call taker.
+- **Prior authorization per call type.** Each payer has a policy (*Required*, *Varies — verify*, or *Not required*) for emergency, non-emergency, and repetitive calls. The console asks for the authorization status only when the policy calls for it, and makes it required when the policy is *Required*. A pending authorization keeps the call from reaching "meets". A denied one raises a critical alert.
+- **Medicare Advantage.** No prior auth on emergency calls (42 CFR 422.113). Prior auth and network status are checked on non-emergency calls. The call taker records the plan name and the authorization number. Patients who don't qualify for ambulance are referred to the plan's supplemental transportation benefit.
+- **Medicaid.** The call taker verifies eligibility for the date of service and completes the state's certification form instead of the Medicare PCS. Dual-eligible patients get a payer-of-last-resort alert (bill Medicare first). Managed-care (MCO) members get an alert too. Patients who don't qualify for ambulance are referred to the state NEMT broker (42 CFR 431.53).
+- **State and plan differences.** Medicaid and Medicare Advantage rules vary by state and plan. Administrators can edit the built-in profiles or add one per state program or plan (for example "Texas Medicaid — Superior"), and scope custom questions to it.
+
 **Call-taker console** (`/`)
 - **Live conversation capture.** Uses the browser's speech recognition (Chrome or Edge) to transcribe as the caller talks. Call takers can also type or paste notes.
 - **Detection from the conversation.** Phrases like "bedbound", "on 2 liters nasal cannula", "stage 4 sacral wound", or "no chest pain" become suggested answers, each with the quoted evidence. Negations ("not on oxygen") and corrections ("he can walk… actually he cannot walk") are handled. The call taker accepts each suggestion with one click.
@@ -42,6 +49,7 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
   - **trigger words** (only ask when heard), **detection phrases** for yes and no, and follow-up rules
   - **alerts** shown to the call taker for a specific answer
 - **Call Log:** every saved call with its assessment, responses, and transcript.
+- **Payers:** edit payer profiles, including the prior-authorization policy for each call type, certification and documentation requirements, alternate-transport guidance, and authorization contacts.
 - **Users:** add call takers and administrators, change roles, deactivate accounts, and reset passwords.
 - **Audit Log:** search, filter, and export the audit trail.
 - **Settings:** organization name and AI on/off and auto-analyze toggles.
@@ -100,7 +108,7 @@ npm test
 
 ## How the assessment works
 
-Each question has a **criterion** that tells the engine (`server/engine/evaluate.js`) how to use the answer:
+Questions can be limited to specific call types and specific payers. Each question has a **criterion** that tells the engine (`server/engine/evaluate.js`) how to use the answer:
 
 | Criterion | Effect |
 |---|---|
@@ -109,7 +117,8 @@ Each question has a **criterion** that tells the engine (`server/engine/evaluate
 | Supports necessity | Any qualifying answer supports ambulance transport (oxygen, IV, restraints, fractures, contractures, wounds, isolation, bariatric, and others) |
 | ALS / SCT indicator | Supports necessity and raises the level of service (cardiac monitoring → ALS; vent or titrated drips → SCT) |
 | Disqualifier | The patient could travel by other means, or the request is for convenience. Gives "does not meet", or "needs review" if it conflicts with a qualifying condition. |
-| Documentation | PCS and prior authorization. A non-qualifying answer is flagged as a documentation gap. |
+| Documentation | PCS, state certification forms, eligibility checks. A non-qualifying answer is flagged as a documentation gap. |
+| Prior authorization | Asked only when the selected payer's policy for the call type is *Required* or *Varies*, and required when it is *Required*. A non-qualifying answer (Pending or Denied) is a documentation gap. |
 | Information | Recorded only. Alerts can still be attached. |
 
 Status logic:
@@ -130,7 +139,8 @@ server/
   auth.js             password hashing (scrypt), sessions, lockout
   reset-password.js   command-line password recovery
   db.js               SQLite schema and repositories (questions, calls, settings, users, sessions, audit log)
-  seed-questions.js   default CMS question bank
+  seed-questions.js   default question bank (CMS criteria + payer-specific questions)
+  seed-payers.js      default payer profiles
   ai.js               optional Claude transcript analysis
   engine/detect.js    phrase detection with negation handling
   engine/evaluate.js  medical-necessity evaluation and question prioritization
@@ -159,7 +169,6 @@ Call records and transcripts contain protected health information. Before produc
 
 - Single sign-on (SAML/OIDC) and multi-factor authentication
 - HIPAA-eligible streaming speech-to-text with speaker separation (caller vs. call taker)
-- Per-payer and per-MAC rule sets (Medicaid, Medicare Advantage, commercial)
 - PCS form generation and e-signature request to the facility
 - CAD/dispatch and billing system integration
 - Reporting on denial risk and call-taker performance

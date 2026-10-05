@@ -25,13 +25,33 @@ const LEVELS = {
 
 const isAnswered = (v) => v !== undefined && v !== null && String(v).trim() !== '';
 const sameAnswer = (a, b) => isAnswered(a) && isAnswered(b) && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+// A qualifying answer may list alternatives separated by "|".
+const matchesAny = (answer, expected) => isAnswered(expected) && String(expected).split('|').some((e) => sameAnswer(answer, e));
+
+const PRIOR_AUTH_LABELS = { required: 'Required', varies: 'Varies — verify with payer', not_required: 'Not required' };
 
 export function appliesToCallType(q, callType) {
   return !q.call_types || q.call_types.length === 0 || q.call_types.includes(callType);
 }
 
-export function evaluateCall({ callType = 'non_emergency', questions = [], answers = {}, transcript = '' }) {
-  const active = questions.filter((q) => q.active !== false && appliesToCallType(q, callType));
+export function appliesToPayer(q, payer) {
+  return !q.payers || q.payers.length === 0 || Boolean(payer && q.payers.includes(payer.code));
+}
+
+// Prior-authorization questions are asked only when the payer's policy for
+// this call type calls for it, and are required when the policy is "required".
+function applyPriorAuthPolicy(q, policy) {
+  if (q.criterion !== 'prior_auth') return q;
+  if (policy !== 'required' && policy !== 'varies') return null;
+  return policy === 'required' ? { ...q, required: true } : q;
+}
+
+export function evaluateCall({ callType = 'non_emergency', questions = [], answers = {}, transcript = '', payer = null }) {
+  const policy = payer?.prior_auth?.[callType] || null;
+  const active = questions
+    .filter((q) => q.active !== false && appliesToCallType(q, callType) && appliesToPayer(q, payer))
+    .map((q) => applyPriorAuthPolicy(q, policy))
+    .filter(Boolean);
   const triggered = detectTriggers(transcript, active);
   const suggestions = detectAnswers(transcript, active);
 
@@ -64,13 +84,13 @@ export function evaluateCall({ callType = 'non_emergency', questions = [], answe
     suggestions: openSuggestions,
     nextQuestion: queue[0]?.code || null,
     queue: queue.slice(0, 5).map((q) => q.code),
-    assessment: assess({ callType, visible, answers }),
+    assessment: assess({ callType, visible, answers, payer, policy }),
   };
 }
 
-function assess({ callType, visible, answers }) {
+function assess({ callType, visible, answers, payer, policy }) {
   const answered = (q) => isAnswered(answers[q.code]);
-  const qualifies = (q) => q.qualifying_answer && sameAnswer(answers[q.code], q.qualifying_answer);
+  const qualifies = (q) => matchesAny(answers[q.code], q.qualifying_answer);
   const byCriterion = (c) => visible.filter((q) => q.criterion === c);
 
   // --- Alerts configured on individual questions
@@ -102,22 +122,25 @@ function assess({ callType, visible, answers }) {
 
   // --- Required questions still open
   const missing = visible.filter((q) => q.required && !answered(q)).map((q) => ({ code: q.code, text: q.text }));
+  if (!payer) missing.unshift({ code: 'PAYER', text: 'Select the patient\'s primary payer.' });
 
   // --- Documentation requirements
   const documentation = [];
   if (callType === 'emergency') {
     documentation.push('Document the dispatch information and the patient\'s presenting symptoms at the time of the call.');
+  } else if (payer?.certification) {
+    documentation.push(`Certification: ${payer.certification}`);
   } else {
-    documentation.push('A Physician Certification Statement (PCS) or equivalent certification is required for non-emergency transport.');
-    if (callType === 'repetitive') {
-      documentation.push('Repetitive scheduled transport: the PCS must be dated no earlier than 60 days before the transport.');
-      documentation.push('Confirm whether the payer requires prior authorization for repetitive scheduled non-emergent transport.');
-    } else {
-      documentation.push('Non-repetitive transport: the certification may be obtained up to 48 hours after the transport.');
-    }
+    documentation.push('A Physician Certification Statement (PCS) or the payer\'s equivalent certification is required for non-emergency transport.');
+  }
+  if (policy === 'required') documentation.push(`Prior authorization is required before this transport${payer.contact_name ? ` — contact ${payer.contact_name}` : ''}.`);
+  else if (policy === 'varies') documentation.push('Check whether the payer requires prior authorization for this transport.');
+  else if (payer && callType === 'emergency') documentation.push('Prior authorization is not required for emergency transport.');
+  documentation.push(...(payer?.documentation || []));
+  if (!payer && callType !== 'emergency') {
     documentation.push('Bed-confinement alone is not sufficient — document the specific condition that makes other transport unsafe.');
   }
-  const docGaps = byCriterion('documentation').filter((q) => answered(q) && !qualifies(q)).map((q) => q.text);
+  const docGaps = visible.filter((q) => ['documentation', 'prior_auth'].includes(q.criterion) && answered(q) && !qualifies(q)).map((q) => q.text);
 
   // --- Determine status
   let status;
@@ -132,7 +155,7 @@ function assess({ callType, visible, answers }) {
       : 'Medical necessity is supported; complete the remaining required items and documentation.';
   } else if (disqualifiers.length > 0) {
     status = 'not_met';
-    summary = 'The patient appears able to travel safely by other means. Ambulance transport is unlikely to meet CMS medical-necessity criteria.';
+    summary = 'The patient appears able to travel safely by other means. Ambulance transport is unlikely to meet medical-necessity criteria.';
   } else if (supportExhausted) {
     status = 'not_met';
     summary = 'No qualifying condition has been identified and the patient does not meet the bed-confinement test.';
@@ -150,6 +173,10 @@ function assess({ callType, visible, answers }) {
   else if (has('als')) level = callType === 'emergency' ? LEVELS.als_emergency : LEVELS.als;
   else level = callType === 'emergency' ? LEVELS.bls_emergency : LEVELS.bls;
 
+  if (status === 'not_met' && payer?.alternate_transport) {
+    alerts.push({ level: 'info', text: payer.alternate_transport, code: 'PAYER_ALTERNATE' });
+  }
+
   const total = visible.length;
   const done = visible.filter(answered).length;
 
@@ -164,6 +191,15 @@ function assess({ callType, visible, answers }) {
     alerts,
     documentation,
     documentationGaps: docGaps,
+    payer: payer ? {
+      code: payer.code,
+      name: payer.name,
+      priorAuth: policy,
+      priorAuthLabel: PRIOR_AUTH_LABELS[policy] || 'Not specified',
+      priorAuthNote: payer.prior_auth_note || '',
+      contact: { name: payer.contact_name || '', phone: payer.contact_phone || '', url: payer.contact_url || '' },
+      alternateTransport: payer.alternate_transport || '',
+    } : null,
     levelOfService: level,
     progress: { answered: done, total, percent: total ? Math.round((done / total) * 100) : 0 },
   };

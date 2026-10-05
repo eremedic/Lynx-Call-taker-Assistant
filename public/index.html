@@ -30,12 +30,17 @@
     <!-- ======================================================= LEFT -->
     <section class="col left">
       <div class="card">
-        <div class="card-header"><h2 class="card-title">Call Type</h2></div>
+        <div class="card-header"><h2 class="card-title">Call Type &amp; Payer</h2></div>
         <div class="card-body">
           <div id="call-type" class="segmented" role="radiogroup" aria-label="Call type">
             <button type="button" data-type="non_emergency" role="radio">Non-emergency<small>Scheduled or unscheduled, one-time</small></button>
             <button type="button" data-type="repetitive" role="radio">Repetitive scheduled<small>Dialysis, wound care, chemo…</small></button>
             <button type="button" data-type="emergency" role="radio">Emergency<small>Emergency response</small></button>
+          </div>
+          <div class="field" style="margin: 14px 0 0">
+            <label for="payer">Primary payer</label>
+            <select id="payer" class="select"><option value="">Select payer…</option></select>
+            <span class="hint">Sets the prior-authorization and documentation rules for this call.</span>
           </div>
         </div>
       </div>
@@ -115,7 +120,7 @@
     <!-- ====================================================== RIGHT -->
     <section class="col right">
       <div id="status-banner" class="status-banner status-incomplete">
-        <div class="label">CMS Medical Necessity</div>
+        <div class="label" id="status-label">Medical Necessity</div>
         <div class="value" id="status-value">Gathering Information</div>
         <p id="status-summary"></p>
       </div>
@@ -129,6 +134,15 @@
           <div class="progress"><span id="progress-bar" style="width: 0"></span></div>
           <div class="section-label" style="margin-top: 14px;">Recommended level of service</div>
           <div class="los"><span id="los-name" class="name">—</span><code id="los-code" hidden></code></div>
+        </div>
+      </div>
+
+      <div id="payer-card" class="card" hidden>
+        <div class="card-header"><h2 class="card-title">Payer Rules</h2><span id="payer-name" class="chip chip-blue"></span></div>
+        <div class="card-body">
+          <div class="los"><span class="label">Prior authorization</span><span id="payer-pa" class="chip"></span></div>
+          <p id="payer-pa-note" class="small muted" style="margin: 6px 0 0"></p>
+          <div id="payer-contact" class="small" style="margin-top: 10px"></div>
         </div>
       </div>
 

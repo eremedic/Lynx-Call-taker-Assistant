@@ -7,7 +7,13 @@
 //   als / sct     - supports necessity AND raises the recommended level of service
 //   disqualifier  - a qualifying answer indicates other transport is appropriate
 //   documentation - paperwork needed to support the claim
+//   prior_auth    - asked only when the selected payer's prior-authorization
+//                   policy for the call type is "required" or "varies";
+//                   required when the policy is "required"
 //   info          - collected for the record only
+//
+// `payers` limits a question to specific payer profiles (by code); empty
+// means every payer. `qualifying_answer` may list alternatives separated by |.
 //
 // References: 42 CFR 410.40; Medicare Benefit Policy Manual (Pub. 100-02), Ch. 10.
 
@@ -17,6 +23,7 @@ export const CATEGORIES = [
   'Bed Confinement',
   'Clinical Condition',
   'Documentation',
+  'Payer & Authorization',
 ];
 
 export const SEED_QUESTIONS = [
@@ -337,6 +344,7 @@ export const SEED_QUESTIONS = [
     code: 'DOC_INPATIENT',
     category: 'Documentation',
     call_types: ['non_emergency', 'repetitive'],
+    payers: ['medicare', 'medicare_advantage'],
     text: 'Is the patient currently a hospital inpatient or in a Medicare Part A–covered SNF stay?',
     guidance: 'During a covered inpatient or SNF Part A stay, transport may be the facility\'s financial responsibility.',
     answer_type: 'yes_no',
@@ -347,20 +355,10 @@ export const SEED_QUESTIONS = [
     alert_text: 'Patient is in a covered stay — the facility may be the responsible billing party. Verify before scheduling.',
   },
   {
-    code: 'DOC_INSURANCE',
-    category: 'Documentation',
-    text: 'What is the patient\'s primary insurance?',
-    guidance: 'Collect the member ID. Medicare Advantage and Medicaid plans may have their own authorization rules.',
-    answer_type: 'choice',
-    options: ['Medicare Part B', 'Medicare Advantage', 'Medicaid', 'Commercial', 'Self-pay', 'Unknown'],
-    criterion: 'info',
-    priority: 2,
-    required: true,
-  },
-  {
     code: 'DOC_PCS',
     category: 'Documentation',
     call_types: ['non_emergency', 'repetitive'],
+    payers: ['medicare', 'medicare_advantage'],
     text: 'Will a signed Physician Certification Statement (PCS) be provided for this transport?',
     guidance: 'Repetitive scheduled transports need a PCS dated no earlier than 60 days before transport. For non-repetitive transports, the certification may be obtained within 48 hours after transport.',
     answer_type: 'yes_no',
@@ -384,15 +382,114 @@ export const SEED_QUESTIONS = [
     depends_on_code: 'DOC_PCS',
     depends_on_answer: 'yes',
   },
+
+  // ---------------------------------------------------- Payer & Authorization
   {
     code: 'DOC_PRIOR_AUTH',
-    category: 'Documentation',
-    call_types: ['repetitive'],
-    text: 'Has prior authorization been requested or affirmed, if the payer requires it?',
-    guidance: 'Check whether the patient\'s MAC or plan requires prior authorization for repetitive scheduled non-emergent transport.',
+    category: 'Payer & Authorization',
+    text: 'What is the status of the payer\'s prior authorization for this transport?',
+    guidance: 'Asked when the selected payer requires — or may require — prior authorization for this type of call. See the payer panel for who to contact.',
+    answer_type: 'choice',
+    options: ['Approved', 'Not required — confirmed with payer', 'Pending', 'Denied'],
+    criterion: 'prior_auth',
+    qualifying_answer: 'Approved|Not required — confirmed with payer',
+    priority: 2,
+    alert_answer: 'Denied',
+    alert_level: 'critical',
+    alert_text: 'Prior authorization was denied — do not schedule as a covered transport. Discuss an appeal or alternate transport with the caller.',
+  },
+  {
+    code: 'DOC_AUTH_NUMBER',
+    category: 'Payer & Authorization',
+    text: 'What is the authorization or reference number?',
+    guidance: 'Record it exactly as issued; it is required on the claim.',
+    answer_type: 'text',
+    criterion: 'info',
+    priority: 2,
+    depends_on_code: 'DOC_PRIOR_AUTH',
+    depends_on_answer: 'Approved',
+  },
+  {
+    code: 'MA_PLAN',
+    category: 'Payer & Authorization',
+    payers: ['medicare_advantage'],
+    text: 'Which Medicare Advantage plan is the patient enrolled in?',
+    guidance: 'Use the plan name on the member ID card. Each plan sets its own authorization process.',
+    answer_type: 'text',
+    criterion: 'info',
+    priority: 1,
+    required: true,
+  },
+  {
+    code: 'MA_NETWORK',
+    category: 'Payer & Authorization',
+    payers: ['medicare_advantage'],
+    call_types: ['non_emergency', 'repetitive'],
+    text: 'Is our service in-network with the patient\'s Medicare Advantage plan?',
+    guidance: 'Plans must cover emergency ambulance regardless of network, but out-of-network non-emergency transport may not be covered.',
+    answer_type: 'yes_no',
+    criterion: 'info',
+    priority: 2,
+    alert_answer: 'no',
+    alert_level: 'warning',
+    alert_text: 'Out of network: confirm the plan will authorize this non-emergency transport before scheduling.',
+  },
+  {
+    code: 'MCD_ELIGIBILITY',
+    category: 'Payer & Authorization',
+    payers: ['medicaid'],
+    text: 'Has Medicaid eligibility been verified for the date of service?',
+    guidance: 'Check the state eligibility system. Coverage can lapse month to month.',
     answer_type: 'yes_no',
     criterion: 'documentation',
     qualifying_answer: 'yes',
+    priority: 1,
+    required: true,
+    alert_answer: 'no',
+    alert_level: 'warning',
+    alert_text: 'Medicaid eligibility not verified — confirm coverage for the date of service before scheduling.',
+  },
+  {
+    code: 'MCD_DUAL',
+    category: 'Payer & Authorization',
+    payers: ['medicaid'],
+    text: 'Does the patient also have Medicare (dual-eligible)?',
+    guidance: 'Medicaid is the payer of last resort.',
+    answer_type: 'yes_no',
+    criterion: 'info',
     priority: 2,
+    detect_yes: ['dual eligible', 'dual-eligible', 'medicare and medicaid', 'medi-medi'],
+    alert_answer: 'yes',
+    alert_level: 'info',
+    alert_text: 'Dual-eligible: Medicare (or the Medicare Advantage plan) is primary — apply Medicare criteria and bill it first.',
+  },
+  {
+    code: 'MCD_MCO',
+    category: 'Payer & Authorization',
+    payers: ['medicaid'],
+    text: 'Is the patient enrolled in a Medicaid managed-care plan (MCO)?',
+    guidance: 'Managed-care members follow the MCO\'s authorization and transportation rules rather than fee-for-service Medicaid.',
+    answer_type: 'yes_no',
+    criterion: 'info',
+    priority: 2,
+    alert_answer: 'yes',
+    alert_level: 'info',
+    alert_text: 'Medicaid managed care: get authorization from the MCO and record the MCO name with the trip.',
+  },
+  {
+    code: 'MCD_CERT',
+    category: 'Payer & Authorization',
+    payers: ['medicaid'],
+    call_types: ['non_emergency', 'repetitive'],
+    text: 'Will the ordering practitioner complete the state\'s medical-necessity / certification form?',
+    guidance: 'Most states require a signed certification for non-emergency ambulance transport.',
+    answer_type: 'yes_no',
+    criterion: 'documentation',
+    qualifying_answer: 'yes',
+    priority: 1,
+    required: true,
+    alert_answer: 'no',
+    alert_level: 'warning',
+    alert_text: 'No certification form — the state may deny non-emergency transport without it.',
   },
 ];

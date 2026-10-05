@@ -118,6 +118,7 @@ export const CRITERION_LABELS = {
   sct: 'SCT indicator',
   disqualifier: 'Disqualifier',
   documentation: 'Documentation',
+  prior_auth: 'Prior authorization',
   info: 'Information',
 };
 
@@ -129,6 +130,7 @@ export const CRITERION_CHIPS = {
   sct: 'chip-violet',
   disqualifier: 'chip-amber',
   documentation: '',
+  prior_auth: 'chip-amber',
   info: '',
 };
 
