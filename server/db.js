@@ -5,13 +5,19 @@ import { SEED_QUESTIONS } from './seed-questions.js';
 import { SEED_PAYERS } from './seed-payers.js';
 
 const JSON_FIELDS = ['options', 'call_types', 'payers', 'triggers', 'detect_yes', 'detect_no'];
-const BOOL_FIELDS = ['required', 'active', 'is_system'];
+const BOOL_FIELDS = ['required', 'active', 'is_system', 'necessity'];
 
 export const QUESTION_FIELDS = [
   'code', 'category', 'text', 'guidance', 'answer_type', 'options', 'call_types', 'payers', 'criterion', 'qualifying_answer',
   'triggers', 'detect_yes', 'detect_no', 'depends_on_code', 'depends_on_answer', 'priority', 'sort_order', 'required',
-  'alert_answer', 'alert_text', 'alert_level', 'active',
+  'alert_answer', 'alert_text', 'alert_level', 'active', 'necessity',
 ];
+
+// Medical-necessity questions are skipped for payers that don't require a
+// necessity review. Emergency screening and general information are not.
+export function defaultNecessity(q) {
+  return q.necessity ?? !['emergency', 'info'].includes(q.criterion || 'info');
+}
 
 const DEFAULT_SETTINGS = {
   org_name: 'Lynx Ambulance',
@@ -130,6 +136,13 @@ export function openDb(file = process.env.DB_PATH || path.resolve('data/lynx.db'
   if (!cols('calls').includes('user_id')) db.exec('ALTER TABLE calls ADD COLUMN user_id INTEGER REFERENCES users(id)');
   if (!cols('calls').includes('payer')) db.exec('ALTER TABLE calls ADD COLUMN payer TEXT');
   if (!cols('questions').includes('payers')) db.exec("ALTER TABLE questions ADD COLUMN payers TEXT DEFAULT '[]'");
+  if (!cols('questions').includes('necessity')) db.exec('ALTER TABLE questions ADD COLUMN necessity INTEGER');
+  const payerCols = cols('payers');
+  if (!payerCols.includes('requires_medical_necessity')) db.exec('ALTER TABLE payers ADD COLUMN requires_medical_necessity INTEGER NOT NULL DEFAULT 1');
+  if (!payerCols.includes('kind')) db.exec("ALTER TABLE payers ADD COLUMN kind TEXT NOT NULL DEFAULT 'payer'");
+  if (!payerCols.includes('parent_code')) db.exec('ALTER TABLE payers ADD COLUMN parent_code TEXT');
+  if (!payerCols.includes('contact_fax')) db.exec("ALTER TABLE payers ADD COLUMN contact_fax TEXT NOT NULL DEFAULT ''");
+  if (!payerCols.includes('contact_email')) db.exec("ALTER TABLE payers ADD COLUMN contact_email TEXT NOT NULL DEFAULT ''");
 
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) insertSetting.run(k, v);
@@ -140,7 +153,8 @@ export function openDb(file = process.env.DB_PATH || path.resolve('data/lynx.db'
 // Seed version history:
 //   1 - original CMS question bank
 //   2 - payer profiles; payer-scoped questions; prior-auth criterion
-const SEED_VERSION = 2;
+//   3 - private pay / facility pay (no necessity review); transport brokers
+const SEED_VERSION = 3;
 
 function seedContent(db) {
   const settings = settingsRepo(db);
@@ -180,6 +194,18 @@ function seedContent(db) {
         }
       }
     }
+    if (version < 3 && !fresh) {
+      SEED_PAYERS.forEach((p, i) => { if (!payers.getByCode(p.code)) payers.create({ ...p, sort_order: (i + 1) * 10 }, { system: true }); });
+      for (const q of SEED_QUESTIONS) {
+        if (!questions.getByCode(q.code)) questions.create({ ...q, sort_order: 1000 + seedOrder(q.code) }, { system: true });
+      }
+      // Classify existing questions as medical-necessity questions or not.
+      for (const q of questions.list()) {
+        if (q.necessity_set) continue;
+        const seed = q.is_system ? SEED_QUESTIONS.find((x) => x.code === q.code) : null;
+        questions.update(q.id, { necessity: defaultNecessity(seed || q) });
+      }
+    }
     settings.set('seed_version', SEED_VERSION);
     db.exec('COMMIT');
   } catch (err) {
@@ -192,6 +218,7 @@ function rowToQuestion(row) {
   if (!row) return null;
   const q = { ...row };
   for (const f of JSON_FIELDS) q[f] = JSON.parse(row[f] || '[]');
+  q.necessity_set = row.necessity !== null && row.necessity !== undefined;
   for (const f of BOOL_FIELDS) q[f] = Boolean(row[f]);
   return q;
 }
@@ -222,7 +249,7 @@ export function questionRepo(db) {
       return rowToQuestion(db.prepare('SELECT * FROM questions WHERE code = ?').get(code));
     },
     create(input, { system = false } = {}) {
-      const row = toRow({ active: true, required: false, priority: 3, ...input });
+      const row = toRow({ active: true, required: false, priority: 3, ...input, necessity: defaultNecessity(input) });
       if (row.sort_order == null) {
         row.sort_order = (db.prepare('SELECT COALESCE(MAX(sort_order), 0) AS m FROM questions').get().m || 0) + 10;
       }
@@ -395,8 +422,9 @@ export function auditRepo(db) {
 }
 
 // ----------------------------------------------------------------- payers
-const PAYER_FIELDS = ['code', 'name', 'description', 'prior_auth', 'prior_auth_note', 'certification', 'documentation',
-  'alternate_transport', 'contact_name', 'contact_phone', 'contact_url', 'sort_order', 'active'];
+export const PAYER_FIELDS = ['code', 'name', 'kind', 'parent_code', 'description', 'requires_medical_necessity', 'prior_auth',
+  'prior_auth_note', 'certification', 'documentation', 'alternate_transport', 'contact_name', 'contact_phone', 'contact_fax',
+  'contact_email', 'contact_url', 'sort_order', 'active'];
 
 const toPayer = (row) => row && {
   ...row,
@@ -404,6 +432,8 @@ const toPayer = (row) => row && {
   documentation: JSON.parse(row.documentation || '[]'),
   active: Boolean(row.active),
   is_system: Boolean(row.is_system),
+  requires_medical_necessity: Boolean(row.requires_medical_necessity),
+  parent_code: row.parent_code || null,
 };
 
 function payerRow(input) {
@@ -413,7 +443,8 @@ function payerRow(input) {
     let v = input[f];
     if (f === 'prior_auth') v = JSON.stringify(v || {});
     else if (f === 'documentation') v = JSON.stringify(Array.isArray(v) ? v : []);
-    else if (f === 'active') v = v ? 1 : 0;
+    else if (f === 'active' || f === 'requires_medical_necessity') v = v ? 1 : 0;
+    else if (f === 'parent_code') v = v ? String(v) : null;
     else if (f === 'sort_order') v = Number(v) || 0;
     else v = v == null ? '' : String(v);
     row[f] = v;
@@ -424,7 +455,7 @@ function payerRow(input) {
 export function payerRepo(db) {
   return {
     list({ activeOnly = false } = {}) {
-      return db.prepare(`SELECT * FROM payers ${activeOnly ? 'WHERE active = 1' : ''} ORDER BY sort_order, name`).all().map(toPayer);
+      return db.prepare(`SELECT * FROM payers ${activeOnly ? 'WHERE active = 1' : ''} ORDER BY kind DESC, sort_order, name`).all().map(toPayer);
     },
     get(id) {
       return toPayer(db.prepare('SELECT * FROM payers WHERE id = ?').get(id));
@@ -433,7 +464,7 @@ export function payerRepo(db) {
       return toPayer(db.prepare('SELECT * FROM payers WHERE code = ?').get(String(code || '')));
     },
     create(input, { system = false } = {}) {
-      const row = payerRow({ active: true, ...input });
+      const row = payerRow({ active: true, kind: 'payer', requires_medical_necessity: true, ...input });
       if (row.sort_order == null) row.sort_order = (db.prepare('SELECT COALESCE(MAX(sort_order), 0) AS m FROM payers').get().m || 0) + 10;
       row.is_system = system ? 1 : 0;
       const keys = Object.keys(row);

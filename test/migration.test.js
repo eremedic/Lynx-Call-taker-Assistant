@@ -23,19 +23,25 @@ test('a database from before payer rules is upgraded in place', () => {
 
     db = openDb(file);
     const after = questionRepo(db);
-    assert.equal(settingsRepo(db).all().seed_version, '2');
-    assert.equal(payerRepo(db).list().length, 4);
+    assert.equal(settingsRepo(db).all().seed_version, '3');
+    assert.equal(payerRepo(db).list().length, 6);
     assert.equal(after.getByCode('DOC_PRIOR_AUTH').criterion, 'prior_auth');
     assert.deepEqual(after.getByCode('DOC_PRIOR_AUTH').call_types, []);
     assert.equal(after.getByCode('DOC_INSURANCE').active, false);
     assert.ok(after.getByCode('MCD_ELIGIBILITY'));
     assert.deepEqual(after.getByCode('DOC_PCS').payers, ['medicare', 'medicare_advantage']);
     assert.equal(after.get(custom.id).text, 'Kept?');
+    assert.equal(after.getByCode('BED_SIT').necessity, true, 'clinical questions are classified as medical necessity');
+    assert.equal(after.getByCode('EMG_SCREEN').necessity, false, 'the emergency screen is always asked');
+    assert.equal(after.getByCode('TX_NEAREST').necessity, true);
+    assert.equal(after.get(custom.id).necessity, false, 'custom info questions are not medical necessity');
+    assert.equal(payerRepo(db).getByCode('private_pay').requires_medical_necessity, false);
+    assert.ok(after.getByCode('BRK_TRIP_NUMBER'));
     db.close();
 
     // Opening again is a no-op.
     db = openDb(file);
-    assert.equal(payerRepo(db).list().length, 4);
+    assert.equal(payerRepo(db).list().length, 6);
     db.close();
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

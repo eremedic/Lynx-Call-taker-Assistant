@@ -25,7 +25,7 @@
       <nav class="sidenav" aria-label="Admin sections">
         <button type="button" data-view="overview" class="active"><span class="nav-icon">◧</span>Overview</button>
         <button type="button" data-view="questions"><span class="nav-icon">☰</span>Question Bank</button>
-        <button type="button" data-view="payers"><span class="nav-icon">$</span>Payers</button>
+        <button type="button" data-view="payers"><span class="nav-icon">$</span>Payers &amp; Brokers</button>
         <button type="button" data-view="calls"><span class="nav-icon">☏</span>Call Log</button>
         <button type="button" data-view="users"><span class="nav-icon">◉</span>Users</button>
         <button type="button" data-view="audit"><span class="nav-icon">⧉</span>Audit Log</button>
@@ -89,8 +89,8 @@
         <!-- --------------------------------------------------- payers -->
         <section data-panel="payers" hidden>
           <div class="page-head">
-            <div><h1>Payers</h1><p>Payer-specific rules: prior authorization by call type, certification and documentation requirements, and where to refer patients who don't qualify for ambulance transport.</p></div>
-            <button id="add-payer" class="btn btn-primary" type="button">+ Add Payer</button>
+            <div><h1>Payers &amp; Brokers</h1><p>Payer-specific rules: prior authorization by call type, certification and documentation requirements, and where to refer patients who don't qualify for ambulance transport.</p></div>
+            <div style="display: flex; gap: 8px"><button id="add-broker" class="btn" type="button">+ Add Broker</button><button id="add-payer" class="btn btn-primary" type="button">+ Add Payer</button></div>
           </div>
           <div class="alert alert-info" style="margin-bottom: 16px"><span class="icon">i</span><span>Medicaid and Medicare Advantage rules vary by state and plan. Review the built-in profiles against your state Medicaid provider manual and your contracted plans, and add a separate profile for each state program or plan whose rules differ.</span></div>
           <div class="card">
@@ -98,6 +98,20 @@
               <table class="table">
                 <thead><tr><th>Payer</th><th>Prior auth — Non-emergency</th><th>Repetitive</th><th>Emergency</th><th>Questions</th><th>Active</th><th></th></tr></thead>
                 <tbody id="payer-rows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 16px">
+            <div class="card-header">
+              <h2 class="card-title">Transport Brokers</h2>
+              <button id="add-broker-2" class="btn btn-sm" type="button">+ Add Broker</button>
+            </div>
+            <p class="small muted" style="margin: 12px 16px 0">Brokers (for example Medicaid NEMT brokers or Medicare Advantage transportation vendors) assign trips and pay for them. They appear in the call taker's payer list. A broker follows the questions of the payer program it books for and adds a required broker trip number.</p>
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr><th>Broker</th><th>Books for</th><th>Prior auth — Non-emergency</th><th>Contact</th><th>Active</th><th></th></tr></thead>
+                <tbody id="broker-rows"></tbody>
               </table>
             </div>
           </div>
@@ -266,7 +280,9 @@
               <div class="checkbox-row">
                 <label><input type="checkbox" name="required"> Required before the call is complete</label>
                 <label><input type="checkbox" name="active"> Active</label>
+                <label><input type="checkbox" name="necessity"> Medical-necessity question</label>
               </div>
+              <span class="hint">Medical-necessity questions are skipped for payers that don't require a necessity review (private pay, facility pay).</span>
             </div>
           </div>
         </fieldset>
@@ -346,9 +362,21 @@
             <input id="p-code" name="code" class="input" placeholder="e.g. medicaid_tx_superior" autocapitalize="none" spellcheck="false" required>
             <span class="hint">Lowercase letters, digits, underscores. Cannot be changed later.</span>
           </div>
+          <div class="field span-2" id="p-parent-wrap" hidden>
+            <label for="p-parent_code">Books trips for (payer program)</label>
+            <select id="p-parent_code" name="parent_code" class="select"></select>
+            <span class="hint">The broker's calls also get that payer's questions (for example the Medicaid eligibility check). Choosing one fills in its rules below as a starting point.</span>
+          </div>
           <div class="field span-2">
             <label for="p-description">Description</label>
             <textarea id="p-description" name="description" class="textarea" rows="2"></textarea>
+          </div>
+          <div class="field span-2">
+            <label class="switch">
+              <input type="checkbox" name="requires_medical_necessity"><span class="track"></span>
+              <span>Requires medical-necessity review</span>
+            </label>
+            <span class="hint">Turn off for private pay, facility pay, or any payer that doesn't require it. All medical-necessity questions are then skipped for this payer; the emergency screen is still asked.</span>
           </div>
         </div>
         <fieldset class="group">
@@ -379,6 +407,8 @@
           <div class="form-grid">
             <div class="field span-2"><label for="p-contact_name">Name / department</label><input id="p-contact_name" name="contact_name" class="input"></div>
             <div class="field"><label for="p-contact_phone">Phone</label><input id="p-contact_phone" name="contact_phone" class="input" inputmode="tel"></div>
+            <div class="field"><label for="p-contact_fax">Fax</label><input id="p-contact_fax" name="contact_fax" class="input" inputmode="tel"></div>
+            <div class="field"><label for="p-contact_email">Email</label><input id="p-contact_email" name="contact_email" class="input" type="email"></div>
             <div class="field"><label for="p-contact_url">Portal URL</label><input id="p-contact_url" name="contact_url" class="input" placeholder="https://"></div>
           </div>
         </fieldset>

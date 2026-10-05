@@ -173,7 +173,7 @@ test('logout ends the session', async () => {
 
 test('admin manages payer profiles; changes are validated and audited', async () => {
   const list = (await admin('/api/admin/payers')).data;
-  assert.deepEqual(list.map((p) => p.code), ['medicare', 'medicare_advantage', 'medicaid', 'commercial']);
+  assert.deepEqual(list.map((p) => p.code), ['medicare', 'medicare_advantage', 'medicaid', 'commercial', 'private_pay', 'facility_pay']);
   assert.equal((await taker('/api/admin/payers')).status, 403);
 
   const bad = await admin('/api/admin/payers', { method: 'POST', body: { code: 'tx_medicaid', name: 'Texas Medicaid', prior_auth: { emergency: 'never' } } });
@@ -220,4 +220,67 @@ test('saved calls record the payer and inactive payers are ignored', async () =>
   const r = await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'commercial' } });
   assert.equal(r.data.assessment.payer, null);
   await admin(`/api/admin/payers/${commercial.id}`, { method: 'PUT', body: { active: true } });
+});
+
+test('private pay and facility pay skip every medical-necessity question', async () => {
+  for (const payer of ['private_pay', 'facility_pay']) {
+    const r = (await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer, transcript: 'patient is bedbound on oxygen' } })).data;
+    assert.equal(r.assessment.status, 'not_required', payer);
+    for (const code of ['BED_GET_UP', 'CLN_OXYGEN', 'TX_OTHER_MEANS', 'DOC_PCS', 'DOC_PRIOR_AUTH', 'TX_NEAREST']) {
+      assert.ok(!r.visibleCodes.includes(code), `${payer} should skip ${code}`);
+    }
+    assert.ok(r.visibleCodes.includes('EMG_SCREEN'), 'the emergency screen is still asked');
+    assert.deepEqual(Object.keys(r.suggestions), [], 'no necessity answers are suggested');
+  }
+  const pp = (await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'private_pay', answers: { PP_AGREED: 'no' } } })).data;
+  assert.ok(pp.visibleCodes.includes('PP_RESPONSIBLE'));
+  assert.ok(pp.assessment.alerts.some((a) => a.code === 'PP_AGREED'));
+  const fp = (await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'facility_pay' } })).data;
+  assert.ok(fp.visibleCodes.includes('FP_AUTHORIZED_BY') && !fp.visibleCodes.includes('PP_RESPONSIBLE'));
+
+  // Any payer can be switched to "no necessity review" by an administrator.
+  const commercial = (await admin('/api/admin/payers')).data.find((p) => p.code === 'commercial');
+  await admin(`/api/admin/payers/${commercial.id}`, { method: 'PUT', body: { requires_medical_necessity: false } });
+  assert.equal((await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'commercial' } })).data.assessment.status, 'not_required');
+  await admin(`/api/admin/payers/${commercial.id}`, { method: 'PUT', body: { requires_medical_necessity: true } });
+});
+
+test('transport brokers are added as payers, linked to a payer program', async () => {
+  const bad = await admin('/api/admin/payers', { method: 'POST', body: { code: 'bad_broker', name: 'Bad', kind: 'broker', parent_code: 'nope', prior_auth: { emergency: 'not_required', non_emergency: 'required', repetitive: 'required' } } });
+  assert.equal(bad.status, 400);
+
+  const broker = await admin('/api/admin/payers', {
+    method: 'POST',
+    body: {
+      code: 'nemt_broker', name: 'Statewide NEMT Broker', kind: 'broker', parent_code: 'medicaid',
+      prior_auth: { emergency: 'not_required', non_emergency: 'required', repetitive: 'required' },
+      contact_name: 'Trip reservations', contact_phone: '(800) 555-0100', contact_fax: '(800) 555-0101', contact_email: 'trips@example.org',
+    },
+  });
+  assert.equal(broker.status, 201, JSON.stringify(broker.data));
+  assert.equal(broker.data.kind, 'broker');
+
+  // Shown to call takers in the payer list.
+  const cfg = (await taker('/api/config')).data;
+  assert.ok(cfg.payers.some((p) => p.code === 'nemt_broker' && p.kind === 'broker'));
+
+  // Broker calls get the broker trip number and the Medicaid questions, under the broker's own prior-auth policy.
+  const r = (await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'nemt_broker' } })).data;
+  assert.ok(r.visibleCodes.includes('BRK_TRIP_NUMBER'));
+  assert.ok(r.visibleCodes.includes('MCD_ELIGIBILITY'));
+  assert.equal(r.assessment.payer.kind, 'broker');
+  assert.equal(r.assessment.payer.parentName, 'Medicaid');
+  assert.equal(r.assessment.payer.priorAuth, 'required');
+  assert.equal(r.assessment.payer.contact.fax, '(800) 555-0101');
+
+  // Medicaid calls list the brokers that book for Medicaid.
+  const mcd = (await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'medicaid' } })).data;
+  assert.deepEqual(mcd.assessment.payer.brokers.map((b) => b.name), ['Statewide NEMT Broker']);
+  assert.ok(!mcd.visibleCodes.includes('BRK_TRIP_NUMBER'));
+
+  // The parent payer can't be deleted while a broker books for it.
+  const medicaid = (await admin('/api/admin/payers')).data.find((p) => p.code === 'medicaid');
+  const blocked = await admin(`/api/admin/payers/${medicaid.id}`, { method: 'DELETE' });
+  assert.equal(blocked.status, 400);
+  assert.equal((await admin(`/api/admin/payers/${broker.data.id}`, { method: 'DELETE' })).status, 204);
 });

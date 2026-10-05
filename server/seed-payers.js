@@ -7,6 +7,11 @@
 //
 // Medicaid rules differ by state and managed-care plan. Administrators
 // should adjust the Medicaid profile (or add one per state / MCO).
+//
+// requires_medical_necessity: false skips every question marked as a
+// medical-necessity question (private pay, facility pay).
+// Transport brokers are payer profiles with kind 'broker'; they are added
+// by administrators and may name the payer program they book for (parent_code).
 
 export const PRIOR_AUTH_POLICIES = {
   required: 'Required',
@@ -77,6 +82,40 @@ export const SEED_PAYERS = [
     ],
     alternate_transport: 'Check whether the plan covers wheelchair-van or other non-emergency transportation.',
     contact_name: 'Plan provider services (number on member ID card)',
+    contact_phone: '',
+    contact_url: '',
+  },
+  {
+    code: 'private_pay',
+    name: 'Private pay (self-pay)',
+    description: 'The patient or a family member pays directly. No medical-necessity review is required.',
+    requires_medical_necessity: false,
+    prior_auth: { emergency: 'not_required', non_emergency: 'not_required', repetitive: 'not_required' },
+    prior_auth_note: '',
+    certification: '',
+    documentation: [
+      'Quote the transport rate and confirm the payment method before scheduling.',
+      'Have the patient or responsible party sign the financial responsibility agreement.',
+    ],
+    alternate_transport: '',
+    contact_name: '',
+    contact_phone: '',
+    contact_url: '',
+  },
+  {
+    code: 'facility_pay',
+    name: 'Facility pay',
+    description: 'The sending or receiving facility (hospital, SNF, hospice) pays under its agreement with us. No medical-necessity review is required.',
+    requires_medical_necessity: false,
+    prior_auth: { emergency: 'not_required', non_emergency: 'not_required', repetitive: 'not_required' },
+    prior_auth_note: '',
+    certification: '',
+    documentation: [
+      'Confirm the facility has an active billing agreement with us.',
+      'Record who at the facility authorized the transport and any purchase-order number.',
+    ],
+    alternate_transport: '',
+    contact_name: '',
     contact_phone: '',
     contact_url: '',
   },

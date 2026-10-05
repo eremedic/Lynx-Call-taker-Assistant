@@ -100,6 +100,7 @@ export const STATUS_LABELS = {
   review: 'Needs Review',
   not_met: 'Does Not Appear to Meet',
   incomplete: 'Gathering Information',
+  not_required: 'Medical Necessity Not Required',
 };
 
 export const STATUS_CHIPS = {
@@ -108,6 +109,7 @@ export const STATUS_CHIPS = {
   review: 'chip-amber',
   not_met: 'chip-red',
   incomplete: '',
+  not_required: 'chip-blue',
 };
 
 export const CRITERION_LABELS = {
@@ -146,4 +148,13 @@ export function formatDate(sqlUtc) {
   if (!sqlUtc) return '';
   const d = new Date(`${sqlUtc.replace(' ', 'T')}Z`);
   return d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+// Payer <option>s grouped into payers and transport brokers.
+export function payerOptions(payers, selected = '') {
+  const opt = (p) => `<option value="${esc(p.code)}" ${p.code === selected ? 'selected' : ''}>${esc(p.name)}</option>`;
+  const plain = payers.filter((p) => p.kind !== 'broker');
+  const brokers = payers.filter((p) => p.kind === 'broker');
+  return `<optgroup label="Payers">${plain.map(opt).join('')}</optgroup>`
+    + (brokers.length ? `<optgroup label="Transport brokers">${brokers.map(opt).join('')}</optgroup>` : '');
 }

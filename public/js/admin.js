@@ -3,7 +3,7 @@ import { api, esc, toast, requireUser, mountUserMenu, ROLE_LABELS, STATUS_LABELS
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
 
-const state = { payers: [], editingPayer: null, user: null, config: null, questions: [], editing: null, users: [], editingUser: null, auditOffset: 0 };
+const state = { payers: [], editingPayer: null, editingKind: 'payer', user: null, config: null, questions: [], editing: null, users: [], editingUser: null, auditOffset: 0 };
 const AUDIT_PAGE = 50;
 
 const TYPE_LABELS = { yes_no: 'Yes / No', choice: 'Choice', text: 'Text', number: 'Number' };
@@ -45,10 +45,20 @@ function bindEvents() {
   $('#q-status').addEventListener('change', renderQuestions);
   $('#q-form').addEventListener('submit', saveQuestion);
   $('#f-answer_type').addEventListener('change', syncTypeFields);
+  $('#f-criterion').addEventListener('change', (e) => {
+    if (!state.editing) $('#q-form').elements.necessity.checked = !['emergency', 'info'].includes(e.target.value);
+  });
   $('#refresh-calls').addEventListener('click', loadCalls);
   $('#settings-form').addEventListener('submit', saveSettings);
   $('#add-user').addEventListener('click', () => openUser(null));
-  $('#add-payer').addEventListener('click', () => openPayer(null));
+  $('#add-payer').addEventListener('click', () => openPayer(null, 'payer'));
+  $('#add-broker').addEventListener('click', () => openPayer(null, 'broker'));
+  $('#add-broker-2').addEventListener('click', () => openPayer(null, 'broker'));
+  // Choosing a broker's payer program fills in that payer's rules as a starting point.
+  $('#p-parent_code').addEventListener('change', (e) => {
+    const parent = state.payers.find((x) => x.code === e.target.value);
+    if (parent && !state.editingPayer) fillPayerRules($('#payer-form').elements, { ...parent, prior_auth: { ...parent.prior_auth, non_emergency: 'required', repetitive: 'required' } });
+  });
   $('#payer-form').addEventListener('submit', savePayer);
   $('#payer-rows').addEventListener('click', (e) => {
     const edit = e.target.closest('[data-edit-payer]');
@@ -139,12 +149,13 @@ async function loadOverview() {
   const s = stats.calls.byStatus;
   const totalCalls = Object.values(s).reduce((a, b) => a + b, 0);
   const meeting = (s.meets || 0) + (s.likely || 0);
+  const reviewed = totalCalls - (s.not_required || 0); // private / facility pay calls aren't reviewed
   const card = (label, value, sub = '') => `<div class="card stat"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div>${sub ? `<div class="small muted">${esc(sub)}</div>` : ''}</div>`;
   $('#stats').innerHTML = [
     card('Active questions', stats.questions.active, `${stats.questions.total} total`),
     card('Calls today', stats.calls.today, `${totalCalls} all time`),
     card('Active users', stats.users.active, `${stats.users.total} accounts`),
-    card('Meeting necessity', totalCalls ? `${Math.round((meeting / totalCalls) * 100)}%` : '—', `${meeting} of ${totalCalls} calls`),
+    card('Meeting necessity', reviewed ? `${Math.round((meeting / reviewed) * 100)}%` : '—', `${meeting} of ${reviewed} reviewed calls`),
   ].join('');
   $('#recent-calls').innerHTML = callsTable((calls || []).slice(0, 8));
 }
@@ -209,8 +220,8 @@ function openQuestion(q) {
   $('#q-modal-title').textContent = q ? 'Edit Question' : 'Add Question';
 
   $('#f-criterion').innerHTML = state.config.criteria.map((c) => `<option value="${c}">${esc(CRITERION_LABELS[c])}</option>`).join('');
-  $('#f-payers').innerHTML = state.payers.map((p) =>
-    `<label><input type="checkbox" name="payers" value="${esc(p.code)}"> ${esc(p.name)}</label>`).join('');
+  $('#f-payers').innerHTML = [{ code: '@broker', name: 'Any transport broker' }, ...state.payers].map((p) =>
+    `<label><input type="checkbox" name="payers" value="${esc(p.code)}"> ${esc(p.name)}${p.kind === 'broker' ? ' (broker)' : ''}</label>`).join('');
   $('#f-call_types').innerHTML = Object.entries(state.config.callTypes).map(([k, label]) =>
     `<label><input type="checkbox" name="call_types" value="${k}"> ${esc(label)}</label>`).join('');
   $('#f-depends_on_code').innerHTML = '<option value="">— Not a follow-up —</option>' + state.questions
@@ -220,7 +231,7 @@ function openQuestion(q) {
   const v = q || {
     code: '', category: '', text: '', guidance: '', answer_type: 'yes_no', options: [], call_types: [], payers: [], criterion: 'condition',
     qualifying_answer: 'yes', triggers: [], detect_yes: [], detect_no: [], depends_on_code: '', depends_on_answer: '',
-    priority: 2, required: false, active: true, alert_answer: '', alert_text: '', alert_level: 'warning',
+    priority: 2, required: false, active: true, necessity: true, alert_answer: '', alert_text: '', alert_level: 'warning',
   };
   const el = form.elements;
   el.code.value = v.code;
@@ -239,6 +250,7 @@ function openQuestion(q) {
   el.depends_on_code.value = v.depends_on_code || '';
   el.depends_on_answer.value = v.depends_on_answer || '';
   el.required.checked = Boolean(v.required);
+  el.necessity.checked = Boolean(v.necessity);
   el.active.checked = v.active !== false;
   el.alert_answer.value = v.alert_answer || '';
   el.alert_text.value = v.alert_text || '';
@@ -276,6 +288,7 @@ async function saveQuestion(e) {
     depends_on_code: el.depends_on_code.value,
     depends_on_answer: el.depends_on_answer.value.trim(),
     required: el.required.checked,
+    necessity: el.necessity.checked,
     active: el.active.checked,
     alert_answer: el.alert_answer.value.trim(),
     alert_text: el.alert_text.value.trim(),
@@ -322,37 +335,71 @@ const payerName = (code) => state.payers.find((p) => p.code === code)?.name || c
 const PA_CHIPS = { required: 'chip-red', varies: 'chip-amber', not_required: 'chip-green' };
 const paChip = (policy) => `<span class="chip ${PA_CHIPS[policy] || ''}">${esc(state.config.priorAuthPolicies[policy] || '—')}</span>`;
 
+const activeToggle = (p) => `<label class="switch"><input type="checkbox" data-payer-active="${p.id}" ${p.active ? 'checked' : ''} aria-label="Active"><span class="track"></span></label>`;
+const rowActions = (p) => `
+  <button type="button" class="btn btn-sm" data-edit-payer="${p.id}">Edit</button>
+  ${p.is_system ? '' : `<button type="button" class="btn btn-sm btn-danger" data-delete-payer="${p.id}">Delete</button>`}`;
+
 async function loadPayers() {
   const [list, qs] = await Promise.all([guarded(() => api('/api/admin/payers')), guarded(() => api('/api/admin/questions'))]);
   if (!list) return;
   state.payers = list;
   if (qs) state.questions = qs;
-  $('#payer-rows').innerHTML = list.map((p) => {
+  const plain = list.filter((p) => p.kind !== 'broker');
+  const brokers = list.filter((p) => p.kind === 'broker');
+
+  $('#payer-rows').innerHTML = plain.map((p) => {
     const count = state.questions.filter((q) => q.payers.includes(p.code)).length;
+    const brokerCount = brokers.filter((b) => b.parent_code === p.code).length;
     return `
       <tr class="${p.active ? '' : 'inactive'}">
         <td><strong>${esc(p.name)}</strong> ${p.is_system ? '' : '<span class="chip chip-blue">Custom</span>'}
+          ${p.requires_medical_necessity ? '' : '<span class="chip chip-violet">No necessity review</span>'}
           <div class="code" style="margin-top: 2px">${esc(p.code)}</div>
-          <div class="small muted" style="margin-top: 4px; max-width: 420px">${esc(p.description)}</div></td>
+          <div class="small muted" style="margin-top: 4px; max-width: 420px">${esc(p.description)}</div>
+          ${brokerCount ? `<div class="small" style="margin-top: 4px">${brokerCount} transport broker${brokerCount > 1 ? 's' : ''}</div>` : ''}</td>
         <td>${paChip(p.prior_auth.non_emergency)}</td>
         <td>${paChip(p.prior_auth.repetitive)}</td>
         <td>${paChip(p.prior_auth.emergency)}</td>
         <td class="nowrap">${count ? `${count} payer-specific` : '<span class="muted">—</span>'}</td>
-        <td><label class="switch"><input type="checkbox" data-payer-active="${p.id}" ${p.active ? 'checked' : ''} aria-label="Active"><span class="track"></span></label></td>
-        <td class="actions">
-          <button type="button" class="btn btn-sm" data-edit-payer="${p.id}">Edit</button>
-          ${p.is_system ? '' : `<button type="button" class="btn btn-sm btn-danger" data-delete-payer="${p.id}">Delete</button>`}
-        </td>
+        <td>${activeToggle(p)}</td>
+        <td class="actions">${rowActions(p)}</td>
       </tr>`;
   }).join('') || '<tr><td colspan="7" class="empty">No payers configured.</td></tr>';
+
+  $('#broker-rows').innerHTML = brokers.map((b) => `
+    <tr class="${b.active ? '' : 'inactive'}">
+      <td><strong>${esc(b.name)}</strong><div class="code" style="margin-top: 2px">${esc(b.code)}</div>
+        ${b.description ? `<div class="small muted" style="margin-top: 4px; max-width: 360px">${esc(b.description)}</div>` : ''}</td>
+      <td>${b.parent_code ? esc(payerName(b.parent_code)) : '<span class="muted">—</span>'}</td>
+      <td>${paChip(b.prior_auth.non_emergency)}</td>
+      <td class="small">${[b.contact_name, b.contact_phone && `Phone ${b.contact_phone}`, b.contact_fax && `Fax ${b.contact_fax}`, b.contact_email]
+        .filter(Boolean).map(esc).join('<br>') || '<span class="muted">—</span>'}</td>
+      <td>${activeToggle(b)}</td>
+      <td class="actions">${rowActions(b)}</td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No transport brokers yet. Click “+ Add Broker” to add one.</td></tr>';
 }
 
-function openPayer(p) {
+const PAYER_TEXT_FIELDS = ['name', 'code', 'description', 'prior_auth_note', 'certification', 'alternate_transport',
+  'contact_name', 'contact_phone', 'contact_fax', 'contact_email', 'contact_url'];
+
+function fillPayerRules(el, v) {
+  for (const f of ['prior_auth_note', 'certification', 'alternate_transport']) el[f].value = v[f] || '';
+  el.documentation.value = (v.documentation || []).join('\n');
+  el.requires_medical_necessity.checked = v.requires_medical_necessity !== false;
+  $$('[data-pa]').forEach((sel) => { sel.value = v.prior_auth?.[sel.dataset.pa] || 'varies'; });
+}
+
+function openPayer(p, kind = p?.kind || 'payer') {
   state.editingPayer = p;
+  state.editingKind = kind;
+  const isBroker = kind === 'broker';
   const form = $('#payer-form');
   form.reset();
   $('#payer-error').hidden = true;
-  $('#payer-modal-title').textContent = p ? `Edit ${p.name}` : 'Add Payer';
+  $('#payer-modal-title').textContent = p ? `Edit ${p.name}` : isBroker ? 'Add Transport Broker' : 'Add Payer';
+  $('#p-name').placeholder = isBroker ? 'e.g. ModivCare — Ohio' : 'e.g. Texas Medicaid — Superior HealthPlan';
+  $('#p-code').placeholder = isBroker ? 'e.g. broker_modivcare_oh' : 'e.g. medicaid_tx_superior';
   $('#p-prior-auth').innerHTML = Object.entries(state.config.callTypes).map(([type, label]) => `
     <div class="field">
       <label for="pa-${type}">${esc(label)}</label>
@@ -360,16 +407,25 @@ function openPayer(p) {
         ${Object.entries(state.config.priorAuthPolicies).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}
       </select>
     </div>`).join('');
+  $('#p-parent-wrap').hidden = !isBroker;
+  $('#p-parent_code').innerHTML = '<option value="">— Not linked to a payer —</option>' + state.payers
+    .filter((x) => x.kind !== 'broker')
+    .map((x) => `<option value="${esc(x.code)}">${esc(x.name)}</option>`).join('');
+
   const v = p || {
-    code: '', name: '', description: '', prior_auth: { emergency: 'not_required', non_emergency: 'varies', repetitive: 'varies' },
-    prior_auth_note: '', certification: '', documentation: [], alternate_transport: '', contact_name: '', contact_phone: '', contact_url: '', active: true,
+    code: '', name: '', description: '', parent_code: '', requires_medical_necessity: true,
+    prior_auth: isBroker
+      ? { emergency: 'not_required', non_emergency: 'required', repetitive: 'required' }
+      : { emergency: 'not_required', non_emergency: 'varies', repetitive: 'varies' },
+    prior_auth_note: isBroker ? 'The broker must assign the trip before transport. Record the broker trip number.' : '',
+    certification: '', documentation: [], alternate_transport: '', active: true,
   };
   const el = form.elements;
-  for (const f of ['name', 'code', 'description', 'prior_auth_note', 'certification', 'alternate_transport', 'contact_name', 'contact_phone', 'contact_url']) el[f].value = v[f] || '';
+  for (const f of PAYER_TEXT_FIELDS) el[f].value = v[f] || '';
   el.code.disabled = Boolean(p);
-  el.documentation.value = v.documentation.join('\n');
+  el.parent_code.value = v.parent_code || '';
   el.active.checked = v.active;
-  $$('[data-pa]').forEach((sel) => { sel.value = v.prior_auth[sel.dataset.pa] || 'varies'; });
+  fillPayerRules(el, v);
   $('#payer-modal').hidden = false;
   el.name.focus();
 }
@@ -380,6 +436,7 @@ async function savePayer(e) {
   const body = {
     name: el.name.value.trim(),
     description: el.description.value.trim(),
+    requires_medical_necessity: el.requires_medical_necessity.checked,
     prior_auth: Object.fromEntries($$('[data-pa]').map((sel) => [sel.dataset.pa, sel.value])),
     prior_auth_note: el.prior_auth_note.value.trim(),
     certification: el.certification.value.trim(),
@@ -387,10 +444,16 @@ async function savePayer(e) {
     alternate_transport: el.alternate_transport.value.trim(),
     contact_name: el.contact_name.value.trim(),
     contact_phone: el.contact_phone.value.trim(),
+    contact_fax: el.contact_fax.value.trim(),
+    contact_email: el.contact_email.value.trim(),
     contact_url: el.contact_url.value.trim(),
     active: el.active.checked,
   };
-  if (!state.editingPayer) body.code = el.code.value.trim().toLowerCase();
+  if (state.editingKind === 'broker') body.parent_code = el.parent_code.value || null;
+  if (!state.editingPayer) {
+    body.code = el.code.value.trim().toLowerCase();
+    body.kind = state.editingKind;
+  }
   try {
     if (state.editingPayer) await api(`/api/admin/payers/${state.editingPayer.id}`, { method: 'PUT', body });
     else await api('/api/admin/payers', { method: 'POST', body });
@@ -400,7 +463,8 @@ async function savePayer(e) {
     return;
   }
   closeModals();
-  toast(state.editingPayer ? 'Payer updated.' : 'Payer added. Assign payer-specific questions in the Question Bank.', 'success');
+  const what = state.editingKind === 'broker' ? 'Broker' : 'Payer';
+  toast(state.editingPayer ? `${what} updated.` : `${what} added. It now appears in the call taker's payer list.`, 'success');
   loadPayers();
 }
 

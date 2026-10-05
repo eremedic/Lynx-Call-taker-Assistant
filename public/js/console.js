@@ -1,4 +1,4 @@
-import { api, esc, toast, debounce, requireUser, mountUserMenu, STATUS_LABELS, CRITERION_LABELS, CRITERION_CHIPS, formatAnswer } from './common.js';
+import { api, esc, toast, debounce, requireUser, mountUserMenu, payerOptions, STATUS_LABELS, CRITERION_LABELS, CRITERION_CHIPS, formatAnswer } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -41,8 +41,7 @@ async function init() {
     setQuestions(questions);
     $('#org-name').textContent = config.orgName ? `${config.orgName} · Call-Taker Assistant` : 'Call-Taker Assistant';
     $('#ai-btn').hidden = !config.aiAvailable;
-    $('#payer').innerHTML = '<option value="">Select payer…</option>'
-      + config.payers.map((p) => `<option value="${esc(p.code)}">${esc(p.name)}</option>`).join('');
+    $('#payer').innerHTML = `<option value="">Select payer…</option>${payerOptions(config.payers)}`;
   } catch (err) {
     toast(`Could not load configuration: ${err.message}`, 'error');
     return;
@@ -196,10 +195,8 @@ function currentSuggestions() {
     out.set(code, { code, answer: s.answer, evidence: s.evidence, source: 'Heard' });
   }
   for (const [code, s] of Object.entries(state.aiSuggestions)) {
-    const q = state.byCode.get(code);
-    if (!q || out.has(code)) continue;
-    if (q.call_types.length && !q.call_types.includes(state.callType)) continue;
-    if (q.payers.length && !q.payers.includes(state.payer)) continue;
+    // Only questions that apply to this call type and payer right now.
+    if (out.has(code) || !ev.visibleCodes.includes(code)) continue;
     out.set(code, { code, answer: s.answer, evidence: s.evidence, source: 'AI' });
   }
   return [...out.values()].filter((s) =>
@@ -367,7 +364,13 @@ const PA_CHIPS = { required: 'chip-red', varies: 'chip-amber', not_required: 'ch
 function renderPayer(p) {
   $('#payer-card').hidden = !p;
   if (!p) return;
-  $('#payer-name').textContent = p.name;
+  $('#payer-name').textContent = p.kind === 'broker' ? 'Transport broker' : p.name;
+  $('#payer-name').title = p.name;
+  $('#payer-parent').hidden = p.kind !== 'broker';
+  $('#payer-parent').innerHTML = p.kind === 'broker'
+    ? `<strong>${esc(p.name)}</strong>${p.parentName ? ` — books trips for <strong>${esc(p.parentName)}</strong>` : ''}`
+    : '';
+  $('#payer-necessity-row').hidden = p.requiresMedicalNecessity;
   const pa = $('#payer-pa');
   pa.className = `chip ${PA_CHIPS[p.priorAuth] || ''}`;
   pa.textContent = p.priorAuthLabel;
@@ -377,8 +380,15 @@ function renderPayer(p) {
   $('#payer-contact').innerHTML = [
     c.name && `<div><strong>Contact:</strong> ${esc(c.name)}</div>`,
     c.phone && `<div><strong>Phone:</strong> <a href="tel:${esc(c.phone.replace(/[^0-9+]/g, ''))}">${esc(c.phone)}</a></div>`,
+    c.fax && `<div><strong>Fax:</strong> ${esc(c.fax)}</div>`,
+    c.email && `<div><strong>Email:</strong> <a href="mailto:${esc(c.email)}">${esc(c.email)}</a></div>`,
     safeUrl && `<div><strong>Portal:</strong> <a href="${esc(safeUrl)}" target="_blank" rel="noopener noreferrer">${esc(safeUrl)}</a></div>`,
   ].filter(Boolean).join('');
+  $('#payer-brokers').hidden = !p.brokers.length;
+  $('#payer-brokers').innerHTML = p.brokers.length
+    ? `<strong>Transport brokers for this payer:</strong><ul style="margin: 4px 0 0; padding-left: 18px">${p.brokers.map((b) =>
+      `<li>${esc(b.name)}${b.phone ? ` — <a href="tel:${esc(b.phone.replace(/[^0-9+]/g, ''))}">${esc(b.phone)}</a>` : ''}</li>`).join('')}</ul>`
+    : '';
 }
 
 function renderAssessment() {
@@ -397,6 +407,7 @@ function renderAssessment() {
   $('#los-code').textContent = a.levelOfService.hcpcs ? `HCPCS ${a.levelOfService.hcpcs}` : '';
 
   renderPayer(a.payer);
+  $('#criteria-card').hidden = a.status === 'not_required';
 
   $('#alerts-card').hidden = a.alerts.length === 0;
   const icons = { critical: '⚠', warning: '!', info: 'i' };

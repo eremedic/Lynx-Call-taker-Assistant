@@ -1,9 +1,9 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openDb, questionRepo, callRepo, settingsRepo, userRepo, sessionRepo, auditRepo, payerRepo } from './db.js';
+import { openDb, questionRepo, callRepo, settingsRepo, userRepo, sessionRepo, auditRepo, payerRepo, PAYER_FIELDS } from './db.js';
 import { PRIOR_AUTH_POLICIES } from './seed-payers.js';
-import { evaluateCall, appliesToPayer, CALL_TYPES } from './engine/evaluate.js';
+import { evaluateCall, appliesToPayer, skipsNecessity, CALL_TYPES } from './engine/evaluate.js';
 import { CATEGORIES } from './seed-questions.js';
 import { analyzeTranscript, aiConfigured, AiError } from './ai.js';
 import {
@@ -28,6 +28,8 @@ function validatePayer(input, { partial = false } = {}) {
     if (Object.keys(CALL_TYPES).some((t) => !(pa[t] in PRIOR_AUTH_POLICIES))) errors.push('Choose a prior-authorization policy for every call type.');
   }
   if ('documentation' in input && !Array.isArray(input.documentation)) errors.push('Documentation must be a list.');
+  if ('kind' in input && !['payer', 'broker'].includes(input.kind)) errors.push('Invalid payer type.');
+  if ('contact_email' in input && input.contact_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(input.contact_email)) errors.push('Contact email is not valid.');
   if ('contact_url' in input && input.contact_url && !/^https:\/\//i.test(input.contact_url)) errors.push('Contact URL must start with https://');
   return errors;
 }
@@ -100,7 +102,18 @@ export function createApp({ db = openDb() } = {}) {
   const lockout = createLockout();
   const activePayer = (code) => {
     const p = code ? payers.getByCode(code) : null;
-    return p?.active ? p : null;
+    if (!p?.active) return null;
+    // A broker shows which payer program it books for.
+    if (p.parent_code) p.parentName = payers.getByCode(p.parent_code)?.name || null;
+    return p;
+  };
+  // The payer for a call, plus the active transport brokers that book for it.
+  const payerContext = (code) => {
+    const payer = activePayer(code);
+    const brokers = payer && payer.kind !== 'broker'
+      ? payers.list({ activeOnly: true }).filter((b) => b.kind === 'broker' && b.parent_code === payer.code)
+      : [];
+    return { payer, brokers };
   };
 
   const app = express();
@@ -226,7 +239,7 @@ export function createApp({ db = openDb() } = {}) {
     res.json({
       ...publicSettings(), callTypes: CALL_TYPES, categories: CATEGORIES, answerTypes: ANSWER_TYPES,
       criteria: CRITERIA, alertLevels: ALERT_LEVELS, roles: ROLES, priorAuthPolicies: PRIOR_AUTH_POLICIES,
-      payers: payers.list({ activeOnly: true }).map((p) => ({ code: p.code, name: p.name })),
+      payers: payers.list({ activeOnly: true }).map((p) => ({ code: p.code, name: p.name, kind: p.kind })),
     });
   });
 
@@ -236,7 +249,7 @@ export function createApp({ db = openDb() } = {}) {
   app.post('/api/evaluate', requireAuth, (req, res) => {
     const { callType = 'non_emergency', answers = {}, transcript = '', payer = '' } = req.body || {};
     if (!(callType in CALL_TYPES)) return res.status(400).json({ error: 'Invalid call type.' });
-    res.json(evaluateCall({ callType, answers, transcript, payer: activePayer(payer), questions: questions.list({ activeOnly: true }) }));
+    res.json(evaluateCall({ callType, answers, transcript, ...payerContext(payer), questions: questions.list({ activeOnly: true }) }));
   });
 
   app.post('/api/ai/analyze', requireAuth, async (req, res) => {
@@ -251,7 +264,7 @@ export function createApp({ db = openDb() } = {}) {
         transcript,
         callType: payer ? `${callType} — payer: ${payer.name}` : callType,
         answers,
-        questions: questions.list({ activeOnly: true }).filter((q) => appliesToPayer(q, payer)),
+        questions: questions.list({ activeOnly: true }).filter((q) => appliesToPayer(q, payer) && !(skipsNecessity(payer) && q.necessity)),
       }));
     } catch (err) {
       if (err instanceof AiError) return res.status(err.status).json({ error: err.message });
@@ -263,9 +276,9 @@ export function createApp({ db = openDb() } = {}) {
   app.post('/api/calls', requireAuth, (req, res) => {
     const { callType, details = {}, answers = {}, transcript = '', payer: payerCode = '' } = req.body || {};
     if (!(callType in CALL_TYPES)) return res.status(400).json({ error: 'Invalid call type.' });
-    const payer = activePayer(payerCode);
+    const { payer, brokers } = payerContext(payerCode);
     // Re-evaluate server-side so the stored assessment can't be tampered with.
-    const { assessment } = evaluateCall({ callType, answers, transcript, payer, questions: questions.list({ activeOnly: true }) });
+    const { assessment } = evaluateCall({ callType, answers, transcript, payer, brokers, questions: questions.list({ activeOnly: true }) });
     const call = calls.create({ callType, payer: payer?.code, details, answers, transcript, assessment, callTaker: req.user.display_name, userId: req.user.id });
     log(req, 'call.saved', { entityType: 'call', entityId: call.id, details: { call_type: callType, payer: payer?.code || null, status: call.status } });
     res.status(201).json({ id: call.id, status: call.status, created_at: call.created_at });
@@ -274,11 +287,11 @@ export function createApp({ db = openDb() } = {}) {
   // -------------------------------------------------- admin: questions
   const QUESTION_AUDIT_FIELDS = ['code', 'category', 'text', 'guidance', 'answer_type', 'options', 'call_types', 'payers', 'criterion', 'qualifying_answer',
     'triggers', 'detect_yes', 'detect_no', 'depends_on_code', 'depends_on_answer', 'priority', 'sort_order', 'required', 'alert_answer',
-    'alert_text', 'alert_level', 'active'];
+    'alert_text', 'alert_level', 'active', 'necessity'];
 
   app.get('/api/admin/questions', requireAdmin, (req, res) => res.json(questions.list()));
 
-  const unknownPayers = (input) => (input.payers || []).filter((c) => !payers.getByCode(c));
+  const unknownPayers = (input) => (input.payers || []).filter((c) => c !== '@broker' && !payers.getByCode(c));
 
   app.post('/api/admin/questions', requireAdmin, (req, res) => {
     const errors = validateQuestion(req.body || {});
@@ -315,8 +328,14 @@ export function createApp({ db = openDb() } = {}) {
   });
 
   // ----------------------------------------------------- admin: payers
-  const PAYER_AUDIT_FIELDS = ['code', 'name', 'description', 'prior_auth', 'prior_auth_note', 'certification', 'documentation',
-    'alternate_transport', 'contact_name', 'contact_phone', 'contact_url', 'sort_order', 'active'];
+  const PAYER_AUDIT_FIELDS = PAYER_FIELDS;
+  // A broker's parent must be an existing payer (not another broker).
+  const parentProblems = (input, self) => {
+    if (!input.parent_code) return [];
+    const parent = payers.getByCode(input.parent_code);
+    if (!parent || parent.kind === 'broker' || parent.code === self) return ['Choose a payer program for this broker.'];
+    return [];
+  };
 
   app.get('/api/admin/payers', requireAdmin, (req, res) => res.json(payers.list()));
 
@@ -324,6 +343,7 @@ export function createApp({ db = openDb() } = {}) {
     const errors = validatePayer(req.body || {});
     if (!('prior_auth' in (req.body || {}))) errors.push('Choose a prior-authorization policy for every call type.');
     if (payers.getByCode(req.body?.code)) errors.push('A payer with this code already exists.');
+    errors.push(...parentProblems(req.body || {}, req.body?.code));
     if (errors.length) return res.status(400).json({ error: errors.join(' ') });
     const p = payers.create(req.body);
     log(req, 'payer.created', { entityType: 'payer', entityId: p.code, details: { name: p.name, prior_auth: p.prior_auth } });
@@ -336,6 +356,7 @@ export function createApp({ db = openDb() } = {}) {
     const input = { ...req.body };
     delete input.code; // questions reference payers by code
     const errors = validatePayer(input, { partial: true });
+    errors.push(...parentProblems(input, existing.code));
     if (errors.length) return res.status(400).json({ error: errors.join(' ') });
     const updated = payers.update(existing.id, input);
     const changes = diff(existing, updated, PAYER_AUDIT_FIELDS);
@@ -347,6 +368,8 @@ export function createApp({ db = openDb() } = {}) {
     const existing = payers.get(Number(req.params.id));
     if (!existing) return res.status(404).json({ error: 'Payer not found.' });
     if (existing.is_system) return res.status(400).json({ error: 'Built-in payers cannot be deleted. Deactivate it instead.' });
+    const linkedBrokers = payers.list().filter((b) => b.parent_code === existing.code).map((b) => b.name);
+    if (linkedBrokers.length) return res.status(400).json({ error: `These transport brokers book for this payer — change or delete them first: ${linkedBrokers.join(', ')}.` });
     const used = questions.list().filter((q) => q.payers.includes(existing.code)).map((q) => q.code);
     if (used.length) return res.status(400).json({ error: `Remove this payer from these questions first: ${used.join(', ')}.` });
     payers.remove(existing.id);

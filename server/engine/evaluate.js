@@ -21,6 +21,7 @@ const LEVELS = {
   bls: { label: 'BLS — Non-emergency', hcpcs: 'A0428' },
   none: { label: 'Ambulance not indicated — consider wheelchair van or other transport', hcpcs: null },
   pending: { label: 'Pending — more information needed', hcpcs: null },
+  as_ordered: { label: 'As ordered — no medical-necessity review', hcpcs: null },
 };
 
 const isAnswered = (v) => v !== undefined && v !== null && String(v).trim() !== '';
@@ -34,9 +35,17 @@ export function appliesToCallType(q, callType) {
   return !q.call_types || q.call_types.length === 0 || q.call_types.includes(callType);
 }
 
+// A question scoped to payers applies to those payers, to brokers that book
+// for them (parent_code), and — with "@broker" — to any transport broker.
 export function appliesToPayer(q, payer) {
-  return !q.payers || q.payers.length === 0 || Boolean(payer && q.payers.includes(payer.code));
+  if (!q.payers || q.payers.length === 0) return true;
+  if (!payer) return false;
+  return q.payers.includes(payer.code)
+    || Boolean(payer.parent_code && q.payers.includes(payer.parent_code))
+    || (payer.kind === 'broker' && q.payers.includes('@broker'));
 }
+
+export const skipsNecessity = (payer) => Boolean(payer) && payer.requires_medical_necessity === false;
 
 // Prior-authorization questions are asked only when the payer's policy for
 // this call type calls for it, and are required when the policy is "required".
@@ -46,10 +55,12 @@ function applyPriorAuthPolicy(q, policy) {
   return policy === 'required' ? { ...q, required: true } : q;
 }
 
-export function evaluateCall({ callType = 'non_emergency', questions = [], answers = {}, transcript = '', payer = null }) {
+export function evaluateCall({ callType = 'non_emergency', questions = [], answers = {}, transcript = '', payer = null, brokers = [] }) {
   const policy = payer?.prior_auth?.[callType] || null;
+  const skipNecessity = skipsNecessity(payer);
   const active = questions
     .filter((q) => q.active !== false && appliesToCallType(q, callType) && appliesToPayer(q, payer))
+    .filter((q) => !(skipNecessity && q.necessity))
     .map((q) => applyPriorAuthPolicy(q, policy))
     .filter(Boolean);
   const triggered = detectTriggers(transcript, active);
@@ -84,11 +95,32 @@ export function evaluateCall({ callType = 'non_emergency', questions = [], answe
     suggestions: openSuggestions,
     nextQuestion: queue[0]?.code || null,
     queue: queue.slice(0, 5).map((q) => q.code),
-    assessment: assess({ callType, visible, answers, payer, policy }),
+    assessment: assess({ callType, visible, answers, payer, policy, brokers }),
   };
 }
 
-function assess({ callType, visible, answers, payer, policy }) {
+function payerSummary(payer, policy, brokers) {
+  if (!payer) return null;
+  return {
+    code: payer.code,
+    name: payer.name,
+    kind: payer.kind || 'payer',
+    parentName: payer.parentName || null,
+    requiresMedicalNecessity: !skipsNecessity(payer),
+    priorAuth: policy,
+    priorAuthLabel: PRIOR_AUTH_LABELS[policy] || 'Not specified',
+    priorAuthNote: payer.prior_auth_note || '',
+    contact: {
+      name: payer.contact_name || '', phone: payer.contact_phone || '', fax: payer.contact_fax || '',
+      email: payer.contact_email || '', url: payer.contact_url || '',
+    },
+    alternateTransport: payer.alternate_transport || '',
+    // Transport brokers that book trips for this payer program.
+    brokers: brokers.map((b) => ({ code: b.code, name: b.name, phone: b.contact_phone || '', url: b.contact_url || '' })),
+  };
+}
+
+function assess({ callType, visible, answers, payer, policy, brokers }) {
   const answered = (q) => isAnswered(answers[q.code]);
   const qualifies = (q) => matchesAny(answers[q.code], q.qualifying_answer);
   const byCriterion = (c) => visible.filter((q) => q.criterion === c);
@@ -101,6 +133,28 @@ function assess({ callType, visible, answers, payer, policy }) {
     }
   }
   const emergencyFlag = byCriterion('emergency').some(qualifies);
+  const total = visible.length;
+  const done = visible.filter(answered).length;
+  const progress = { answered: done, total, percent: total ? Math.round((done / total) * 100) : 0 };
+
+  // Private pay, facility pay and similar payers: no medical-necessity review.
+  if (skipsNecessity(payer)) {
+    return {
+      status: 'not_required',
+      summary: `Medical-necessity review is not required for ${payer.name}. Complete the payment details and trip information.`,
+      emergencyFlag,
+      bedConfinement: { met: false, failed: false, components: [] },
+      supporting: [],
+      disqualifiers: [],
+      missing: visible.filter((q) => q.required && !answered(q)).map((q) => ({ code: q.code, text: q.text })),
+      alerts,
+      documentation: [...(payer.certification ? [payer.certification] : []), ...(payer.documentation || [])],
+      documentationGaps: [],
+      levelOfService: LEVELS.as_ordered,
+      payer: payerSummary(payer, policy, brokers),
+      progress,
+    };
+  }
 
   // --- CMS bed-confinement test: all three components must be met
   const bedQs = byCriterion('bed_confined');
@@ -177,9 +231,6 @@ function assess({ callType, visible, answers, payer, policy }) {
     alerts.push({ level: 'info', text: payer.alternate_transport, code: 'PAYER_ALTERNATE' });
   }
 
-  const total = visible.length;
-  const done = visible.filter(answered).length;
-
   return {
     status,
     summary,
@@ -191,16 +242,8 @@ function assess({ callType, visible, answers, payer, policy }) {
     alerts,
     documentation,
     documentationGaps: docGaps,
-    payer: payer ? {
-      code: payer.code,
-      name: payer.name,
-      priorAuth: policy,
-      priorAuthLabel: PRIOR_AUTH_LABELS[policy] || 'Not specified',
-      priorAuthNote: payer.prior_auth_note || '',
-      contact: { name: payer.contact_name || '', phone: payer.contact_phone || '', url: payer.contact_url || '' },
-      alternateTransport: payer.alternate_transport || '',
-    } : null,
+    payer: payerSummary(payer, policy, brokers),
     levelOfService: level,
-    progress: { answered: done, total, percent: total ? Math.round((done / total) * 100) : 0 },
+    progress,
   };
 }

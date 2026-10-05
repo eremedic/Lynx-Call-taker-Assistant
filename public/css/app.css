@@ -245,6 +245,7 @@ a { color: var(--blue-600); }
 .status-review { background: linear-gradient(135deg, #b45309, #f59e0b); }
 .status-not_met { background: linear-gradient(135deg, #b91c1c, #ef4444); }
 .status-incomplete { background: linear-gradient(135deg, #334155, #64748b); }
+.status-not_required { background: linear-gradient(135deg, #1e40af, #3b82f6); }
 
 .progress { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; }
 .progress > span { display: block; height: 100%; background: var(--blue-600); transition: width .3s; }

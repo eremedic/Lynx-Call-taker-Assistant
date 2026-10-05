@@ -13,7 +13,13 @@
 //   info          - collected for the record only
 //
 // `payers` limits a question to specific payer profiles (by code); empty
-// means every payer. `qualifying_answer` may list alternatives separated by |.
+// means every payer, and "@broker" means any transport broker.
+// `qualifying_answer` may list alternatives separated by |.
+//
+// `necessity` marks medical-necessity questions, which are skipped for
+// payers that don't require a necessity review (private pay, facility pay).
+// When omitted it defaults to true for every criterion except emergency and
+// info (see defaultNecessity in db.js).
 //
 // References: 42 CFR 410.40; Medicare Benefit Policy Manual (Pub. 100-02), Ch. 10.
 
@@ -60,6 +66,7 @@ export const SEED_QUESTIONS = [
   },
   {
     code: 'TX_DEST_TYPE',
+    necessity: true,
     category: 'Transport Details',
     text: 'What type of facility is the patient going to?',
     guidance: 'Covered destinations include hospitals, critical access hospitals, SNFs, the beneficiary\'s home, and dialysis facilities for ESRD patients. Physician offices are generally not covered destinations.',
@@ -74,6 +81,7 @@ export const SEED_QUESTIONS = [
   },
   {
     code: 'TX_NEAREST',
+    necessity: true,
     category: 'Transport Details',
     text: 'Is the destination the nearest appropriate facility that can provide the care the patient needs?',
     guidance: 'Medicare covers mileage only to the nearest appropriate facility. If farther, document why closer facilities cannot provide the care.',
@@ -86,6 +94,7 @@ export const SEED_QUESTIONS = [
   },
   {
     code: 'TX_REPETITIVE',
+    necessity: true,
     category: 'Transport Details',
     call_types: ['non_emergency', 'repetitive'],
     text: 'Will the patient need 3 or more round trips in 10 days, or at least one trip a week for 3 weeks or more (e.g., dialysis, wound care, chemotherapy)?',
@@ -491,5 +500,62 @@ export const SEED_QUESTIONS = [
     alert_answer: 'no',
     alert_level: 'warning',
     alert_text: 'No certification form — the state may deny non-emergency transport without it.',
+  },
+  {
+    code: 'BRK_TRIP_NUMBER',
+    category: 'Payer & Authorization',
+    payers: ['@broker'],
+    text: 'What is the broker\'s trip or authorization number?',
+    guidance: 'Brokers pay only for trips they assigned. Record the number exactly as issued.',
+    answer_type: 'text',
+    criterion: 'info',
+    priority: 1,
+    required: true,
+  },
+  {
+    code: 'PP_RESPONSIBLE',
+    category: 'Payer & Authorization',
+    payers: ['private_pay'],
+    text: 'Who is responsible for payment (name, relationship, and phone)?',
+    guidance: 'Collect billing contact details before scheduling.',
+    answer_type: 'text',
+    criterion: 'info',
+    priority: 1,
+    required: true,
+  },
+  {
+    code: 'PP_AGREED',
+    category: 'Payer & Authorization',
+    payers: ['private_pay'],
+    text: 'Has the responsible party agreed to the quoted rate and payment method?',
+    guidance: 'Quote the rate for the requested level of service and mileage.',
+    answer_type: 'yes_no',
+    criterion: 'info',
+    priority: 1,
+    required: true,
+    alert_answer: 'no',
+    alert_level: 'warning',
+    alert_text: 'Payment not agreed — do not schedule until the rate and payment method are confirmed.',
+  },
+  {
+    code: 'FP_AUTHORIZED_BY',
+    category: 'Payer & Authorization',
+    payers: ['facility_pay'],
+    text: 'Which facility is paying, and who authorized the transport (name and title)?',
+    guidance: 'The facility must have a billing agreement with us.',
+    answer_type: 'text',
+    criterion: 'info',
+    priority: 1,
+    required: true,
+  },
+  {
+    code: 'FP_PO_NUMBER',
+    category: 'Payer & Authorization',
+    payers: ['facility_pay'],
+    text: 'Is there a facility purchase-order or authorization number?',
+    guidance: 'Record it if the facility uses one.',
+    answer_type: 'text',
+    criterion: 'info',
+    priority: 2,
   },
 ];
