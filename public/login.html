@@ -24,7 +24,11 @@
         </div>
         <p id="login-error" class="small" style="color: var(--red-600)" role="alert" hidden></p>
         <button class="btn btn-primary btn-lg" style="width: 100%" type="submit">Sign in</button>
-        <p class="small muted" style="margin-bottom: 0">Forgot your password? Ask an administrator to reset it.</p>
+        <details class="small muted" style="margin-top: 12px">
+          <summary style="cursor: pointer">First time signing in, or forgot your password?</summary>
+          <p style="margin: 8px 0 0"><strong>Call takers:</strong> ask an administrator to reset your password.</p>
+          <p style="margin: 6px 0 0"><strong>First administrator:</strong> the username (usually <code>admin</code>) and a temporary password are shown in the terminal where the server is running. To get a new one, run <code>npm run reset-password -- admin</code> in a terminal in the project folder.</p>
+        </details>
       </form>
 
       <form id="change-form" hidden>

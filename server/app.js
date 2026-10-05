@@ -62,11 +62,21 @@ const csvCell = (v) => {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-// Creates the first administrator when the database has no users.
-// Returns the generated password when one had to be generated.
+// Creates the first administrator when the database has no users. Until that
+// account has signed in for the first time, each start issues a fresh
+// temporary password so it is never lost with an old terminal.
 export async function ensureInitialAdmin(db, { username = process.env.ADMIN_USERNAME || 'admin', password = process.env.ADMIN_PASSWORD } = {}) {
   const users = userRepo(db);
-  if (users.count() > 0) return null;
+  if (users.count() > 0) {
+    const list = users.list();
+    const unclaimed = list.length === 1 && list[0].role === 'admin' && !list[0].last_login_at && list[0].must_change_password;
+    if (!unclaimed) return null;
+    const admin = list[0];
+    const generated = password ? null : generatePassword();
+    users.update(admin.id, { password_hash: await hashPassword(password || generated) });
+    auditRepo(db).log({ user: null, action: 'user.password_reset', entityType: 'user', entityId: admin.id, details: { username: admin.username, reason: 'initial setup not yet completed; reissued at startup' } });
+    return { username: admin.username, password: generated, reissued: true };
+  }
   const generated = password ? null : generatePassword();
   const user = users.create({
     username,

@@ -62,7 +62,7 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 4. The app opens in a new browser tab. If it doesn't, open the **Ports** tab and click the globe icon next to port 3000. Sign in as `admin` and choose your own password.
 5. Go to **Admin → Users** to create call-taker accounts. To test as a call taker, sign in with a different browser or a private window.
 
-Lost the first-run password? Run `npm run reset-password -- admin` in the terminal.
+**Can't find the password?** Open a terminal (**Ctrl + `**, or ☰ → Terminal → New Terminal) and run `npm run reset-password -- admin`. It prints a new temporary password that works right away. Until the administrator has signed in once, restarting the server also prints a fresh password.
 
 Codespaces stops after a period of inactivity. Your data stays in the codespace until you delete it. Personal GitHub accounts include free monthly Codespaces hours.
 

@@ -7,10 +7,11 @@ const db = openDb();
 const initial = await ensureInitialAdmin(db);
 if (initial) {
   const line = '='.repeat(64);
-  console.log(`\n${line}\n  First run: administrator account created\n`);
+  console.log(`\n${line}\n  ${initial.reissued ? 'Administrator has not signed in yet: new temporary password issued' : 'First run: administrator account created'}\n`);
   console.log(`    Username: ${initial.username}`);
   console.log(`    Password: ${initial.password ?? '(the value of ADMIN_PASSWORD)'}\n`);
-  console.log(`  You will be asked to choose a new password at first sign-in.\n${line}\n`);
+  console.log('  You will be asked to choose a new password at first sign-in.');
+  console.log(`  Lost it later? Run: npm run reset-password -- ${initial.username}\n${line}\n`);
 }
 
 createApp({ db }).listen(port, () => {
