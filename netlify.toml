@@ -1,6 +1,7 @@
 # AmbuIntake on Netlify
 #   - public/ is served as static pages
-#   - /api/* runs in the Netlify Function netlify/functions/api.mjs
+#   - /api/* runs in the Netlify Function netlify/functions/api.mjs (its
+#     route is declared in the function itself: export const config)
 #   - data is stored in Supabase Postgres (DATABASE_URL)
 # Environment variables are listed in README.md → "Deploy to Netlify".
 
@@ -19,12 +20,6 @@
   # The embedded database is only for local runs and tests; leave it out of
   # the function so it stays small (about 3 MB) and starts quickly.
   included_files = ["!node_modules/@electric-sql/**"]
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
-  status = 200
-  force = true
 
 [[headers]]
   for = "/*"

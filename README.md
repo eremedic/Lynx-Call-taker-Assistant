@@ -220,8 +220,8 @@ server/
   engine/detect.js    phrase detection with negation handling
   engine/evaluate.js  medical-necessity evaluation and question prioritization
 supabase/schema.sql, seed.sql  database files for Supabase's SQL Editor (generated)
-netlify/functions/api.mjs   Netlify Function running the API
-netlify.toml                Netlify build, function and redirect settings
+netlify/functions/api.mjs   Netlify Function (v2) running the API at /api/*
+netlify.toml                Netlify build, function and header settings
 public/
   login.html, js/login.js     sign-in and password change
   status.html, js/status.js   system status / setup self-check

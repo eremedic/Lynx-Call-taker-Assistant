@@ -1,8 +1,9 @@
-// Netlify Function serving AmbuIntake's API (/api/* is routed here by
-// netlify.toml). Netlify serves the pages in public/ directly.
+// Netlify Function (modern "v2" format) serving AmbuIntake's API at /api/*.
+// Netlify serves the pages in public/ directly.
 //
-// Note: Netlify bundles this as CommonJS, so nothing reachable from here may
-// use import.meta or top-level await (test/netlify-bundle.test.js checks).
+// The app is an Express server; Netlify hands this function a standard web
+// Request. The adapter below turns it into the event shape serverless-http
+// understands and turns the result back into a web Response.
 import serverless from 'serverless-http';
 import { createApp, ensureInitialAdmin } from '../../server/app.js';
 import { openDb } from '../../server/db.js';
@@ -17,9 +18,9 @@ const json = (statusCode, body) => ({
 
 const isHealthCheck = (event) => /\/(api|\.netlify\/functions\/api)\/health\/?$/.test(event?.path || '');
 
-// Builds a handler around a database factory. Exported for tests.
+// Builds an event handler around a database factory. Exported for tests.
 export function createHandler(connect, { checkHealth = (env) => diagnose({ env, runtime: 'netlify', connect: () => connectPostgres(env.DATABASE_URL) }) } = {}) {
-  let ready = null; // reused while the function container stays warm
+  let ready = null; // reused while the function instance stays warm
 
   const init = async () => {
     const db = await connect();
@@ -32,8 +33,8 @@ export function createHandler(connect, { checkHealth = (env) => diagnose({ env, 
     return serverless(createApp({ db }));
   };
 
-  return async (event, context) => {
-    if (context) context.callbackWaitsForEmptyEventLoop = false;
+  return async (event, context = {}) => {
+    context.callbackWaitsForEmptyEventLoop = false;
 
     // The self-check works even when the database can't be reached.
     if (isHealthCheck(event)) {
@@ -62,7 +63,53 @@ export function createHandler(connect, { checkHealth = (env) => diagnose({ env, 
   };
 }
 
-export const handler = createHandler(async () => {
+// Web Request -> Lambda-style event.
+export async function requestToEvent(request, context = {}) {
+  const url = new URL(request.url);
+  const headers = Object.fromEntries(request.headers);
+  if (context.ip && !headers['x-nf-client-connection-ip']) headers['x-nf-client-connection-ip'] = context.ip;
+  const query = {};
+  const multiQuery = {};
+  for (const [k, v] of url.searchParams) {
+    query[k] = v;
+    (multiQuery[k] ??= []).push(v);
+  }
+  const hasBody = !['GET', 'HEAD'].includes(request.method);
+  return {
+    httpMethod: request.method,
+    path: url.pathname,
+    headers,
+    multiValueHeaders: {},
+    queryStringParameters: query,
+    multiValueQueryStringParameters: multiQuery,
+    body: hasBody ? await request.text() : null,
+    isBase64Encoded: false,
+  };
+}
+
+// Lambda-style result -> web Response.
+export function resultToResponse(result) {
+  const headers = new Headers();
+  const multi = result.multiValueHeaders || {};
+  for (const [key, values] of Object.entries(multi)) {
+    for (const v of [].concat(values)) headers.append(key, String(v));
+  }
+  for (const [key, value] of Object.entries(result.headers || {})) {
+    if (key in multi) continue;
+    for (const v of [].concat(value)) headers.append(key, String(v));
+  }
+  const status = result.statusCode || 200;
+  let body = result.body ?? null;
+  if (body !== null && result.isBase64Encoded) body = Buffer.from(body, 'base64');
+  if (status === 204 || status === 304) body = null;
+  return new Response(body, { status, headers });
+}
+
+const handleEvent = createHandler(async () => {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
   return openDb();
 });
+
+export default async (request, context) => resultToResponse(await handleEvent(await requestToEvent(request, context), {}));
+
+export const config = { path: '/api/*' };
