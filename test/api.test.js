@@ -284,3 +284,63 @@ test('transport brokers are added as payers, linked to a payer program', async (
   assert.equal(blocked.status, 400);
   assert.equal((await admin(`/api/admin/payers/${broker.data.id}`, { method: 'DELETE' })).status, 204);
 });
+
+test('saved calls can be updated by their call taker without creating duplicates', async () => {
+  const body = { callType: 'non_emergency', payer: 'medicare', details: { patient_name: 'Update Test' }, answers: { CLN_OXYGEN: 'yes' } };
+  const saved = (await taker('/api/calls', { method: 'POST', body })).data;
+  const before = (await admin('/api/admin/calls')).data.length;
+  const updated = await taker(`/api/calls/${saved.id}`, { method: 'PUT', body: { ...body, answers: { CLN_OXYGEN: 'yes', CLN_VENT: 'yes' } } });
+  assert.equal(updated.status, 200);
+  assert.equal((await admin('/api/admin/calls')).data.length, before);
+  const call = (await admin(`/api/admin/calls/${saved.id}`)).data;
+  assert.equal(call.assessment.levelOfService.hcpcs, 'A0434', 'updated call is re-evaluated');
+  assert.equal(call.call_taker, 'Jane Doe', 'call taker is kept');
+  assert.ok((await admin('/api/admin/audit?action=call.updated')).data.rows.length >= 1);
+});
+
+test('PCS form is prefilled from the call', async () => {
+  const saved = (await taker('/api/calls', {
+    method: 'POST',
+    body: {
+      callType: 'repetitive', payer: 'medicare',
+      details: { patient_name: 'John Smith', patient_dob: '1941-03-02', member_id: '1EG4-TE5-MK73', pickup_location: 'Sunrise SNF', destination: 'Riverside Dialysis', appointment: '2026-10-08T07:30' },
+      answers: { TX_REASON: 'ESRD on hemodialysis; bilateral leg contractures', TX_OTHER_MEANS: 'no', BED_GET_UP: 'yes', BED_AMBULATE: 'yes', BED_SIT: 'yes', CLN_CONTRACTURES: 'yes', CLN_OXYGEN: 'yes', DOC_PCS: 'yes', DOC_CERTIFIER: 'Dr. Alice Wong, NPI 1234567890' },
+    },
+  })).data;
+  const r = await taker(`/api/calls/${saved.id}/pcs`);
+  assert.equal(r.status, 200);
+  const pcs = r.data;
+  assert.equal(pcs.patient.name, 'John Smith');
+  assert.equal(pcs.patient.memberId, '1EG4-TE5-MK73');
+  assert.equal(pcs.payer, 'Original Medicare (Part B)');
+  assert.equal(pcs.transport.repetitive, true);
+  assert.equal(pcs.transport.origin, 'Sunrise SNF');
+  assert.equal(pcs.diagnosis, 'ESRD on hemodialysis; bilateral leg contractures');
+  assert.equal(pcs.otherMeansContraindicated, true);
+  assert.ok(pcs.bedConfinement.length === 3 && pcs.bedConfinement.every((b) => b.checked));
+  const checked = pcs.conditions.filter((c) => c.checked).map((c) => c.label);
+  assert.deepEqual(checked.sort(), ['Contractures preventing safe seated positioning', 'Requires oxygen that the patient cannot self-administer or manage']);
+  assert.ok(pcs.conditions.length > 10, 'all conditions are listed for the practitioner');
+  assert.deepEqual(pcs.levelOfService.filter((l) => l.checked).map((l) => l.label), ['Basic Life Support (BLS)']);
+  assert.equal(pcs.certifier.name, 'Dr. Alice Wong, NPI 1234567890');
+  assert.match(pcs.validity, /60 days/);
+  assert.ok((await admin('/api/admin/audit?action=pcs.generated')).data.rows.some((row) => row.entity_id === String(saved.id) && row.username === 'jdoe'));
+});
+
+test('PCS notices flag Medicaid forms and payers without necessity review', async () => {
+  const mcd = (await taker('/api/calls', { method: 'POST', body: { callType: 'non_emergency', payer: 'medicaid', answers: {} } })).data;
+  assert.ok((await taker(`/api/calls/${mcd.id}/pcs`)).data.notices.some((n) => n.includes('state Medicaid')));
+  const pp = (await taker('/api/calls', { method: 'POST', body: { callType: 'non_emergency', payer: 'private_pay', answers: {} } })).data;
+  const pcs = (await taker(`/api/calls/${pp.id}/pcs`)).data;
+  assert.ok(pcs.notices.some((n) => n.includes('does not require')));
+  assert.match(pcs.validity, /48 hours/);
+});
+
+test('call takers can only reach their own calls', async () => {
+  const mine = (await taker('/api/calls', { method: 'POST', body: { callType: 'non_emergency', answers: {} } })).data;
+  const adminCall = (await admin('/api/calls', { method: 'POST', body: { callType: 'non_emergency', answers: {} } })).data;
+  assert.equal((await taker(`/api/calls/${adminCall.id}/pcs`)).status, 404);
+  assert.equal((await taker(`/api/calls/${adminCall.id}`, { method: 'PUT', body: { callType: 'non_emergency', answers: {} } })).status, 404);
+  assert.equal((await admin(`/api/calls/${mine.id}/pcs`)).status, 200, 'administrators can open any call');
+  assert.equal((await taker('/api/calls/999999/pcs')).status, 404);
+});

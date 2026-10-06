@@ -6,6 +6,7 @@ import { PRIOR_AUTH_POLICIES } from './seed-payers.js';
 import { evaluateCall, appliesToPayer, skipsNecessity, CALL_TYPES } from './engine/evaluate.js';
 import { CATEGORIES } from './seed-questions.js';
 import { analyzeTranscript, aiConfigured, AiError } from './ai.js';
+import { buildPcs } from './pcs.js';
 import {
   ROLES, SESSION_COOKIE, SESSION_TTL_MS, hashPassword, verifyPassword, burnPasswordCheck, passwordProblems,
   generatePassword, newSessionToken, hashToken, parseCookies, sessionCookie, createLockout,
@@ -273,15 +274,50 @@ export function createApp({ db = openDb() } = {}) {
     }
   });
 
-  app.post('/api/calls', requireAuth, (req, res) => {
-    const { callType, details = {}, answers = {}, transcript = '', payer: payerCode = '' } = req.body || {};
-    if (!(callType in CALL_TYPES)) return res.status(400).json({ error: 'Invalid call type.' });
+  // Validates a call from the console and re-evaluates it server-side so the
+  // stored assessment can't be tampered with.
+  const callFromBody = (body = {}) => {
+    const { callType, details = {}, answers = {}, transcript = '', payer: payerCode = '' } = body;
+    if (!(callType in CALL_TYPES)) return { error: 'Invalid call type.' };
     const { payer, brokers } = payerContext(payerCode);
-    // Re-evaluate server-side so the stored assessment can't be tampered with.
     const { assessment } = evaluateCall({ callType, answers, transcript, payer, brokers, questions: questions.list({ activeOnly: true }) });
-    const call = calls.create({ callType, payer: payer?.code, details, answers, transcript, assessment, callTaker: req.user.display_name, userId: req.user.id });
-    log(req, 'call.saved', { entityType: 'call', entityId: call.id, details: { call_type: callType, payer: payer?.code || null, status: call.status } });
+    return { callType, payer: payer?.code, details, answers, transcript, assessment };
+  };
+  // Call takers can reach their own calls; administrators can reach any call.
+  const ownCall = (req, res) => {
+    const call = calls.get(Number(req.params.id));
+    if (!call || (req.user.role !== 'admin' && call.user_id !== req.user.id)) {
+      res.status(404).json({ error: 'Call not found.' });
+      return null;
+    }
+    return call;
+  };
+
+  app.post('/api/calls', requireAuth, (req, res) => {
+    const input = callFromBody(req.body);
+    if (input.error) return res.status(400).json({ error: input.error });
+    const call = calls.create({ ...input, callTaker: req.user.display_name, userId: req.user.id });
+    log(req, 'call.saved', { entityType: 'call', entityId: call.id, details: { call_type: input.callType, payer: input.payer || null, status: call.status } });
     res.status(201).json({ id: call.id, status: call.status, created_at: call.created_at });
+  });
+
+  app.put('/api/calls/:id', requireAuth, (req, res) => {
+    const existing = ownCall(req, res);
+    if (!existing) return;
+    const input = callFromBody(req.body);
+    if (input.error) return res.status(400).json({ error: input.error });
+    const call = calls.update(existing.id, input);
+    log(req, 'call.updated', { entityType: 'call', entityId: call.id, details: { call_type: input.callType, payer: input.payer || null, status: call.status } });
+    res.json({ id: call.id, status: call.status, created_at: call.created_at });
+  });
+
+  app.get('/api/calls/:id/pcs', requireAuth, (req, res) => {
+    const call = ownCall(req, res);
+    if (!call) return;
+    const payer = call.payer ? payers.getByCode(call.payer) : null;
+    const pcs = buildPcs({ call, payer, questions: questions.list({ activeOnly: true }), orgName: settings.all().org_name });
+    log(req, 'pcs.generated', { entityType: 'call', entityId: call.id });
+    res.json(pcs);
   });
 
   // -------------------------------------------------- admin: questions

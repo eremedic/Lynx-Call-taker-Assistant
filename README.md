@@ -43,6 +43,13 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 - **Live CMS assessment.** Shows the status (meets / likely / needs review / does not meet / gathering info), the three-part bed-confinement test, supporting conditions, disqualifiers, alerts, missing required items, and documentation requirements (PCS, the 60-day rule for repetitive transports, the 48-hour rule for non-repetitive ones).
 - **Recommended level of service.** BLS, ALS1, or SCT, emergency or non-emergency, with the HCPCS code (A0428/A0429/A0426/A0427/A0434).
 - **Emergency screening.** A banner tells the call taker to transfer to 911 when red-flag symptoms come up on a non-emergency call.
+- **PCS form generation.** **Generate PCS form** saves the call and opens a prefilled Physician Certification Statement in a new tab. Use **Print / Save as PDF** to print it, fax it, or email it to the facility for the practitioner to sign.
+  - **Prefilled from the call:** patient, payer, transport details, diagnosis, the "other transport contraindicated" answer, the three bed-confinement criteria, every condition with qualifying ones checked, level of service, and the certifying practitioner named on the call.
+  - **The certification page** has the certification statement, practitioner-type checkboxes, the non-physician attestation, signature and date lines, and the 60-day (repetitive) or 48-hour (non-repetitive) rule.
+  - **Edit before printing** lets the call taker correct fields or checkboxes on the printout. These edits aren't saved to the call record.
+  - **Notices on the form** flag emergency calls, payers that don't require a PCS, possible state Medicaid forms, and calls where no qualifying condition was found.
+  - **Where to open it:** administrators can open the PCS for any call from the Call Log. Call takers can open the PCS only for their own calls. Each generation is recorded in the audit log.
+  - **Saving twice** updates the same call record, so regenerating the PCS after changes doesn't create duplicates.
 - **Save, copy, and print.** Save the call record (attributed to the signed-in call taker), copy a narrative for the trip record or PCS request, or print a summary.
 - **Optional AI analysis (Claude).** Suggests answers, writes a short summary, and proposes follow-up questions the bank doesn't cover.
 
@@ -148,11 +155,13 @@ server/
   seed-questions.js   default question bank (CMS criteria + payer-specific questions)
   seed-payers.js      default payer profiles
   ai.js               optional Claude transcript analysis
+  pcs.js              builds the prefilled PCS from a saved call
   engine/detect.js    phrase detection with negation handling
   engine/evaluate.js  medical-necessity evaluation and question prioritization
 public/
   login.html, js/login.js     sign-in and password change
   index.html, js/console.js   call-taker console
+  pcs.html, js/pcs.js         printable PCS form (css/pcs.css)
   admin.html, js/admin.js     admin dashboard
   css/app.css                 shared styles
 test/                 engine and API tests (node:test)
@@ -175,6 +184,6 @@ Call records and transcripts contain protected health information. Before produc
 
 - Single sign-on (SAML/OIDC) and multi-factor authentication
 - HIPAA-eligible streaming speech-to-text with speaker separation (caller vs. call taker)
-- PCS form generation and e-signature request to the facility
+- E-signature requests and fax delivery of the PCS to the facility
 - CAD/dispatch and billing system integration
 - Reporting on denial risk and call-taker performance

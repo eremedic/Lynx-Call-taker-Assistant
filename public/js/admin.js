@@ -524,6 +524,9 @@ async function openCall(id) {
 
   $('#call-modal-title').textContent = `Call #${c.id} — ${formatDate(c.created_at)}`;
   $('#call-detail').innerHTML = `
+    <div style="display: flex; justify-content: flex-end; margin: -4px 0 12px">
+      <a class="btn btn-sm" href="pcs.html?call=${c.id}&from=admin" target="_blank" rel="noopener">Open PCS form</a>
+    </div>
     <div class="status-banner status-${esc(a.status)}" style="margin-bottom: 16px">
       <div class="label">Medical Necessity${a.payer ? ` · ${esc(a.payer.name)}` : ''}</div>
       <div class="value">${esc(STATUS_LABELS[a.status])}</div>
@@ -627,6 +630,8 @@ const ACTION_LABELS = {
   'auth.password_change_failed': 'Password change failed',
   'access.denied': 'Access denied',
   'call.saved': 'Saved call',
+  'call.updated': 'Updated call',
+  'pcs.generated': 'Generated PCS form',
   'call.viewed': 'Viewed call record',
   'call.list_viewed': 'Viewed call log',
   'ai.analyze': 'Sent transcript to AI',

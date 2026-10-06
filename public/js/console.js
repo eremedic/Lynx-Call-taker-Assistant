@@ -86,7 +86,8 @@ function bindEvents() {
     evaluate();
   });
   $('#ai-btn').addEventListener('click', () => runAi());
-  $('#save-call').addEventListener('click', saveCall);
+  $('#save-call').addEventListener('click', () => saveCall());
+  $('#generate-pcs').addEventListener('click', generatePcs);
   $('#copy-summary').addEventListener('click', copyNarrative);
   $('#print').addEventListener('click', () => window.print());
   $('#new-call').addEventListener('click', newCall);
@@ -615,29 +616,46 @@ async function copyNarrative() {
   }
 }
 
-async function saveCall() {
-  if (!state.evaluation) return;
+// Saves the call, or updates it if it was already saved. Returns the call ID.
+async function saveCall({ quiet = false } = {}) {
+  if (!state.evaluation) return null;
   const btn = $('#save-call');
   btn.disabled = true;
   try {
-    const r = await api('/api/calls', {
-      method: 'POST',
-      body: {
-        callType: state.callType,
-        payer: state.payer,
-        details: { ...state.details, ai_summary: state.aiSummary, ai_questions: state.aiQuestions, duration_seconds: state.startedAt ? Math.round((Date.now() - state.startedAt) / 1000) : 0 },
-        answers: state.answers,
-        transcript: state.transcript,
-      },
-    });
+    const body = {
+      callType: state.callType,
+      payer: state.payer,
+      details: { ...state.details, ai_summary: state.aiSummary, ai_questions: state.aiQuestions, duration_seconds: state.startedAt ? Math.round((Date.now() - state.startedAt) / 1000) : 0 },
+      answers: state.answers,
+      transcript: state.transcript,
+    };
+    const r = state.savedId
+      ? await api(`/api/calls/${state.savedId}`, { method: 'PUT', body })
+      : await api('/api/calls', { method: 'POST', body });
+    const updated = Boolean(state.savedId);
     state.savedId = r.id;
     state.dirty = false;
-    toast(`Call #${r.id} saved.`, 'success');
+    if (!quiet) toast(`Call #${r.id} ${updated ? 'updated' : 'saved'}.`, 'success');
+    return r.id;
   } catch (err) {
     toast(`Save failed: ${err.message}`, 'error');
+    return null;
   } finally {
     btn.disabled = false;
   }
+}
+
+async function generatePcs() {
+  if (state.callType === 'emergency' && !confirm('A PCS is generally not required for emergency transports. Generate one anyway?')) return;
+  if (state.evaluation?.assessment.status === 'not_required' && !confirm('This payer does not require medical necessity. Generate a PCS anyway?')) return;
+  // Open the tab now (inside the click) so pop-up blockers allow it.
+  const tab = window.open('about:blank', '_blank');
+  const id = state.dirty || !state.savedId ? await saveCall({ quiet: true }) : state.savedId;
+  if (!id) { tab?.close(); return; }
+  const url = `pcs.html?call=${id}`;
+  if (tab) tab.location.href = url;
+  else location.href = url;
+  toast(`Call #${id} saved — PCS opened in a new tab.`, 'success');
 }
 
 async function newCall() {

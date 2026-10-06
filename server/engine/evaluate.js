@@ -27,7 +27,7 @@ const LEVELS = {
 const isAnswered = (v) => v !== undefined && v !== null && String(v).trim() !== '';
 const sameAnswer = (a, b) => isAnswered(a) && isAnswered(b) && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 // A qualifying answer may list alternatives separated by "|".
-const matchesAny = (answer, expected) => isAnswered(expected) && String(expected).split('|').some((e) => sameAnswer(answer, e));
+export const matchesAny = (answer, expected) => isAnswered(expected) && String(expected).split('|').some((e) => sameAnswer(answer, e));
 
 const PRIOR_AUTH_LABELS = { required: 'Required', varies: 'Varies — verify with payer', not_required: 'Not required' };
 

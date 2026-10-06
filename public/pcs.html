@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Physician Certification Statement · Lynx</title>
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/pcs.css">
+</head>
+<body class="pcs-body">
+  <div class="pcs-toolbar no-print">
+    <a class="btn btn-sm" id="back" href="index.html">← Back</a>
+    <span class="pcs-toolbar-title">Physician Certification Statement</span>
+    <span class="spacer"></span>
+    <label class="switch small"><input type="checkbox" id="edit-toggle"><span class="track"></span><span>Edit before printing</span></label>
+    <button id="print" class="btn btn-primary btn-sm" type="button">Print / Save as PDF</button>
+  </div>
+  <p id="edit-hint" class="pcs-edit-hint no-print" hidden>Click any field or checkbox to change it. Edits only change this printout — they are not saved to the call record.</p>
+  <main id="sheet" class="pcs-sheet" aria-live="polite">
+    <p class="muted">Loading…</p>
+  </main>
+  <script type="module" src="js/pcs.js"></script>
+</body>
+</html>

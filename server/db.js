@@ -299,6 +299,22 @@ export function callRepo(db) {
       );
       return this.get(Number(info.lastInsertRowid));
     },
+    // Replaces the call's content; the call taker and creation time are kept.
+    update(id, { callType, payer, details, answers, transcript, assessment }) {
+      db.prepare(`UPDATE calls SET call_type = ?, payer = ?, details = ?, answers = ?, transcript = ?, assessment = ?, status = ?,
+        level_of_service = ? WHERE id = ?`).run(
+        callType,
+        payer || null,
+        JSON.stringify(details || {}),
+        JSON.stringify(answers || {}),
+        transcript || '',
+        JSON.stringify(assessment || {}),
+        assessment?.status || 'incomplete',
+        assessment?.levelOfService?.label || null,
+        id,
+      );
+      return this.get(id);
+    },
     get(id) {
       return parse(db.prepare('SELECT * FROM calls WHERE id = ?').get(id));
     },
