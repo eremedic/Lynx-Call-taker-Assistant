@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>System status · AmbuIntake</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="card status-card">
+      <div class="brand" style="color: var(--ink-900)"><div class="brand-mark" style="color:#fff">AI</div><div><span class="wordmark"><span class="ai">A</span>mbu<span class="ai">I</span>ntake</span> <small style="color: var(--ink-500)">System status</small></div></div>
+      <h1 id="status-title" style="margin: 16px 0 4px">Checking…</h1>
+      <p id="status-sub" class="muted" style="margin-top: 0">Running the self-check.</p>
+      <ul id="status-checks" class="status-checks"></ul>
+      <div class="row" style="margin-top: 16px">
+        <button id="recheck" class="btn" type="button">Check again</button>
+        <a class="btn btn-primary" href="login.html">Go to sign in</a>
+      </div>
+      <p class="small muted" style="margin-bottom: 0">This page shows no passwords or patient data. Share a screenshot of it with your support contact if something is red.</p>
+    </div>
+  </div>
+  <script type="module" src="js/status.js"></script>
+</body>
+</html>

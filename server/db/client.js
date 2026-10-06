@@ -27,10 +27,27 @@ export function postgresConfig(url, env = process.env) {
   return { connectionString: parsed.toString(), ssl };
 }
 
+// Errors that mean the connection itself was dead (common on serverless
+// hosts, where idle connections are dropped while the function sleeps).
+// The statement never ran, so it is safe to retry once on a fresh connection.
+const STALE_CONNECTION_CODES = new Set(['ECONNRESET', 'EPIPE', '57P01', '08003', '08006']);
+export function isStaleConnectionError(err) {
+  return STALE_CONNECTION_CODES.has(err?.code)
+    || /Connection terminated unexpectedly|Client has encountered a connection error|Connection terminated due to connection timeout/i.test(err?.message || '');
+}
+
 export async function connectPostgres(url, { poolSize = Number(process.env.DATABASE_POOL_SIZE) || 3 } = {}) {
   const { default: pg } = await import('pg');
   const { connectionString, ssl } = postgresConfig(url);
-  const pool = new pg.Pool({ connectionString, ssl, max: poolSize, idleTimeoutMillis: 10_000 });
+  const pool = new pg.Pool({
+    connectionString,
+    ssl,
+    max: poolSize,
+    idleTimeoutMillis: 10_000,
+    // Fail with a clear error before Netlify's 10-second function limit.
+    connectionTimeoutMillis: 7_000,
+    query_timeout: 9_000,
+  });
   pool.on('error', (err) => console.error('Postgres pool error:', err.message));
 
   const wrap = (runner) => ({
@@ -41,22 +58,50 @@ export async function connectPostgres(url, { poolSize = Number(process.env.DATAB
       await runner.query(sql);
     },
   });
+  // Every pooled connection may have gone stale while the function slept, so
+  // keep trying fresh connections (each failure discards the dead one).
+  const attempts = poolSize + 1;
+  const withRetry = (fn) => async (...args) => {
+    for (let i = 1; ; i++) {
+      try {
+        return await fn(...args);
+      } catch (err) {
+        if (!isStaleConnectionError(err) || i >= attempts) throw err;
+      }
+    }
+  };
+  const poolRunner = wrap(pool);
+
+  // Opens a transaction, replacing dead connections if BEGIN fails.
+  const begin = async (attempt = 1) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      return client;
+    } catch (err) {
+      client.release(true);
+      if (attempt < attempts && isStaleConnectionError(err)) return begin(attempt + 1);
+      throw err;
+    }
+  };
 
   return {
     kind: 'postgres',
-    ...wrap(pool),
+    query: withRetry(poolRunner.query),
+    exec: withRetry(poolRunner.exec),
     async tx(fn) {
-      const client = await pool.connect();
+      const client = await begin();
+      let broken = false;
       try {
-        await client.query('BEGIN');
         const result = await fn(wrap(client));
         await client.query('COMMIT');
         return result;
       } catch (err) {
-        await client.query('ROLLBACK').catch(() => {});
+        broken = isStaleConnectionError(err);
+        await client.query('ROLLBACK').catch(() => { broken = true; });
         throw err;
       } finally {
-        client.release();
+        client.release(broken);
       }
     },
     close: () => pool.end(),
@@ -66,7 +111,10 @@ export async function connectPostgres(url, { poolSize = Number(process.env.DATAB
 // --------------------------------------------------------------- PGlite
 // dataDir: a folder to keep data in, or omitted for an in-memory database.
 export async function connectPglite(dataDir) {
-  const { PGlite } = await import('@electric-sql/pglite');
+  // Imported by a computed name so serverless bundles (Netlify) don't include
+  // the embedded database; it is only used locally and in tests.
+  const moduleName = '@electric-sql/pglite';
+  const { PGlite } = await import(moduleName);
   const db = dataDir ? new PGlite(dataDir) : new PGlite();
   await db.waitReady;
 

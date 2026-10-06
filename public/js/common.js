@@ -1,13 +1,19 @@
 export async function api(path, { method = 'GET', body } = {}) {
   const hasBody = method !== 'GET';
-  const res = await fetch(path, {
-    method,
-    headers: hasBody ? { 'Content-Type': 'application/json' } : undefined,
-    body: hasBody ? JSON.stringify(body ?? {}) : undefined,
-    credentials: 'same-origin',
-  });
+  let res;
+  try {
+    res = await fetch(path, {
+      method,
+      headers: hasBody ? { 'Content-Type': 'application/json' } : undefined,
+      body: hasBody ? JSON.stringify(body ?? {}) : undefined,
+      credentials: 'same-origin',
+    });
+  } catch {
+    throw new Error('Can\'t reach the AmbuIntake server. Check your connection; see status.html for details.');
+  }
   if (res.status === 204) return null;
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json().catch(() => null);
+  if (!data) throw Object.assign(new Error(`The AmbuIntake server isn't responding properly (HTTP ${res.status}). See status.html.`), { status: res.status });
   if (!res.ok) {
     if (data.code === 'AUTH_REQUIRED') redirectToLogin();
     if (data.code === 'PASSWORD_CHANGE_REQUIRED') redirectToLogin({ change: true });

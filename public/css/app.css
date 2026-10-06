@@ -386,3 +386,17 @@ fieldset.group legend { font-size: 12px; font-weight: 700; color: var(--ink-700)
 }
 .brand-mark { letter-spacing: -.02em; font-size: 13px; }
 .login-card .wordmark { font-size: 20px; }
+
+/* ------------------------------------------------------------ status */
+.status-card { width: 100%; max-width: 640px; padding: 28px; }
+.status-checks { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.status-checks li { display: flex; gap: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); font-size: 13.5px; }
+.status-checks .mark { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 12px; color: #fff; }
+.status-checks code { display: block; margin-top: 4px; font-size: 11.5px; color: var(--ink-500); word-break: break-word; }
+.status-ok .mark { background: var(--green-600); }
+.status-bad { background: var(--red-50); border-color: #fbcaca; }
+.status-bad .mark { background: var(--red-600); }
+.status-warn { background: var(--amber-50); border-color: #fde4a8; }
+.status-warn .mark { background: var(--amber-600); }
+.status-info .mark { background: var(--ink-400); }
+.server-banner { margin-bottom: 14px; }

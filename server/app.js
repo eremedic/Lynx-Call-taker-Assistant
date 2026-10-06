@@ -7,6 +7,7 @@ import { evaluateCall, appliesToPayer, skipsNecessity, CALL_TYPES } from './engi
 import { CATEGORIES } from './seed-questions.js';
 import { analyzeTranscript, aiConfigured, AiError } from './ai.js';
 import { buildPcs } from './pcs.js';
+import { diagnose } from './health.js';
 import {
   ROLES, SESSION_COOKIE, SESSION_TTL_MS, hashPassword, verifyPassword, burnPasswordCheck, passwordProblems,
   generatePassword, newSessionToken, hashToken, parseCookies, sessionCookie,
@@ -267,6 +268,8 @@ export function createApp({ db, staticDir = null }) {
       aiAutoAnalyze: s.ai_auto_analyze === 'true',
     };
   };
+  // Self-check for /status.html (no secrets are returned).
+  app.get('/api/health', async (req, res) => res.json(await diagnose({ env: process.env, db })));
   app.get('/api/public-config', async (req, res) => res.json({ orgName: (await settings.all()).org_name }));
   app.get('/api/config', requireAuth, async (req, res) => {
     res.json({

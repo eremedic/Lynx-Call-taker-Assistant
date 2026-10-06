@@ -14,8 +14,8 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
-  # The embedded database is only for local runs, and pg-native is optional.
-  external_node_modules = ["@electric-sql/pglite", "pg-native"]
+  # pg-native is an optional add-on of the Postgres driver that isn't used.
+  external_node_modules = ["pg-native"]
 
 [[redirects]]
   from = "/api/*"

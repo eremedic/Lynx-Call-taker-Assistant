@@ -2,11 +2,32 @@ const $ = (sel) => document.querySelector(sel);
 const params = new URLSearchParams(location.search);
 let user = null;
 
-async function post(path, body) {
-  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+// A request that explains when the server itself isn't working.
+async function request(path, options = {}) {
+  let res;
+  try {
+    res = await fetch(path, { credentials: 'same-origin', ...options });
+  } catch {
+    throw Object.assign(new Error('Can\'t reach the AmbuIntake server. Check your connection.'), { server: true });
+  }
+  const data = await res.json().catch(() => null);
+  if (!data) throw Object.assign(new Error(`The AmbuIntake server isn't responding properly (HTTP ${res.status}).`), { server: true });
+  if (!res.ok) throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { server: res.status >= 500 });
   return data;
+}
+
+const post = (path, body) => request(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+function showServerProblem(message) {
+  const banner = $('#server-banner');
+  banner.innerHTML = '';
+  const text = document.createElement('span');
+  text.textContent = `${message} `;
+  const link = document.createElement('a');
+  link.href = 'status.html';
+  link.textContent = 'Open the system status page';
+  banner.append(text, link, document.createTextNode(' for details.'));
+  banner.hidden = false;
 }
 
 // Only follow same-site relative paths after sign-in.
@@ -41,7 +62,12 @@ function showChange(forced) {
 
 async function init() {
   fetch('/api/public-config').then((r) => r.json()).then((c) => { if (c.orgName) $('#org-name').textContent = c.orgName; }).catch(() => {});
-  const session = await fetch('/api/auth/session', { credentials: 'same-origin' }).then((r) => r.json()).catch(() => ({}));
+  let session = {};
+  try {
+    session = await request('/api/auth/session');
+  } catch (err) {
+    showServerProblem(err.message);
+  }
   user = session.user || null;
   if (user && (user.must_change_password || params.has('change'))) return showChange(user.must_change_password);
   if (user) return location.replace(destination(user));
@@ -63,7 +89,8 @@ $('#login-form').addEventListener('submit', async (e) => {
       location.replace(destination(user));
     }
   } catch (err) {
-    showError($('#login-error'), err.message);
+    if (err.server) showServerProblem(err.message);
+    showError($('#login-error'), err.server ? 'Sign-in is unavailable right now (see the message above).' : err.message);
     $('#password').select();
   } finally {
     btn.disabled = false;

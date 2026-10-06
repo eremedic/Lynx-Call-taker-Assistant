@@ -12,6 +12,8 @@
     <div class="card login-card">
       <div class="brand" style="color: var(--ink-900)"><div class="brand-mark" style="color:#fff">AI</div><div><span class="wordmark"><span class="ai">A</span>mbu<span class="ai">I</span>ntake</span> <small id="org-name" style="color: var(--ink-500)">Call-Taker Assistant</small></div></div>
 
+      <div id="server-banner" class="alert alert-warning server-banner" role="alert" hidden></div>
+
       <form id="login-form" hidden>
         <h1>Sign in</h1>
         <p class="muted" style="margin-top: 0">Use the account your administrator created for you.</p>
@@ -30,6 +32,7 @@
           <p style="margin: 8px 0 0"><strong>Call takers:</strong> ask an administrator to reset your password.</p>
           <p style="margin: 6px 0 0"><strong>First administrator:</strong> the username (usually <code>admin</code>) and a temporary password are shown in the terminal where the server is running. To get a new one, run <code>npm run reset-password -- admin</code> in a terminal in the project folder.</p>
         </details>
+        <p class="small" style="margin-bottom: 0"><a href="status.html">System status</a></p>
       </form>
 
       <form id="change-form" hidden>

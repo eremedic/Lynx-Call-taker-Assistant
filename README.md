@@ -120,6 +120,18 @@ AmbuIntake creates its own tables the first time it starts. They go in a separat
 3. Go to **Admin → Settings** and enter your ambulance service's name (it's printed on PCS forms). Then add call takers under **Admin → Users**.
 4. Optional: add your domain under **Domain management**. Netlify sets up HTTPS automatically.
 
+### 5. If something isn't working: open `/status.html`
+
+Go to **`https://<your-site>/status.html`**. You don't need to sign in, and the page never shows passwords or patient data. It checks each piece in order and tells you exactly what to fix:
+
+- whether the server function is deployed and starting,
+- whether `DATABASE_URL` is set and formatted correctly. It catches the `[YOUR-PASSWORD]` placeholder, the Direct connection (which Netlify can't reach), a wrong pooler user name, and unencoded `@`/`#` in the password,
+- whether the database connects. Wrong passwords, unknown users, paused projects and timeouts each get a specific explanation,
+- whether the tables and the administrator account exist,
+- whether `COOKIE_SECURE` and `TRUST_PROXY` are set.
+
+The sign-in page also shows a warning with a link to this page whenever the server can't be reached.
+
 **Good to know**
 - **Admin password reset:** the `ADMIN_PASSWORD` variable is only used to create the first administrator. To reset a lost administrator password, run `DATABASE_URL="…" npm run reset-password -- admin` from a Codespace or any computer with the project. Administrators can reset call takers' passwords from **Admin → Users**.
 - **Set up the database ahead of time (optional):** run `DATABASE_URL="…" ADMIN_PASSWORD="…" npm run db:setup` once to create the tables and the administrator before the first deploy.
@@ -194,6 +206,7 @@ The client sends call state to `POST /api/evaluate`, so admin changes to the que
 server/
   index.js            local server entry point
   setup-db.js         one-time database setup (npm run db:setup)
+  health.js           self-check behind /api/health and /status.html
   export-sql.js       writes supabase/schema.sql and seed.sql (npm run db:export-sql)
   app.js              Express app, REST API, access control, audit hooks
   auth.js             password hashing (scrypt), sessions, lockout
@@ -211,6 +224,7 @@ netlify/functions/api.mjs   Netlify Function running the API
 netlify.toml                Netlify build, function and redirect settings
 public/
   login.html, js/login.js     sign-in and password change
+  status.html, js/status.js   system status / setup self-check
   index.html, js/console.js   call-taker console
   pcs.html, js/pcs.js         printable PCS form (css/pcs.css)
   admin.html, js/admin.js     admin dashboard

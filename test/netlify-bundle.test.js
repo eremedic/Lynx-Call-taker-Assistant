@@ -32,7 +32,7 @@ test('the function works when bundled as CommonJS, as Netlify does', async () =>
       format: 'cjs',
       target: 'node18',
       outfile,
-      external: ['@electric-sql/pglite', 'pg-native'],
+      external: ['pg-native'],
       logLevel: 'silent',
     });
     assert.deepEqual(result.warnings.map((w) => w.text), [], 'no bundling warnings');
