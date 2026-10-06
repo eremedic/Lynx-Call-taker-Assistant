@@ -1,6 +1,4 @@
 import express from 'express';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   questionRepo, callRepo, settingsRepo, userRepo, sessionRepo, auditRepo, payerRepo, lockoutRepo, PAYER_FIELDS,
 } from './db.js';
@@ -13,8 +11,6 @@ import {
   ROLES, SESSION_COOKIE, SESSION_TTL_MS, hashPassword, verifyPassword, burnPasswordCheck, passwordProblems,
   generatePassword, newSessionToken, hashToken, parseCookies, sessionCookie,
 } from './auth.js';
-
-const here = path.dirname(fileURLToPath(import.meta.url));
 
 const ANSWER_TYPES = ['yes_no', 'choice', 'text', 'number'];
 const CRITERIA = ['emergency', 'bed_confined', 'condition', 'als', 'sct', 'disqualifier', 'documentation', 'prior_auth', 'info'];
@@ -50,6 +46,16 @@ function validateQuestion(input, { partial = false } = {}) {
   if (input.answer_type === 'choice' && 'options' in input && (input.options || []).length < 2) errors.push('Choice questions need at least two options.');
   if ('priority' in input && ![1, 2, 3].includes(Number(input.priority))) errors.push('Priority must be 1, 2, or 3.');
   return errors;
+}
+
+// The visitor's IP address for the audit log. Behind a trusted proxy (Netlify,
+// a load balancer) it comes from the proxy's headers.
+function clientIp(req) {
+  if (process.env.TRUST_PROXY) {
+    const forwarded = req.headers['x-nf-client-connection-ip'] || String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    if (forwarded) return forwarded;
+  }
+  return req.ip || null;
 }
 
 // Field-level before/after for the audit trail.
@@ -110,7 +116,10 @@ export async function ensureInitialAdmin(db, {
   return { username, password: generated };
 }
 
-export function createApp({ db, serveStatic = true }) {
+// staticDir: folder of web pages to serve (the local server passes public/).
+// On Netlify the pages are served by Netlify itself, so it is omitted.
+// This module must not use import.meta: Netlify bundles functions as CommonJS.
+export function createApp({ db, staticDir = null }) {
   const questions = questionRepo(db);
   const calls = callRepo(db);
   const settings = settingsRepo(db);
@@ -161,9 +170,9 @@ export function createApp({ db, serveStatic = true }) {
     }
     next();
   });
-  if (serveStatic) app.use(express.static(path.join(here, '..', 'public')));
+  if (staticDir) app.use(express.static(staticDir));
 
-  const log = (req, action, extra = {}) => audit.log({ user: req.user, ip: req.ip, action, ...extra });
+  const log = (req, action, extra = {}) => audit.log({ user: req.user, ip: clientIp(req), action, ...extra });
 
   // --------------------------------------------------------------- auth
   const loadUser = async (req) => {
@@ -199,14 +208,14 @@ export function createApp({ db, serveStatic = true }) {
     if (!username || !password) return res.status(400).json({ error: 'Enter your username and password.' });
 
     if (await lockout.isLocked(username)) {
-      await audit.log({ user: null, ip: req.ip, action: 'auth.login_blocked', details: { username } });
+      await audit.log({ user: null, ip: clientIp(req), action: 'auth.login_blocked', details: { username } });
       return res.status(429).json({ error: 'Too many failed attempts. Try again in 15 minutes or ask an administrator.' });
     }
     const record = await users.getForLogin(username);
     const ok = record ? await verifyPassword(password, record.password_hash) : (await burnPasswordCheck(password), false);
     if (!ok || !record.active) {
       const locked = await lockout.fail(username);
-      await audit.log({ user: record || null, ip: req.ip, action: 'auth.login_failed', details: { username, reason: !ok ? 'bad_credentials' : 'inactive', locked } });
+      await audit.log({ user: record || null, ip: clientIp(req), action: 'auth.login_failed', details: { username, reason: !ok ? 'bad_credentials' : 'inactive', locked } });
       return res.status(401).json({ error: 'Incorrect username or password.' });
     }
     await lockout.clear(username);
@@ -215,7 +224,7 @@ export function createApp({ db, serveStatic = true }) {
     await sessions.purgeExpired();
     await sessions.create(hashToken(token), record.id, Date.now() + SESSION_TTL_MS);
     const user = await users.update(record.id, { last_login_at: new Date().toISOString().replace('T', ' ').slice(0, 19) });
-    await audit.log({ user, ip: req.ip, action: 'auth.login', details: { user_agent: String(req.headers['user-agent'] || '').slice(0, 200) } });
+    await audit.log({ user, ip: clientIp(req), action: 'auth.login', details: { user_agent: String(req.headers['user-agent'] || '').slice(0, 200) } });
     res.setHeader('Set-Cookie', sessionCookie(req, token, SESSION_TTL_MS / 1000));
     res.json({ user });
   });

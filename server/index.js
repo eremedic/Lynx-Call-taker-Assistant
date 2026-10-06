@@ -1,7 +1,11 @@
 // Local / self-hosted server. On Netlify the API runs as a function instead
 // (netlify/functions/api.mjs) and Netlify serves the pages.
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createApp, ensureInitialAdmin } from './app.js';
 import { openDb } from './db.js';
+
+const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
 const port = Number(process.env.PORT) || 3000;
 const db = await openDb();
@@ -19,7 +23,7 @@ if (initial) {
   console.log(`  Lost it later? Run: npm run reset-password -- ${initial.username}\n${line}\n`);
 }
 
-createApp({ db }).listen(port, () => {
+createApp({ db, staticDir: publicDir }).listen(port, () => {
   console.log(`AmbuIntake running at http://localhost:${port}`);
   console.log(`  Sign in:            http://localhost:${port}/login.html`);
   console.log(`  Call-taker console: http://localhost:${port}/`);

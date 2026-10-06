@@ -16,7 +16,7 @@ export function createHandler(connect) {
         ? ` Temporary password: ${initial.password} (set ADMIN_PASSWORD to choose it yourself).`
         : ' Use ADMIN_PASSWORD to sign in.'} A new password is required at first sign-in.`);
     }
-    return serverless(createApp({ db, serveStatic: false }));
+    return serverless(createApp({ db }));
   };
 
   return async (event, context) => {

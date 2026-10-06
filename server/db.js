@@ -224,16 +224,23 @@ export async function migrate(db) {
     const [row] = await t.query(`SELECT value FROM ${S}.settings WHERE key = 'seed_version'`);
     if (Number(row?.value) >= SEED_VERSION) return; // another instance finished first
 
-    const questions = questionRepo(t);
-    const payers = payerRepo(t);
-    for (const [i, q] of SEED_QUESTIONS.entries()) {
-      if (!(await questions.getByCode(q.code))) await questions.create({ ...q, sort_order: (i + 1) * 10 }, { system: true });
-    }
-    for (const [i, p] of SEED_PAYERS.entries()) {
-      if (!(await payers.getByCode(p.code))) await payers.create({ ...p, sort_order: (i + 1) * 10 }, { system: true });
-    }
+    // One statement per table keeps the first start fast on serverless hosts.
+    await insertMany(t, 'questions', QUESTION_FIELDS, SEED_QUESTIONS.map((q, i) =>
+      ({ ...toRow({ active: true, required: false, priority: 3, ...q, necessity: defaultNecessity(q), sort_order: (i + 1) * 10 }), is_system: true })));
+    await insertMany(t, 'payers', PAYER_FIELDS, SEED_PAYERS.map((p, i) =>
+      ({ ...payerRow({ active: true, kind: 'payer', requires_medical_necessity: true, ...p, sort_order: (i + 1) * 10 }), is_system: true })));
     await settingsRepo(t).set('seed_version', SEED_VERSION);
   });
+}
+
+// Inserts many rows in one statement; columns a row doesn't set use DEFAULT.
+// Rows whose code already exists are left as they are.
+async function insertMany(db, table, fields, rows) {
+  if (!rows.length) return;
+  const cols = [...fields.filter((f) => rows.some((r) => f in r)), 'is_system'];
+  const params = [];
+  const tuples = rows.map((r) => `(${cols.map((c) => (c in r ? `$${params.push(r[c])}` : 'DEFAULT')).join(', ')})`);
+  await db.query(`INSERT INTO ${S}.${table} (${cols.join(', ')}) VALUES ${tuples.join(', ')} ON CONFLICT (code) DO NOTHING`, params);
 }
 
 // Builds "col = $n" lists and parameter arrays.
