@@ -1,0 +1,32 @@
+# AmbuIntake on Netlify
+#   - public/ is served as static pages
+#   - /api/* runs in the Netlify Function netlify/functions/api.mjs
+#   - data is stored in Supabase Postgres (DATABASE_URL)
+# Environment variables are listed in README.md → "Deploy to Netlify".
+
+[build]
+  publish = "public"
+  command = "echo 'No build step needed'"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  # The embedded database is only for local runs, and pg-native is optional.
+  external_node_modules = ["@electric-sql/pglite", "pg-native"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"
+    Strict-Transport-Security = "max-age=31536000"

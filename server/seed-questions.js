@@ -184,7 +184,7 @@ export const SEED_QUESTIONS = [
     criterion: 'condition',
     qualifying_answer: 'yes',
     priority: 2,
-    detect_yes: ['on oxygen', 'on o2', 'home oxygen', 'home o2', 'nasal cannula', 'non-rebreather', 'liters of oxygen', 'liters o2', 'lpm', 'oxygen tank',
+    detect_yes: ['on oxygen', 'on o2', 'home oxygen', 'home o2', 'nasal cannula', 'non-rebreather', 'liters of oxygen', 'liters oxygen', 'liters o2', 'l of oxygen', 'lpm', 'oxygen tank',
       'needs oxygen', 'requires oxygen', 'oxygen dependent'],
     detect_no: ['room air', 'portable concentrator'],
   },

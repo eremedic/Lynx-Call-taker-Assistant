@@ -4,27 +4,32 @@ import { ensureInitialAdmin } from '../server/app.js';
 import { openDb, userRepo } from '../server/db.js';
 import { verifyPassword } from '../server/auth.js';
 
-test('the first admin password is reissued at startup until the admin signs in', async () => {
-  const db = openDb(':memory:');
+test('first admin: created once; reissued only when asked and only until first sign-in', async () => {
+  const db = await openDb({ memory: true });
   const users = userRepo(db);
   const first = await ensureInitialAdmin(db, { username: 'admin', password: undefined });
   assert.ok(first.password && !first.reissued);
 
-  const second = await ensureInitialAdmin(db, { username: 'admin', password: undefined });
+  // Serverless starts (no reissue) leave the password alone.
+  assert.equal(await ensureInitialAdmin(db, { username: 'admin', password: undefined }), null);
+  assert.equal(await verifyPassword(first.password, (await users.getForLogin('admin')).password_hash), true);
+
+  // The local server reissues until the admin has signed in.
+  const second = await ensureInitialAdmin(db, { username: 'admin', password: undefined, reissue: true });
   assert.equal(second.reissued, true);
-  assert.notEqual(second.password, first.password);
-  const admin = users.getForLogin('admin');
+  const admin = await users.getForLogin('admin');
   assert.equal(await verifyPassword(second.password, admin.password_hash), true, 'latest password works');
   assert.equal(await verifyPassword(first.password, admin.password_hash), false, 'old password no longer works');
 
-  // Once the admin has signed in, nothing is reissued.
-  users.update(admin.id, { last_login_at: '2026-10-05 12:00:00' });
-  assert.equal(await ensureInitialAdmin(db, { username: 'admin', password: undefined }), null);
+  await users.update(admin.id, { last_login_at: '2026-10-05 12:00:00' });
+  assert.equal(await ensureInitialAdmin(db, { username: 'admin', password: undefined, reissue: true }), null);
+  await db.close();
 });
 
-test('nothing is reissued once other accounts exist', async () => {
-  const db = openDb(':memory:');
-  await ensureInitialAdmin(db, { username: 'admin', password: undefined });
-  userRepo(db).create({ username: 'jdoe', display_name: 'Jane', role: 'call_taker', password_hash: 'x' });
-  assert.equal(await ensureInitialAdmin(db, { username: 'admin', password: undefined }), null);
+test('ADMIN_PASSWORD is used for the first administrator', async () => {
+  const db = await openDb({ memory: true });
+  const r = await ensureInitialAdmin(db, { username: 'boss', password: 'Chosen-pass-123' });
+  assert.equal(r.password, null);
+  assert.equal(await verifyPassword('Chosen-pass-123', (await userRepo(db).getForLogin('BOSS')).password_hash), true);
+  await db.close();
 });

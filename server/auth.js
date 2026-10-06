@@ -8,8 +8,6 @@ export const SESSION_COOKIE = 'ambuintake_session';
 export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 export const MIN_PASSWORD_LENGTH = 10;
 
-const MAX_FAILED_LOGINS = 5;
-const LOCKOUT_MS = 15 * 60 * 1000;
 const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };
 
 // ---------------------------------------------------------------- hashing
@@ -69,30 +67,4 @@ export function parseCookies(header = '') {
 export function sessionCookie(req, token, maxAgeSeconds) {
   const secure = req.secure || process.env.COOKIE_SECURE === 'true' ? '; Secure' : '';
   return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAgeSeconds}${secure}`;
-}
-
-// ---------------------------------------------------------------- lockout
-// Failed-login tracking per username (in memory; resets on restart).
-export function createLockout() {
-  const failures = new Map();
-  return {
-    isLocked(username) {
-      const f = failures.get(String(username).toLowerCase());
-      return Boolean(f?.lockedUntil && f.lockedUntil > Date.now());
-    },
-    // Returns true when this failure triggered a lock.
-    fail(username) {
-      const key = String(username).toLowerCase();
-      const f = failures.get(key) || { count: 0, lockedUntil: 0 };
-      if (f.lockedUntil && f.lockedUntil <= Date.now()) { f.count = 0; f.lockedUntil = 0; }
-      f.count += 1;
-      const locked = f.count >= MAX_FAILED_LOGINS;
-      if (locked) f.lockedUntil = Date.now() + LOCKOUT_MS;
-      failures.set(key, f);
-      return locked;
-    },
-    clear(username) {
-      failures.delete(String(username).toLowerCase());
-    },
-  };
 }

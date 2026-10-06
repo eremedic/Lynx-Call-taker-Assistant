@@ -79,31 +79,73 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 
 Codespaces stops after a period of inactivity. Your data stays in the codespace until you delete it. Personal GitHub accounts include free monthly Codespaces hours.
 
-## Run it on your own computer
+## Deploy to Netlify (with Supabase)
 
-Requires **Node.js 22.13+** (uses the built-in `node:sqlite`).
+On Netlify, the pages in `public/` are served as a static site. The API runs as a Netlify Function (`netlify/functions/api.mjs`), and all data lives in your Supabase Postgres database. `netlify.toml` already holds the build settings.
+
+### 1. Get your Supabase connection string
+1. In Supabase, open your project and click **Connect** at the top.
+2. Copy the **Transaction pooler** connection string (port **6543**). This mode is meant for serverless functions like Netlify's. It looks like:
+   `postgresql://postgres.<project-ref>:[YOUR-PASSWORD]@aws-0-<region>.pooler.supabase.com:6543/postgres`
+3. Replace `[YOUR-PASSWORD]` with your database password. If the password contains symbols such as `@ : / # ?`, URL-encode them (for example `@` → `%40`).
+
+AmbuIntake creates its own tables the first time it starts. They go in a separate **`ambuintake`** schema, so they never touch your other Supabase tables. Row-level security is turned on, so Supabase's public `anon` and `authenticated` API keys can't read them.
+
+### 2. Create the Netlify site
+1. In Netlify, choose **Add new site → Import an existing project → GitHub**, then pick this repository and the branch to deploy.
+2. Keep the build settings Netlify reads from `netlify.toml`: publish directory `public`, functions in `netlify/functions`.
+3. Before deploying, add the environment variables below under **Site configuration → Environment variables**.
+
+### 3. Environment variables
+
+| Variable | Value | Required |
+|---|---|---|
+| `DATABASE_URL` | Your Supabase Transaction pooler connection string (step 1) | **Yes** (mark as secret) |
+| `ADMIN_PASSWORD` | A temporary password for the first administrator. You'll be asked to change it at first sign-in. | **Yes, for the first deploy** (mark as secret) |
+| `ADMIN_USERNAME` | Username for the first administrator | No (default `admin`) |
+| `COOKIE_SECURE` | `true` | **Yes** |
+| `TRUST_PROXY` | `true`, so the audit log records real IP addresses | **Yes** |
+| `ANTHROPIC_API_KEY` | Your Anthropic API key, for AI transcript analysis | Only for the AI features (mark as secret) |
+| `CLAUDE_MODEL` | `claude-opus-5-5` | No (that's the default) |
+| `DATABASE_CA_CERT` | Supabase's SSL certificate (Project Settings → Database → SSL → download), pasted in full | No. Connections are always encrypted; with this set, the server's identity is also verified |
+| `DATABASE_POOL_SIZE` | Database connections per function instance | No (default `3`) |
+
+`NODE_VERSION` (22) is already set in `netlify.toml`.
+
+### 4. Deploy and sign in
+1. Click **Deploy**. On the first visit, AmbuIntake creates its tables in Supabase and the administrator account. That first load can take a few seconds.
+2. Open your site, sign in with `ADMIN_USERNAME` / `ADMIN_PASSWORD`, and choose a new password.
+3. Go to **Admin → Settings** and enter your ambulance service's name (it's printed on PCS forms). Then add call takers under **Admin → Users**.
+4. Optional: add your domain under **Domain management**. Netlify sets up HTTPS automatically.
+
+**Good to know**
+- **Admin password reset:** the `ADMIN_PASSWORD` variable is only used to create the first administrator. To reset a lost administrator password, run `DATABASE_URL="…" npm run reset-password -- admin` from a Codespace or any computer with the project. Administrators can reset call takers' passwords from **Admin → Users**.
+- **Set up the database ahead of time (optional):** run `DATABASE_URL="…" ADMIN_PASSWORD="…" npm run db:setup` once to create the tables and the administrator before the first deploy.
+- **AI analysis on Netlify:** Netlify functions time out after 10 seconds on standard plans (longer on paid plans). AI transcript analysis can occasionally take longer. If it does, the console shows an error for that analysis, and everything else keeps working.
+
+## Run it on your own computer or in Codespaces
+
+Requires **Node.js 20+**.
 
 ```bash
 npm install
 npm start
 ```
 
-Then open http://localhost:3000. On first run:
-- The database (`data/ambuintake.db`) is created and loaded with the default CMS question bank.
-- An administrator account is created. Its temporary password is printed in the terminal, or it's the value of `ADMIN_PASSWORD` if you set one. A new password is required at first sign-in.
+Then open http://localhost:3000.
+- **Database:** without `DATABASE_URL`, AmbuIntake uses an embedded Postgres database stored in `data/pglite`, so there's nothing to install. With `DATABASE_URL`, it uses that database instead, for example your Supabase project.
+- **Administrator:** on first run an administrator account is created. Its temporary password is printed in the terminal, or it's the value of `ADMIN_PASSWORD` if you set one. A new password is required at first sign-in.
 
-### Configuration
+### Configuration (local)
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `PORT` | `3000` | HTTP port |
-| `ADMIN_USERNAME` | `admin` | Username for the first administrator (first run only) |
-| `ADMIN_PASSWORD` | randomly generated | Temporary password for the first administrator (first run only) |
-| `COOKIE_SECURE` | — | Set to `true` to mark session cookies Secure (when served over HTTPS) |
-| `TRUST_PROXY` | — | Express `trust proxy` setting, so the audit log records real client IPs behind a reverse proxy |
-| `DB_PATH` | `data/ambuintake.db` | SQLite database file |
-| `ANTHROPIC_API_KEY` | — | Turns on Claude-powered transcript analysis |
-| `CLAUDE_MODEL` | `claude-opus-5-5` | Model used for AI analysis |
+| `DATABASE_URL` | — | Postgres connection string (e.g. Supabase); without it, the embedded database is used |
+| `PGLITE_DIR` | `data/pglite` | Folder for the embedded database |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` / generated | First administrator (first run only) |
+| `COOKIE_SECURE` / `TRUST_PROXY` | — | Set both to `true` behind HTTPS / a reverse proxy |
+| `ANTHROPIC_API_KEY` / `CLAUDE_MODEL` | — / `claude-opus-5-5` | AI transcript analysis |
 
 ### Account recovery
 
@@ -116,7 +158,8 @@ This issues a new temporary password, reactivates the account, and records the r
 ### Tests
 
 ```bash
-npm test
+npm test                                                   # embedded Postgres
+TEST_DATABASE_URL=postgresql://… node --test test/api.test.js   # against a real Postgres server (resets its ambuintake schema; never point this at production)
 ```
 
 ## How the assessment works
@@ -147,17 +190,21 @@ The client sends call state to `POST /api/evaluate`, so admin changes to the que
 
 ```
 server/
-  index.js            entry point
+  index.js            local server entry point
+  setup-db.js         one-time database setup (npm run db:setup)
   app.js              Express app, REST API, access control, audit hooks
   auth.js             password hashing (scrypt), sessions, lockout
   reset-password.js   command-line password recovery
-  db.js               SQLite schema and repositories (questions, calls, settings, users, sessions, audit log)
+  db.js               Postgres schema, migrations and repositories
+  db/client.js        Supabase (node-postgres) and embedded (PGlite) connections
   seed-questions.js   default question bank (CMS criteria + payer-specific questions)
   seed-payers.js      default payer profiles
   ai.js               optional Claude transcript analysis
   pcs.js              builds the prefilled PCS from a saved call
   engine/detect.js    phrase detection with negation handling
   engine/evaluate.js  medical-necessity evaluation and question prioritization
+netlify/functions/api.mjs   Netlify Function running the API
+netlify.toml                Netlify build, function and redirect settings
 public/
   login.html, js/login.js     sign-in and password change
   index.html, js/console.js   call-taker console
@@ -178,7 +225,8 @@ Call records and transcripts contain protected health information. Before produc
 - Give each person their own account. Never share logins; the audit trail depends on it.
 - Review the audit log regularly, and export it to your long-term retention system.
 - Only enable AI analysis under a Business Associate Agreement that covers the AI provider.
-- Set backup, retention, and access-audit policies for `data/ambuintake.db`.
+- Set backup and retention policies for the database. On Supabase, check your plan's backups and point-in-time recovery.
+- Never use Supabase's service-role or anon keys in the browser. AmbuIntake doesn't need them: the server connects directly with `DATABASE_URL`.
 
 ## Roadmap ideas
 

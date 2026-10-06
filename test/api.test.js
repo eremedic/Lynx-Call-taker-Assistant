@@ -37,19 +37,28 @@ async function signIn(username, password, newPassword) {
   return c;
 }
 
-const auditActions = () => db.prepare('SELECT action FROM audit_log ORDER BY id').all().map((r) => r.action);
+const auditActions = async () => (await db.query('SELECT action FROM ambuintake.audit_log ORDER BY id')).map((r) => r.action);
 
 let admin;
 let taker;
 
 before(async () => {
-  db = openDb(':memory:');
+  // Set TEST_DATABASE_URL to run against a real Postgres server (its ambuintake schema is reset).
+  if (process.env.TEST_DATABASE_URL) {
+    const { connectPostgres } = await import('../server/db/client.js');
+    const admin = await connectPostgres(process.env.TEST_DATABASE_URL);
+    await admin.exec('DROP SCHEMA IF EXISTS ambuintake CASCADE');
+    await admin.close();
+    db = await openDb({ url: process.env.TEST_DATABASE_URL });
+  } else {
+    db = await openDb({ memory: true });
+  }
   await ensureInitialAdmin(db, { username: 'admin', password: 'Temp-first-1' });
   const app = createApp({ db });
   await new Promise((resolve) => { server = app.listen(0, resolve); });
   base = `http://127.0.0.1:${server.address().port}`;
 });
-after(() => server.close());
+after(async () => { server.close(); await db.close(); });
 
 test('everything except sign-in requires a session', async () => {
   const anon = client();
@@ -89,7 +98,7 @@ test('call takers can use the console but not the admin API', async () => {
   assert.equal((await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency' } })).status, 200);
   const denied = await taker('/api/admin/questions');
   assert.equal(denied.status, 403);
-  assert.ok(auditActions().includes('access.denied'));
+  assert.ok((await auditActions()).includes('access.denied'));
 });
 
 test('saved calls are attributed to the signed-in user', async () => {
@@ -128,7 +137,7 @@ test('repeated failed sign-ins lock the account', async () => {
   }
   const locked = await c('/api/auth/login', { method: 'POST', body: { username: 'jdoe', password: 'Taker-pass-2026' } });
   assert.equal(locked.status, 429);
-  assert.ok(auditActions().includes('auth.login_blocked'));
+  assert.ok((await auditActions()).includes('auth.login_blocked'));
 });
 
 test('deactivating a user ends their session; password reset unlocks', async () => {
@@ -150,13 +159,13 @@ test('the last administrator cannot be demoted or deactivated', async () => {
 });
 
 test('audit log is append-only and exportable', async () => {
-  assert.throws(() => db.exec('DELETE FROM audit_log'), /append-only/);
-  assert.throws(() => db.exec("UPDATE audit_log SET action = 'x'"), /append-only/);
+  await assert.rejects(db.query('DELETE FROM ambuintake.audit_log'), /append-only/);
+  await assert.rejects(db.query("UPDATE ambuintake.audit_log SET action = 'x'"), /append-only/);
   const csv = await admin('/api/admin/audit/export.csv');
   assert.equal(csv.status, 200);
   assert.match(csv.headers.get('content-type'), /text\/csv/);
   assert.match(csv.data, /^id,timestamp_utc,user_id,username,action/);
-  assert.ok(auditActions().includes('audit.exported'));
+  assert.ok((await auditActions()).includes('audit.exported'));
 });
 
 test('state-changing requests must be JSON', async () => {
@@ -168,7 +177,7 @@ test('logout ends the session', async () => {
   const c = await signIn('admin', ADMIN_PW);
   await c('/api/auth/logout', { method: 'POST' });
   assert.equal((await c('/api/questions')).status, 401);
-  assert.ok(auditActions().includes('auth.logout'));
+  assert.ok((await auditActions()).includes('auth.logout'));
 });
 
 test('admin manages payer profiles; changes are validated and audited', async () => {

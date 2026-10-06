@@ -1,10 +1,15 @@
+// Local / self-hosted server. On Netlify the API runs as a function instead
+// (netlify/functions/api.mjs) and Netlify serves the pages.
 import { createApp, ensureInitialAdmin } from './app.js';
 import { openDb } from './db.js';
 
 const port = Number(process.env.PORT) || 3000;
-const db = openDb();
+const db = await openDb();
+console.log(process.env.DATABASE_URL
+  ? 'Database: Postgres (DATABASE_URL)'
+  : `Database: local embedded Postgres in ${process.env.PGLITE_DIR || 'data/pglite'} (set DATABASE_URL to use Supabase)`);
 
-const initial = await ensureInitialAdmin(db);
+const initial = await ensureInitialAdmin(db, { reissue: true });
 if (initial) {
   const line = '='.repeat(64);
   console.log(`\n${line}\n  ${initial.reissued ? 'Administrator has not signed in yet: new temporary password issued' : 'First run: administrator account created'}\n`);

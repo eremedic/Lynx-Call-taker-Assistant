@@ -1,13 +1,14 @@
 {
   "name": "ambuintake",
   "version": "1.0.0",
-  "description": "Call-taker decision support for ambulance transport medical necessity (CMS) with an admin question-bank dashboard",
+  "description": "AmbuIntake — AI call-taker assistant for ambulance transport medical necessity (CMS), with an admin question-bank dashboard",
   "main": "server/index.js",
   "scripts": {
-    "start": "node --disable-warning=ExperimentalWarning server/index.js",
-    "dev": "node --disable-warning=ExperimentalWarning --watch server/index.js",
-    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js",
-    "reset-password": "node --disable-warning=ExperimentalWarning server/reset-password.js"
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "db:setup": "node server/setup-db.js",
+    "reset-password": "node server/reset-password.js"
   },
   "repository": {
     "type": "git",
@@ -21,11 +22,14 @@
   "homepage": "https://github.com/eremedic/Lynx-Call-taker-Assistant#readme",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
-    "express": "^5.2.1"
+    "@electric-sql/pglite": "^0.5.8",
+    "express": "^5.2.1",
+    "pg": "^8.23.1",
+    "serverless-http": "^4.0.0"
   },
   "type": "module",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=20"
   },
   "private": true
 }
