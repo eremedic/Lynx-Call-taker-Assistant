@@ -16,6 +16,9 @@
   node_bundler = "esbuild"
   # pg-native is an optional add-on of the Postgres driver that isn't used.
   external_node_modules = ["pg-native"]
+  # The embedded database is only for local runs and tests; leave it out of
+  # the function so it stays small (about 3 MB) and starts quickly.
+  included_files = ["!node_modules/@electric-sql/**"]
 
 [[redirects]]
   from = "/api/*"
