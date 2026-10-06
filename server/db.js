@@ -42,7 +42,7 @@ const DEFAULT_SETTINGS = {
 const SEED_VERSION = 3;
 const MIGRATION_LOCK = 724_310_001;
 
-const SCHEMA_SQL = `
+export const SCHEMA_SQL = `
   CREATE SCHEMA IF NOT EXISTS ${S};
 
   CREATE TABLE IF NOT EXISTS ${S}.questions (

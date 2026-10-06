@@ -89,6 +89,8 @@ On Netlify, the pages in `public/` are served as a static site. The API runs as 
    `postgresql://postgres.<project-ref>:[YOUR-PASSWORD]@aws-0-<region>.pooler.supabase.com:6543/postgres`
 3. Replace `[YOUR-PASSWORD]` with your database password. If the password contains symbols such as `@ : / # ?`, URL-encode them (for example `@` → `%40`).
 
+**Optional: create the tables yourself.** Instead of letting the app do it, open Supabase → **SQL Editor** and run [`supabase/schema.sql`](supabase/schema.sql) and then [`supabase/seed.sql`](supabase/seed.sql). Both are safe to run again, and they give exactly the database the app would create. User accounts aren't in these files: the first administrator is still created from `ADMIN_USERNAME` / `ADMIN_PASSWORD` the first time the app starts.
+
 AmbuIntake creates its own tables the first time it starts. They go in a separate **`ambuintake`** schema, so they never touch your other Supabase tables. Row-level security is turned on, so Supabase's public `anon` and `authenticated` API keys can't read them.
 
 ### 2. Create the Netlify site
@@ -192,6 +194,7 @@ The client sends call state to `POST /api/evaluate`, so admin changes to the que
 server/
   index.js            local server entry point
   setup-db.js         one-time database setup (npm run db:setup)
+  export-sql.js       writes supabase/schema.sql and seed.sql (npm run db:export-sql)
   app.js              Express app, REST API, access control, audit hooks
   auth.js             password hashing (scrypt), sessions, lockout
   reset-password.js   command-line password recovery
@@ -203,6 +206,7 @@ server/
   pcs.js              builds the prefilled PCS from a saved call
   engine/detect.js    phrase detection with negation handling
   engine/evaluate.js  medical-necessity evaluation and question prioritization
+supabase/schema.sql, seed.sql  database files for Supabase's SQL Editor (generated)
 netlify/functions/api.mjs   Netlify Function running the API
 netlify.toml                Netlify build, function and redirect settings
 public/
