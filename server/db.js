@@ -20,12 +20,19 @@ export function defaultNecessity(q) {
 }
 
 const DEFAULT_SETTINGS = {
-  org_name: 'Lynx Ambulance',
+  org_name: 'Your Ambulance Service',
   ai_enabled: 'true',
   ai_auto_analyze: 'true',
 };
 
-export function openDb(file = process.env.DB_PATH || path.resolve('data/lynx.db')) {
+// Databases created before the AmbuIntake rename used data/lynx.db.
+function defaultDbPath() {
+  const current = path.resolve('data/ambuintake.db');
+  const legacy = path.resolve('data/lynx.db');
+  return !fs.existsSync(current) && fs.existsSync(legacy) ? legacy : current;
+}
+
+export function openDb(file = process.env.DB_PATH || defaultDbPath()) {
   if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
   db.exec(`
@@ -146,6 +153,8 @@ export function openDb(file = process.env.DB_PATH || path.resolve('data/lynx.db'
 
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) insertSetting.run(k, v);
+  // The pre-rename default company name is replaced with the neutral default.
+  db.prepare("UPDATE settings SET value = ? WHERE key = 'org_name' AND value = 'Lynx Ambulance'").run(DEFAULT_SETTINGS.org_name);
   seedContent(db);
   return db;
 }

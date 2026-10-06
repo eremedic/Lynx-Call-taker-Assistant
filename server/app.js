@@ -509,7 +509,7 @@ export function createApp({ db = openDb() } = {}) {
     const header = ['id', 'timestamp_utc', 'user_id', 'username', 'action', 'entity_type', 'entity_id', 'ip', 'details'];
     const lines = rows.map((r) => [r.id, r.created_at, r.user_id, r.username, r.action, r.entity_type, r.entity_id, r.ip, r.details].map(csvCell).join(','));
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="lynx-audit-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="ambuintake-audit-${new Date().toISOString().slice(0, 10)}.csv"`);
     res.send([header.join(','), ...lines].join('\r\n'));
   });
 

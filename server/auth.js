@@ -4,7 +4,7 @@ import { promisify } from 'node:util';
 const scrypt = promisify(crypto.scrypt);
 
 export const ROLES = { admin: 'Administrator', call_taker: 'Call Taker' };
-export const SESSION_COOKIE = 'lynx_session';
+export const SESSION_COOKIE = 'ambuintake_session';
 export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 export const MIN_PASSWORD_LENGTH = 10;
 

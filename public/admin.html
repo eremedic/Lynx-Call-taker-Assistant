@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Lynx Admin Dashboard</title>
+  <title>AmbuIntake · Admin Dashboard</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -11,8 +12,8 @@
   <div id="app" hidden>
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark">L</div>
-        <div>Lynx <small id="org-name">Admin Dashboard</small></div>
+        <div class="brand-mark">AI</div>
+        <div><span class="wordmark"><span class="ai">A</span>mbu<span class="ai">I</span>ntake</span> <small id="org-name">Admin Dashboard</small></div>
       </div>
       <div class="spacer"></div>
       <div class="meta">
@@ -177,8 +178,9 @@
           <form id="settings-form" class="card" style="max-width: 720px">
             <div class="card-body">
               <div class="field">
-                <label for="s-org">Organization name</label>
+                <label for="s-org">Your ambulance service's name</label>
                 <input id="s-org" class="input" name="org_name" maxlength="80">
+                <span class="hint">Shown in the top bar and printed on PCS forms ("Please return the signed form to …").</span>
               </div>
               <div class="section-label">AI assistant</div>
               <div id="ai-status" class="alert" style="margin-bottom: 12px"></div>

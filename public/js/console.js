@@ -34,7 +34,7 @@ async function init() {
     toast('That page requires administrator access.', 'error');
     history.replaceState(null, '', location.pathname);
   }
-  window.lynxBeforeSignOut = () => !state.dirty || confirm('Sign out and discard the current call? It has unsaved changes.');
+  window.beforeSignOut = () => !state.dirty || confirm('Sign out and discard the current call? It has unsaved changes.');
   try {
     const [config, questions] = await Promise.all([api('/api/config'), api('/api/questions')]);
     state.config = config;

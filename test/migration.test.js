@@ -6,7 +6,7 @@ import path from 'node:path';
 import { openDb, questionRepo, payerRepo, settingsRepo } from '../server/db.js';
 
 test('a database from before payer rules is upgraded in place', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ambuintake-'));
   const file = path.join(dir, 'old.db');
   try {
     // Recreate the version-1 state: no payers, old prior-auth question, insurance question, no payer questions.

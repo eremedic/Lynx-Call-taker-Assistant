@@ -1,12 +1,12 @@
-# Lynx Call-Taker Assistant
+# AmbuIntake — AI call-taker assistant
 
-Real-time decision support for ambulance call takers. While the caller is on the phone, Lynx listens to (or reads) the conversation, picks out clinical details, prompts the call taker with the next question to ask, and continuously evaluates whether the transport meets **CMS medical-necessity** requirements for ambulance transport.
+Real-time decision support for ambulance call takers. While the caller is on the phone, AmbuIntake listens to (or reads) the conversation, picks out clinical details, prompts the call taker with the next question to ask, and continuously evaluates whether the transport meets **CMS medical-necessity** requirements for ambulance transport.
 
 An **admin dashboard** lets supervisors add, edit, reorder, and deactivate questions, so anything the built-in bank or the AI misses can be added without touching code.
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/eremedic/Lynx-Call-taker-Assistant?quickstart=1)
 
-> **Decision support only.** Lynx does not make coverage determinations. Final decisions must rest on complete documentation, 42 CFR 410.40, the Medicare Benefit Policy Manual (Pub. 100-02) Ch. 10, and your MAC's local coverage policies.
+> **Decision support only.** AmbuIntake does not make coverage determinations. Final decisions must rest on complete documentation, 42 CFR 410.40, the Medicare Benefit Policy Manual (Pub. 100-02) Ch. 10, and your MAC's local coverage policies.
 
 ## Features
 
@@ -89,7 +89,7 @@ npm start
 ```
 
 Then open http://localhost:3000. On first run:
-- The database (`data/lynx.db`) is created and loaded with the default CMS question bank.
+- The database (`data/ambuintake.db`) is created and loaded with the default CMS question bank.
 - An administrator account is created. Its temporary password is printed in the terminal, or it's the value of `ADMIN_PASSWORD` if you set one. A new password is required at first sign-in.
 
 ### Configuration
@@ -101,7 +101,7 @@ Then open http://localhost:3000. On first run:
 | `ADMIN_PASSWORD` | randomly generated | Temporary password for the first administrator (first run only) |
 | `COOKIE_SECURE` | — | Set to `true` to mark session cookies Secure (when served over HTTPS) |
 | `TRUST_PROXY` | — | Express `trust proxy` setting, so the audit log records real client IPs behind a reverse proxy |
-| `DB_PATH` | `data/lynx.db` | SQLite database file |
+| `DB_PATH` | `data/ambuintake.db` | SQLite database file |
 | `ANTHROPIC_API_KEY` | — | Turns on Claude-powered transcript analysis |
 | `CLAUDE_MODEL` | `claude-opus-5-5` | Model used for AI analysis |
 
@@ -178,7 +178,7 @@ Call records and transcripts contain protected health information. Before produc
 - Give each person their own account. Never share logins; the audit trail depends on it.
 - Review the audit log regularly, and export it to your long-term retention system.
 - Only enable AI analysis under a Business Associate Agreement that covers the AI provider.
-- Set backup, retention, and access-audit policies for `data/lynx.db`.
+- Set backup, retention, and access-audit policies for `data/ambuintake.db`.
 
 ## Roadmap ideas
 

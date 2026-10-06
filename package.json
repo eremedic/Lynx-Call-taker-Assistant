@@ -1,5 +1,5 @@
 {
-  "name": "lynx-call-taker-assistant",
+  "name": "ambuintake",
   "version": "1.0.0",
   "description": "Call-taker decision support for ambulance transport medical necessity (CMS) with an admin question-bank dashboard",
   "main": "server/index.js",

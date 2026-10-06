@@ -15,7 +15,7 @@ if (initial) {
 }
 
 createApp({ db }).listen(port, () => {
-  console.log(`Lynx Call-Taker Assistant running at http://localhost:${port}`);
+  console.log(`AmbuIntake running at http://localhost:${port}`);
   console.log(`  Sign in:            http://localhost:${port}/login.html`);
   console.log(`  Call-taker console: http://localhost:${port}/`);
   console.log(`  Admin dashboard:    http://localhost:${port}/admin.html`);

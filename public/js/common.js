@@ -62,7 +62,7 @@ export function mountUserMenu(container, user) {
   });
   document.addEventListener('click', () => { menu.hidden = true; chip.setAttribute('aria-expanded', 'false'); });
   container.querySelector('[data-signout]').addEventListener('click', async () => {
-    if (window.lynxBeforeSignOut && !window.lynxBeforeSignOut()) return;
+    if (window.beforeSignOut && !window.beforeSignOut()) return;
     await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
     location.href = 'login.html';
   });
