@@ -156,11 +156,7 @@
   // compact records. Throws if it doesn't look like the LEIE file.
   function buildRecords(table) {
     if (!table.length) throw new Error('The file is empty.');
-    let headerAt = -1;
-    for (let r = 0; r < Math.min(table.length, 10); r++) {
-      const cells = table[r].map((c) => compact(c));
-      if (REQUIRED_COLUMNS.every((col) => cells.includes(col))) { headerAt = r; break; }
-    }
+    const headerAt = findLeieHeader(table);
     if (headerAt < 0) {
       throw new Error('This does not look like the OIG LEIE file. Expected columns: ' + REQUIRED_COLUMNS.join(', ') +
         '. Download "LEIE Database Supplement" / UPDATED.csv from oig.hhs.gov/exclusions.');
@@ -177,16 +173,112 @@
     return records;
   }
 
+  // ------------------------------------------------------------ other exclusion lists
+
+  // State Medicaid and other exclusion lists come in many layouts. They are
+  // converted into the same record layout as the LEIE, plus three fields:
+  // FULLNAME (a single name column, kept as written), LICENSE, and KIND
+  // (I = individual, E = entity, U = not stated).
+  const RECORD_FIELDS = LEIE_COLUMNS.concat(['FULLNAME', 'LICENSE', 'KIND']);
+  const F = Object.fromEntries(RECORD_FIELDS.map((c, i) => [c, i]));
+  const kindOf = (r) => r[F.KIND] || (r[0] ? 'I' : 'E');
+
+  // Returns the header row index if the table is in the OIG LEIE layout, else -1.
+  function findLeieHeader(table) {
+    for (let r = 0; r < Math.min(table.length, 10); r++) {
+      const cells = table[r].map((c) => compact(c));
+      if (REQUIRED_COLUMNS.every((col) => cells.includes(col))) return r;
+    }
+    return -1;
+  }
+
+  const LIST_PATTERNS = {
+    last: [/^(last|lastname|lname|surname|providerlastname|individuallastname|familyname)$/, /last ?name|surname/],
+    first: [/^(first|firstname|fname|providerfirstname|individualfirstname|givenname)$/, /first ?name/],
+    middle: [/^(middle|mi|middlename|middleinitial|midname|midinit|middleinit)$/, /middle/],
+    full: [/^(name|fullname|providername|individualname|sanctionedprovider|excludedprovider|excludedindividual|personname|subjectname|nameofprovider|providerentityname)$/, /^(provider|excluded|sanctioned)?.*name$/],
+    business: [/^(business|businessname|busname|company|companyname|entity|entityname|organization|organizationname|facility|facilityname|dba|doingbusinessas|practicename|groupname)$/, /business|company|entity|organi[sz]ation|facility|dba/],
+    dob: [/^(dob|dateofbirth|birthdate|birthday)$/, /birth/],
+    npi: [/^(npi|npinumber|nationalprovideridentifier)$/, /npi/],
+    license: [/^(license|licensenumber|licenseno|licno|licnumber|license#)$/, /lic/],
+    excldate: [/^(exclusiondate|excldate|effectivedate|actiondate|sanctiondate|startdate|terminationdate|exclusioneffectivedate|dateexcluded|sanctionstartdate)$/, /date/],
+    excltype: [/^(reason|exclusiontype|excltype|actiontype|sanctiontype|basis|exclusionreason|sanctionreason|action|type)$/, /reason|basis|sanction|action/],
+    specialty: [/^(providertype|specialty|profession|occupation|licensetype|category)$/, /type|specialty|profession/],
+    address: [/^(address|streetaddress|address1|addressline1|street)$/, /address|street/],
+    city: [/^(city|town)$/, /city/],
+    state: [/^(state|st|statecode)$/, /^state/],
+    zip: [/^(zip|zipcode|postalcode|zip5)$/, /zip|postal/],
+  };
+  const LIST_FIELDS = Object.keys(LIST_PATTERNS);
+
+  function detectListColumns(header) {
+    const keys = header.map((h) => compact(h).toLowerCase());
+    const map = Object.fromEntries(LIST_FIELDS.map((f) => [f, -1]));
+    const used = new Set();
+    for (const pass of [0, 1]) {
+      for (const f of LIST_FIELDS) {
+        if (map[f] >= 0) continue;
+        const i = keys.findIndex((k, j) => k && !used.has(j) && LIST_PATTERNS[f][pass].test(k));
+        if (i >= 0) { map[f] = i; used.add(i); }
+      }
+    }
+    // A single "name" column is only needed when there is no last-name column.
+    if (map.last >= 0 && map.full >= 0 && map.first < 0) map.full = -1;
+    return map;
+  }
+
+  // State files often start with title lines; the header is the first row
+  // with a column that holds names.
+  function findListHeader(table) {
+    for (let r = 0; r < Math.min(table.length, 25); r++) {
+      const filled = table[r].filter((c) => String(c).trim()).length;
+      const m = detectListColumns(table[r]);
+      if (filled >= 2 && (m.last >= 0 || m.full >= 0 || m.business >= 0)) return r;
+    }
+    return 0;
+  }
+
+  function buildListRecords(table, headerAt, map) {
+    const get = (row, f) => (map[f] >= 0 && row[map[f]] != null ? String(row[map[f]]).trim() : '');
+    const records = [];
+    for (let r = headerAt + 1; r < table.length; r++) {
+      const row = table[r];
+      const rec = new Array(RECORD_FIELDS.length).fill('');
+      let last = get(row, 'last'), first = get(row, 'first'), middle = get(row, 'middle');
+      const full = get(row, 'full');
+      const business = get(row, 'business');
+      let kind = '';
+      if (last) kind = 'I';
+      else if (full) {
+        ({ last, first, middle } = splitFullName(full));
+        rec[F.FULLNAME] = full;
+        kind = full.includes(',') ? 'I' : (business ? 'I' : 'U');
+      }
+      if (!last && !business) continue;
+      if (!kind) kind = 'E';
+      rec[F.LASTNAME] = last; rec[F.FIRSTNAME] = first; rec[F.MIDNAME] = middle; rec[F.BUSNAME] = business;
+      rec[F.DOB] = get(row, 'dob'); rec[F.NPI] = get(row, 'npi'); rec[F.LICENSE] = get(row, 'license');
+      rec[F.EXCLDATE] = get(row, 'excldate'); rec[F.EXCLTYPE] = get(row, 'excltype'); rec[F.SPECIALTY] = get(row, 'specialty');
+      rec[F.ADDRESS] = get(row, 'address'); rec[F.CITY] = get(row, 'city'); rec[F.STATE] = get(row, 'state'); rec[F.ZIP] = get(row, 'zip');
+      rec[F.KIND] = kind;
+      records.push(rec);
+    }
+    if (!records.length) throw new Error('No names were found in the selected columns.');
+    return records;
+  }
+
   function recordToObject(rec) {
     const o = {};
-    LEIE_COLUMNS.forEach((c, i) => { o[c] = rec[i] || ''; });
+    RECORD_FIELDS.forEach((c, i) => { o[c] = rec[i] || ''; });
+    o.KIND = kindOf(rec);
     return o;
   }
 
   function summarize(records) {
     let individuals = 0, entities = 0, latest = '';
     for (const r of records) {
-      if (r[0]) individuals++; else entities++;
+      const k = kindOf(r);
+      if (k === 'I') individuals++; else if (k === 'E') entities++;
       const d = normalizeDate(r[14]);
       if (d > latest) latest = d;
     }
@@ -208,6 +300,7 @@
       if (r[0]) add(byLast, compact(r[0]), i);
       add(byNpi, normalizeNPI(r[7]), i);
       if (r[3]) add(byBusiness, compact(r[3]), i);
+      if (r[F.FULLNAME]) add(byBusiness, compact(r[F.FULLNAME]), i);
     });
     return { records, byLast, byNpi, byBusiness };
   }
@@ -302,17 +395,23 @@
     return q;
   }
 
-  function screenRoster(index, rows, map) {
+  // lists: one index from buildIndex, or [{ id, name, index }] to check several lists.
+  function screenRoster(lists, rows, map) {
+    if (!Array.isArray(lists)) lists = [{ id: '', name: '', index: lists }];
     const results = [];
     rows.forEach((row, n) => {
       const q = rowToQuery(row, map);
       if (!q) return;
       const incomplete = !!q.last && !q.first && !q.business && !normalizeNPI(q.npi);
       let hits = [];
-      if ((q.last && q.first) || normalizeNPI(q.npi)) hits = hits.concat(searchIndividual(index, q));
-      if (q.business) hits = hits.concat(searchBusiness(index, q.business));
+      for (const l of lists) {
+        let found = [];
+        if ((q.last && q.first) || normalizeNPI(q.npi)) found = found.concat(searchIndividual(l.index, q));
+        if (q.business) found = found.concat(searchBusiness(l.index, q.business));
+        hits = hits.concat(found.map((h) => ({ ...h, list: l.name, key: l.id + ':' + h.index })));
+      }
       const seen = new Set();
-      hits = hits.filter((h) => !seen.has(h.index) && seen.add(h.index));
+      hits = hits.filter((h) => !seen.has(h.key) && seen.add(h.key));
       results.push({ row: n, query: q, hits, top: hits.length ? hits[0].level : null, incomplete });
     });
     return results;
@@ -324,13 +423,14 @@
   }
 
   function recordName(rec) {
+    if (rec.FULLNAME) return rec.FULLNAME;
     if (rec.LASTNAME) return [rec.LASTNAME + ',', rec.FIRSTNAME, rec.MIDNAME].filter(Boolean).join(' ');
     return rec.BUSNAME;
   }
 
   const api = {
     parseCSV, toCSV, clean, compact, splitFullName, normalizeDate, formatDate, normalizeNPI,
-    describeExclusion, LEIE_COLUMNS, buildRecords, summarize, buildIndex, searchIndividual, searchBusiness,
+    describeExclusion, LEIE_COLUMNS, buildRecords, findLeieHeader, findListHeader, detectListColumns, buildListRecords, LIST_FIELDS, summarize, buildIndex, searchIndividual, searchBusiness,
     detectColumns, rowToQuery, screenRoster, displayName, recordName, LEVELS,
   };
   root.LeieCore = api;

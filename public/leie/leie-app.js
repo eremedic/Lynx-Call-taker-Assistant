@@ -1,6 +1,7 @@
-// Lynx EMS LEIE screening: page behavior, local storage, and printable reports.
-// Everything runs in this browser. The LEIE database is kept in IndexedDB and
-// the search history in localStorage; nothing is sent over the network.
+// Lynx EMS exclusion screening: page behavior, local storage, and printable
+// reports. Everything runs in this browser. The exclusion lists (OIG LEIE and
+// any state lists) are kept in IndexedDB and the search history in
+// localStorage; nothing is sent over the network.
 (function () {
   'use strict';
   const C = window.LeieCore;
@@ -10,7 +11,7 @@
   const HISTORY_KEY = 'lynx-leie-history';
   const SCREENER_KEY = 'lynx-leie-screener';
 
-  const state = { index: null, meta: null, roster: null, rosterResults: null, lastSingle: null };
+  const state = { lists: [], roster: null, rosterResults: null, lastSingle: null };
 
   // ------------------------------------------------------------ storage
 
@@ -64,8 +65,8 @@
   function wireDropzone(zone, input, onFile) {
     ['dragenter', 'dragover'].forEach((t) => zone.addEventListener(t, (e) => { e.preventDefault(); zone.classList.add('over'); }));
     ['dragleave', 'drop'].forEach((t) => zone.addEventListener(t, () => zone.classList.remove('over')));
-    zone.addEventListener('drop', (e) => { e.preventDefault(); if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]); });
-    input.addEventListener('change', () => { if (input.files[0]) onFile(input.files[0]); input.value = ''; });
+    zone.addEventListener('drop', (e) => { e.preventDefault(); if (e.dataTransfer.files.length) onFile(input.multiple ? Array.from(e.dataTransfer.files) : e.dataTransfer.files[0]); });
+    input.addEventListener('change', () => { if (input.files.length) onFile(input.multiple ? Array.from(input.files) : input.files[0]); input.value = ''; });
   }
 
   function download(name, text, type = 'text/csv') {
@@ -84,88 +85,198 @@
   }
   $$('.tab').forEach((t) => t.addEventListener('click', () => selectTab(t.dataset.tab)));
 
-  // ------------------------------------------------------------ LEIE database
+  // ------------------------------------------------------------ exclusion lists
+  // Each list is stored as 'list:<id>' (its records) with a summary entry in
+  // 'lists'. The OIG LEIE is the list with kind 'leie'; loading a newer LEIE
+  // file replaces it, and adding a list with an existing name replaces that list.
 
-  function isStale(meta) {
-    const days = (Date.now() - new Date(meta.loadedAt).getTime()) / 86400000;
-    return days > 35;
+  const LIST_FIELD_LABELS = {
+    last: 'Last name', first: 'First name', middle: 'Middle', full: 'Full name (one column)', business: 'Business name',
+    dob: 'Date of birth', npi: 'NPI', license: 'License number', excldate: 'Exclusion date', excltype: 'Reason / type',
+    specialty: 'Provider type', address: 'Address', city: 'City', state: 'State', zip: 'ZIP',
+  };
+  const pending = [];
+  let removeId = null;
+
+  function isStale(list) {
+    return (Date.now() - new Date(list.meta.loadedAt).getTime()) / 86400000 > 35;
+  }
+
+  function listSummary(list) {
+    return { id: list.id, name: list.name, kind: list.kind, meta: list.meta };
+  }
+
+  async function saveLists() {
+    await idb.set('lists', state.lists.map(listSummary));
+  }
+
+  async function addList({ name, kind, fileName, fileModified, records, loadedAt = new Date().toISOString() }) {
+    const existing = state.lists.find((l) => (kind === 'leie' ? l.kind === 'leie' : l.name.toLowerCase() === name.toLowerCase()));
+    const id = existing ? existing.id : 'l' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const list = {
+      id, name, kind,
+      meta: { fileName, fileModified, loadedAt, ...C.summarize(records) },
+      index: C.buildIndex(records),
+    };
+    state.lists = existing ? state.lists.map((l) => (l.id === id ? list : l)) : state.lists.concat(list);
+    state.lists.sort((a, b) => (a.kind === 'leie' ? -1 : b.kind === 'leie' ? 1 : a.name.localeCompare(b.name)));
+    try {
+      await idb.set('list:' + id, records);
+      await saveLists();
+    } catch {
+      setError('#leie-error', `"${name}" was loaded for this session, but this browser blocked saving it. You will need to load it again next time.`);
+    }
+    renderDb();
+    refreshResultsForNewDb();
   }
 
   function renderDb() {
     const pill = $('#db-pill');
-    const meta = state.meta;
-    if (!meta) {
+    const lists = state.lists;
+    if (!lists.length) {
       pill.dataset.state = 'empty';
-      $('#db-pill-text').textContent = 'No LEIE file loaded';
-      show($('#db-card'), false);
+      $('#db-pill-text').textContent = 'No exclusion lists loaded';
+      show($('#lists-card'), false);
       return;
     }
-    const stale = isStale(meta);
-    pill.dataset.state = stale ? 'stale' : 'ready';
-    $('#db-pill-text').textContent = `LEIE loaded · ${fmtNum(meta.total)} records${stale ? ' · update due' : ''}`;
-    $('#db-file').textContent = meta.fileName;
-    $('#db-loaded').textContent = fmtDateTime(meta.loadedAt);
-    $('#db-latest').textContent = C.formatDate(meta.latestExclusion) || '—';
-    $('#db-total').textContent = fmtNum(meta.total);
-    $('#db-ind').textContent = fmtNum(meta.individuals);
-    $('#db-ent').textContent = fmtNum(meta.entities);
+    const stale = lists.filter(isStale);
+    const total = lists.reduce((n, l) => n + l.meta.total, 0);
+    pill.dataset.state = stale.length ? 'stale' : 'ready';
+    $('#db-pill-text').textContent = `${lists.length} list${lists.length > 1 ? 's' : ''} · ${fmtNum(total)} records${stale.length ? ' · update due' : ''}`;
+    $('#lists-total').textContent = `${fmtNum(total)} records in all`;
+    $('#lists-table').innerHTML = `<thead><tr><th>List</th><th>File</th><th>Loaded</th><th>Records</th><th>Most recent exclusion</th><th></th></tr></thead>
+      <tbody>${lists.map((l) => `<tr>
+        <td><strong>${esc(l.name)}</strong>${isStale(l) ? '<br><span class="stale-tag">Update due</span>' : ''}</td>
+        <td>${esc(l.meta.fileName)}</td><td class="nowrap">${esc(fmtDateTime(l.meta.loadedAt))}</td>
+        <td>${fmtNum(l.meta.total)}<br><span class="muted">${fmtNum(l.meta.individuals)} individuals · ${fmtNum(l.meta.entities)} entities</span></td>
+        <td>${esc(C.formatDate(l.meta.latestExclusion) || '—')}</td>
+        <td><button class="btn btn-ghost btn-sm" data-remove="${esc(l.id)}" type="button">Remove</button></td></tr>`).join('')}</tbody>`;
+    $$('[data-remove]').forEach((b) => b.addEventListener('click', () => askRemove(b.dataset.remove)));
     const staleEl = $('#db-stale');
-    staleEl.textContent = 'This LEIE file was loaded more than a month ago. The OIG publishes updates monthly — download the latest file and load it here before screening.';
-    show(staleEl, stale);
-    show($('#db-card'), true);
+    staleEl.textContent = stale.length
+      ? `${stale.map((l) => l.name).join(', ')} ${stale.length > 1 ? 'were' : 'was'} loaded more than a month ago. Download the latest file${stale.length > 1 ? 's' : ''} and load ${stale.length > 1 ? 'them' : 'it'} here before screening.`
+      : '';
+    show(staleEl, stale.length > 0);
+    show($('#lists-card'), true);
   }
 
-  async function loadLeieFile(file) {
-    setError('#leie-error', '');
-    show($('#leie-progress'), true);
-    $('#leie-progress-text').textContent = `Reading ${file.name}…`;
-    await new Promise((r) => setTimeout(r, 30));
-    try {
-      const table = await readTable(file);
-      $('#leie-progress-text').textContent = 'Building search index…';
-      await new Promise((r) => setTimeout(r, 10));
-      const records = C.buildRecords(table);
-      const meta = {
-        fileName: file.name,
-        fileModified: file.lastModified ? new Date(file.lastModified).toISOString() : null,
-        loadedAt: new Date().toISOString(),
-        ...C.summarize(records),
-      };
-      state.index = C.buildIndex(records);
-      state.meta = meta;
-      $('#leie-progress-text').textContent = 'Saving to this computer…';
-      try { await idb.set('leie', { meta, records }); }
-      catch { setError('#leie-error', 'The LEIE file was loaded for this session, but this browser blocked saving it. You will need to load it again next time.'); }
-      renderDb();
-      refreshResultsForNewDb();
-    } catch (err) {
-      setError('#leie-error', err.message || String(err));
-    } finally {
-      show($('#leie-progress'), false);
-    }
+  function askRemove(id) {
+    const list = state.lists.find((l) => l.id === id);
+    if (!list) return;
+    removeId = id;
+    $('#remove-confirm-text').textContent = `Remove "${list.name}" from this computer?`;
+    show($('#remove-confirm'), true);
   }
+  $('#remove-no').addEventListener('click', () => { removeId = null; show($('#remove-confirm'), false); });
+  $('#remove-yes').addEventListener('click', async () => {
+    const id = removeId;
+    removeId = null;
+    show($('#remove-confirm'), false);
+    state.lists = state.lists.filter((l) => l.id !== id);
+    try { await idb.del('list:' + id); await saveLists(); } catch { /* nothing stored */ }
+    renderDb();
+    refreshResultsForNewDb();
+  });
+
+  async function loadListFiles(files) {
+    setError('#leie-error', '');
+    const errors = [];
+    show($('#leie-progress'), true);
+    for (const file of files) {
+      $('#leie-progress-text').textContent = `Reading ${file.name}…`;
+      await new Promise((r) => setTimeout(r, 30));
+      try {
+        const table = await readTable(file);
+        if (!table.length) throw new Error('The file is empty.');
+        const fileModified = file.lastModified ? new Date(file.lastModified).toISOString() : null;
+        if (C.findLeieHeader(table) >= 0) {
+          $('#leie-progress-text').textContent = `Building search index for ${file.name}…`;
+          await new Promise((r) => setTimeout(r, 10));
+          await addList({ name: 'OIG LEIE', kind: 'leie', fileName: file.name, fileModified, records: C.buildRecords(table) });
+        } else {
+          pending.push({ file, fileModified, table });
+        }
+      } catch (err) {
+        errors.push(`${file.name}: ${err.message || err}`);
+      }
+    }
+    show($('#leie-progress'), false);
+    if (errors.length) setError('#leie-error', errors.join(' '));
+    if (pending.length && $('#list-setup').hidden) showNextPending();
+  }
+
+  function guessListName(fileName) {
+    const base = fileName.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+    return base ? base.charAt(0).toUpperCase() + base.slice(1) : 'State exclusion list';
+  }
+
+  function showNextPending() {
+    const p = pending[0];
+    if (!p) { show($('#list-setup'), false); return; }
+    p.headerAt = C.findListHeader(p.table);
+    const header = p.table[p.headerAt].map((h, i) => String(h).trim() || `Column ${i + 1}`);
+    p.header = header;
+    p.map = C.detectListColumns(header);
+    const rows = p.table.length - p.headerAt - 1;
+    $('#list-setup-file').textContent = p.file.name;
+    $('#list-setup-meta').textContent = `${fmtNum(rows)} rows${pending.length > 1 ? ` · ${pending.length - 1} more file${pending.length > 2 ? 's' : ''} waiting` : ''}`;
+    $('#list-name').value = guessListName(p.file.name);
+    const opts = (sel) => '<option value="-1">— not in file —</option>' +
+      header.map((h, i) => `<option value="${i}"${i === sel ? ' selected' : ''}>${esc(h)}</option>`).join('');
+    $('#list-mapping').innerHTML = C.LIST_FIELDS.map((f) =>
+      `<label>${LIST_FIELD_LABELS[f]}<select data-field="${f}">${opts(p.map[f])}</select></label>`).join('');
+    $$('#list-mapping select').forEach((s) => s.addEventListener('change', () => { p.map[s.dataset.field] = Number(s.value); }));
+    const preview = p.table.slice(p.headerAt + 1, p.headerAt + 7);
+    $('#list-preview').innerHTML = `<thead><tr>${header.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+      <tbody>${preview.map((r) => `<tr>${header.map((_, i) => `<td>${esc(r[i])}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    setError('#list-error', '');
+    show($('#list-setup'), true);
+  }
+
+  $('#list-add').addEventListener('click', async () => {
+    const p = pending[0];
+    const name = $('#list-name').value.trim();
+    if (!name) return setError('#list-error', 'Enter a name for this list, for example "Texas Medicaid Exclusions".');
+    if (name.toLowerCase() === 'oig leie') return setError('#list-error', 'That name is used by the OIG LEIE. Choose another name.');
+    if (p.map.last < 0 && p.map.full < 0 && p.map.business < 0) {
+      return setError('#list-error', 'Choose the column that holds the last name, full name, or business name.');
+    }
+    if (p.map.last >= 0 && p.map.first < 0) return setError('#list-error', 'Choose the first-name column too, so names can be matched exactly.');
+    try {
+      const records = C.buildListRecords(p.table, p.headerAt, p.map);
+      await addList({ name, kind: 'state', fileName: p.file.name, fileModified: p.fileModified, records });
+      pending.shift();
+      showNextPending();
+    } catch (err) {
+      setError('#list-error', err.message || String(err));
+    }
+  });
+  $('#list-skip').addEventListener('click', () => { pending.shift(); showNextPending(); });
 
   function refreshResultsForNewDb() {
     show($('#single-results'), false);
     show($('#roster-results'), false);
   }
 
-  wireDropzone($('#leie-drop'), $('#leie-file'), loadLeieFile);
-  $('#leie-clear').addEventListener('click', async () => {
-    if (!confirm('Remove the stored LEIE database from this computer?')) return;
-    try { await idb.del('leie'); } catch { /* nothing stored */ }
-    state.index = null; state.meta = null;
-    renderDb();
-    refreshResultsForNewDb();
-  });
+  wireDropzone($('#leie-drop'), $('#leie-file'), loadListFiles);
 
   function requireDb(errorId) {
-    if (state.index) return true;
-    setError(errorId, 'Load the LEIE database first (step 1). Download UPDATED.csv from the OIG website and open it on the "LEIE Database" tab.');
+    if (state.lists.length) return true;
+    setError(errorId, 'Load at least one exclusion list first. Open the OIG LEIE file (UPDATED.csv) or a state exclusion list on the "Exclusion Lists" tab.');
     return false;
   }
 
+  // Runs a search against every loaded list.
+  function searchAll(fn) {
+    return state.lists.flatMap((l) => fn(l.index).map((h) => ({ ...h, list: l.name, key: l.id + ':' + h.index })));
+  }
+
+  // A snapshot of the lists searched, kept with each result for its report.
+  const listsSnapshot = () => state.lists.map((l) => ({ name: l.name, ...l.meta }));
+
   // ------------------------------------------------------------ result rendering
+
+  const kindLabel = (r) => ({ I: 'Individual', E: 'Entity' }[r.KIND] || '');
 
   function recordCard(hit) {
     const r = hit.record;
@@ -174,17 +285,18 @@
     const field = (label, v) => (v ? `<div><dt>${label}</dt><dd>${esc(v)}</dd></div>` : '');
     return `<article class="hit-card" data-level="${hit.level}">
       <header><span class="badge ${hit.level}">${esc(hit.label)}</span><h4>${esc(C.recordName(r))}</h4>
-        <span class="muted">${r.LASTNAME ? 'Individual' : 'Entity'}</span></header>
+        <span class="muted">${kindLabel(r)}</span><span class="list-tag">${esc(hit.list)}</span></header>
       <dl>
-        ${r.LASTNAME && r.BUSNAME ? field('Business', r.BUSNAME) : ''}
+        ${r.BUSNAME && C.recordName(r) !== r.BUSNAME ? field('Business', r.BUSNAME) : ''}
         ${field('Date of birth', C.formatDate(r.DOB))}
         ${field('NPI', C.normalizeNPI(r.NPI))}
+        ${field('License', r.LICENSE)}
         ${field('UPIN', r.UPIN)}
         ${field('General', r.GENERAL)}
-        ${field('Specialty', r.SPECIALTY)}
+        ${field(hit.list === 'OIG LEIE' ? 'Specialty' : 'Provider type', r.SPECIALTY)}
         ${field('Address', loc)}
         ${field('Exclusion type', r.EXCLTYPE + (typeDesc ? ' — ' + typeDesc : ''))}
-        ${field('Exclusion date', C.formatDate(r.EXCLDATE))}
+        ${field('Exclusion date', C.formatDate(r.EXCLDATE) || r.EXCLDATE)}
         ${field('Reinstated', C.formatDate(r.REINDATE))}
         ${field('Waiver', [C.formatDate(r.WAIVERDATE), r.WVRSTATE].filter(Boolean).join(' · '))}
       </dl>
@@ -219,13 +331,13 @@
     if (mode === 'person') {
       query = { type: 'Individual', first: f.first.trim(), middle: f.middle.trim(), last: f.last.trim(), dob: f.dob, npi: f.npi.trim() };
       if (!(C.compact(query.first) && C.compact(query.last)) && !C.normalizeNPI(query.npi)) return setError('#single-error', 'Enter both a first and last name (or an NPI).');
-      hits = C.searchIndividual(state.index, query);
+      hits = searchAll((index) => C.searchIndividual(index, query));
     } else {
       query = { type: 'Business / Entity', business: f.business.trim() };
       if (!C.compact(query.business)) return setError('#single-error', 'Enter a business or entity name.');
-      hits = C.searchBusiness(state.index, query.business);
+      hits = searchAll((index) => C.searchBusiness(index, query.business));
     }
-    const result = { query, hits, at: new Date().toISOString(), meta: state.meta };
+    const result = { query, hits, at: new Date().toISOString(), lists: listsSnapshot() };
     state.lastSingle = result;
     renderSingle(result);
     addHistory({
@@ -243,17 +355,19 @@
     return rows;
   }
 
+  const listNames = (res) => res.lists.map((l) => l.name).join(', ');
+
   function renderSingle(res) {
     const el = $('#single-results');
     const name = C.displayName(res.query) || 'NPI ' + res.query.npi;
     const banner = res.hits.length
       ? `<div class="result-banner hit"><div class="icon">${ICON_ALERT}</div><div>
           <h3>${res.hits.length} match${res.hits.length > 1 ? 'es' : ''} found</h3>
-          <p>for <strong>${esc(name)}</strong>. Review each record below and verify through the OIG online search before taking action.</p></div>
+          <p>for <strong>${esc(name)}</strong> in ${esc([...new Set(res.hits.map((h) => h.list))].join(', '))}. Review each record below and verify it with the agency that publishes the list before taking action.</p></div>
           <div class="actions"><button class="btn btn-dark" data-print-single>${PRINT_BTN} Print results</button></div></div>`
       : `<div class="result-banner clear"><div class="icon">${ICON_OK}</div><div>
           <h3>No results found</h3>
-          <p><strong>${esc(name)}</strong> does not appear on the LEIE file loaded ${esc(fmtDateTime(res.meta.loadedAt))}.</p></div>
+          <p><strong>${esc(name)}</strong> does not appear on any of the ${res.lists.length} list${res.lists.length > 1 ? 's' : ''} searched: ${esc(listNames(res))}.</p></div>
           <div class="actions"><button class="btn btn-dark" data-print-single>${PRINT_BTN} Print “No results found”</button></div></div>`;
     el.innerHTML = banner + res.hits.map(recordCard).join('');
     show(el, true);
@@ -304,9 +418,9 @@
     if (map.last < 0 && map.full < 0 && map.business < 0) {
       return setError('#roster-error', 'Choose the column that holds the last name, full name, or business name.');
     }
-    const results = C.screenRoster(state.index, rows, map);
+    const results = C.screenRoster(state.lists, rows, map);
     if (!results.length) return setError('#roster-error', 'No names were found in the selected columns.');
-    const res = { fileName, results, at: new Date().toISOString(), meta: state.meta, counts: countRoster(results) };
+    const res = { fileName, results, at: new Date().toISOString(), lists: listsSnapshot(), counts: countRoster(results) };
     state.rosterResults = res;
     renderRoster(res);
     addHistory({
@@ -338,12 +452,12 @@
     const flagged = res.results.filter((r) => r.top);
     const banner = c.flagged
       ? `<div class="result-banner hit"><div class="icon">${ICON_ALERT}</div><div>
-          <h3>${c.flagged} employee${c.flagged > 1 ? 's' : ''} matched the LEIE</h3>
-          <p>${fmtNum(c.screened)} screened against the LEIE. Verify each match through the OIG online search.</p></div>
+          <h3>${c.flagged} employee${c.flagged > 1 ? 's' : ''} matched an exclusion list</h3>
+          <p>${fmtNum(c.screened)} screened against ${esc(listNames(res))}. Verify each match with the agency that publishes the list.</p></div>
           <div class="actions"><button class="btn btn-ghost" data-export>Export CSV</button><button class="btn btn-dark" data-print-roster>${PRINT_BTN} Print results</button></div></div>`
       : `<div class="result-banner clear"><div class="icon">${ICON_OK}</div><div>
           <h3>No results found</h3>
-          <p>None of the ${fmtNum(c.screened - c.incomplete)} employees checked appear on the LEIE file loaded ${esc(fmtDateTime(res.meta.loadedAt))}.${c.incomplete ? ` ${c.incomplete} row${c.incomplete > 1 ? 's were' : ' was'} not checked because the first name is missing.` : ''}</p></div>
+          <p>None of the ${fmtNum(c.screened - c.incomplete)} employees checked appear on ${esc(listNames(res))}.${c.incomplete ? ` ${c.incomplete} row${c.incomplete > 1 ? 's were' : ' was'} not checked because the first name is missing.` : ''}</p></div>
           <div class="actions"><button class="btn btn-ghost" data-export>Export CSV</button><button class="btn btn-dark" data-print-roster>${PRINT_BTN} Print “No results found”</button></div></div>`;
     const tiles = `<div class="summary-tiles">
       <div class="tile"><b>${fmtNum(c.screened)}</b><span>Screened</span></div>
@@ -353,9 +467,9 @@
     const details = flagged.map((r) => `<div class="filter-row"><h3>${esc(C.displayName(r.query))}${r.query.id ? ` <span class="muted">· ID ${esc(r.query.id)}</span>` : ''}${r.query.dob ? ` <span class="muted">· DOB ${esc(C.formatDate(r.query.dob) || r.query.dob)}</span>` : ''}</h3></div>${r.hits.map(recordCard).join('')}`).join('');
     const table = `<div class="filter-row"><h3>All employees screened</h3>
         <label class="check"><input type="checkbox" id="only-flagged"> Show only matches and rows not checked</label></div>
-      <div class="table-wrap"><table class="data" id="roster-table"><thead><tr><th>Row</th><th>Employee ID</th><th>Name</th><th>DOB</th><th>NPI</th><th>Result</th><th>LEIE records</th></tr></thead>
+      <div class="table-wrap"><table class="data" id="roster-table"><thead><tr><th>Row</th><th>Employee ID</th><th>Name</th><th>DOB</th><th>NPI</th><th>Result</th><th>Lists matched</th></tr></thead>
       <tbody>${res.results.map((r) => `<tr data-flagged="${r.top || r.incomplete ? 1 : 0}"><td>${r.row + 2}</td><td>${esc(r.query.id)}</td><td>${esc(C.displayName(r.query))}</td>
-        <td class="nowrap">${esc(C.formatDate(r.query.dob) || r.query.dob)}</td><td>${esc(r.query.npi)}</td><td>${statusBadge(r)}</td><td>${r.hits.length || ''}</td></tr>`).join('')}</tbody></table></div>`;
+        <td class="nowrap">${esc(C.formatDate(r.query.dob) || r.query.dob)}</td><td>${esc(r.query.npi)}</td><td>${statusBadge(r)}</td><td>${esc([...new Set(r.hits.map((h) => h.list))].join(', '))}</td></tr>`).join('')}</tbody></table></div>`;
     el.innerHTML = banner + tiles + (flagged.length ? '<div class="filter-row"><h3>Records needing review</h3></div>' + details : '') + table;
     show(el, true);
     $('[data-print-roster]', el).addEventListener('click', () => printRoster(res));
@@ -366,16 +480,16 @@
   }
 
   function exportRoster(res) {
-    const rows = [['Row', 'Employee ID', 'First', 'Middle', 'Last', 'Business', 'DOB', 'NPI', 'Result', 'LEIE name', 'LEIE DOB', 'LEIE NPI', 'Exclusion type', 'Exclusion date', 'Matched on']];
+    const rows = [['Row', 'Employee ID', 'First', 'Middle', 'Last', 'Business', 'DOB', 'NPI', 'Result', 'List', 'Listed name', 'Listed DOB', 'Listed NPI', 'Exclusion type', 'Exclusion date', 'Matched on']];
     for (const r of res.results) {
       const q = r.query;
       const base = [r.row + 2, q.id, q.first, q.middle, q.last, q.business, C.formatDate(q.dob) || q.dob, q.npi];
-      if (!r.hits.length) rows.push([...base, 'Clear']);
+      if (!r.hits.length) rows.push([...base, r.incomplete ? 'Not checked - first name missing' : 'No results found']);
       for (const h of r.hits) {
-        rows.push([...base, h.label, C.recordName(h.record), C.formatDate(h.record.DOB), C.normalizeNPI(h.record.NPI), h.record.EXCLTYPE, C.formatDate(h.record.EXCLDATE), h.why.join('; ')]);
+        rows.push([...base, h.label, h.list, C.recordName(h.record), C.formatDate(h.record.DOB), C.normalizeNPI(h.record.NPI), h.record.EXCLTYPE, C.formatDate(h.record.EXCLDATE) || h.record.EXCLDATE, h.why.join('; ')]);
       }
     }
-    download(`LEIE-screening-${res.at.slice(0, 10)}.csv`, C.toCSV(rows));
+    download(`exclusion-screening-${res.at.slice(0, 10)}.csv`, C.toCSV(rows));
   }
 
   $('#template-link').addEventListener('click', (e) => {
@@ -386,41 +500,40 @@
   // ------------------------------------------------------------ printing
 
   function reportShell(title, res, body) {
-    const m = res.meta;
-    return `<div class="rpt-head"><img src="lynx-ems-logo.png" alt="Lynx EMS"><div><h1>${esc(title)}</h1><p>OIG List of Excluded Individuals/Entities (LEIE)</p></div></div>
+    return `<div class="rpt-head"><img src="lynx-ems-logo.png" alt="Lynx EMS"><div><h1>${esc(title)}</h1><p>OIG LEIE and state exclusion lists</p></div></div>
       <div class="rpt-meta">
         <div><b>Report date</b>${esc(fmtDateTime(res.at))}</div>
         <div><b>Screened by</b>${esc(screener() || '______________________')}</div>
-        <div><b>LEIE file</b>${esc(m.fileName)}</div>
-        <div><b>LEIE file loaded</b>${esc(fmtDateTime(m.loadedAt))}</div>
-        <div><b>Most recent exclusion</b>${esc(C.formatDate(m.latestExclusion) || '—')}</div>
-        <div><b>Records searched</b>${esc(fmtNum(m.total))} (${esc(fmtNum(m.individuals))} individuals, ${esc(fmtNum(m.entities))} entities)</div>
       </div>
+      <h2 class="rpt-h2">Exclusion lists searched</h2>
+      <table><thead><tr><th>List</th><th>File</th><th>Loaded</th><th>Records</th><th>Most recent exclusion</th></tr></thead><tbody>
+        ${res.lists.map((l) => `<tr><td>${esc(l.name)}</td><td>${esc(l.fileName)}</td><td>${esc(fmtDateTime(l.loadedAt))}</td><td>${esc(fmtNum(l.total))}</td><td>${esc(C.formatDate(l.latestExclusion) || '—')}</td></tr>`).join('')}
+      </tbody></table>
       ${body}
-      <p class="rpt-note">Source: U.S. Department of Health &amp; Human Services, Office of Inspector General, LEIE downloadable database. This search compares names (and date of birth / NPI when provided) to the LEIE file listed above.
-      A name match alone does not confirm that a person or entity is excluded; matches must be verified with the OIG online search at exclusions.oig.hhs.gov using SSN or EIN.
-      “No results found” means no record in the listed file matched the criteria on the report date.</p>
+      <p class="rpt-note">This search compares names exactly as written (and date of birth / NPI when provided) to the exclusion list files listed above. The OIG LEIE is published by the U.S. Department of Health &amp; Human Services, Office of Inspector General; state lists are published by the state agencies named.
+      A name match alone does not confirm that a person or entity is excluded; verify each match with the agency that publishes the list (for the LEIE, the OIG online search at exclusions.oig.hhs.gov using SSN or EIN).
+      “No results found” means no record in any of the listed files matched the criteria on the report date.</p>
       <div class="rpt-sign"><div>Signature of person performing screening</div><div>Date</div></div>`;
   }
 
   function hitsTable(hits, withEmployee) {
-    return `<table><thead><tr>${withEmployee ? '<th>Employee</th>' : ''}<th>Result</th><th>LEIE name</th><th>Type</th><th>DOB</th><th>NPI</th><th>General / specialty</th><th>Address</th><th>Exclusion</th><th>Excl. date</th></tr></thead><tbody>
+    return `<table><thead><tr>${withEmployee ? '<th>Employee</th>' : ''}<th>Result</th><th>List</th><th>Listed name</th><th>Type</th><th>DOB</th><th>NPI</th><th>General / specialty</th><th>Address</th><th>Exclusion</th><th>Excl. date</th></tr></thead><tbody>
       ${hits.map(({ h, emp }) => {
         const r = h.record;
-        return `<tr>${withEmployee ? `<td>${esc(emp)}</td>` : ''}<td>${esc(h.label)}</td><td>${esc(C.recordName(r))}${r.LASTNAME && r.BUSNAME ? '<br>' + esc(r.BUSNAME) : ''}</td>
-          <td>${r.LASTNAME ? 'Individual' : 'Entity'}</td><td>${esc(C.formatDate(r.DOB))}</td><td>${esc(C.normalizeNPI(r.NPI))}</td>
+        return `<tr>${withEmployee ? `<td>${esc(emp)}</td>` : ''}<td>${esc(h.label)}</td><td>${esc(h.list)}</td><td>${esc(C.recordName(r))}${r.BUSNAME && C.recordName(r) !== r.BUSNAME ? '<br>' + esc(r.BUSNAME) : ''}${r.LICENSE ? '<br>License ' + esc(r.LICENSE) : ''}</td>
+          <td>${kindLabel(r)}</td><td>${esc(C.formatDate(r.DOB))}</td><td>${esc(C.normalizeNPI(r.NPI))}</td>
           <td>${esc([r.GENERAL, r.SPECIALTY].filter(Boolean).join(' / '))}</td><td>${esc([r.ADDRESS, r.CITY, r.STATE, r.ZIP].filter(Boolean).join(', '))}</td>
-          <td>${esc(r.EXCLTYPE)}${C.describeExclusion(r.EXCLTYPE) ? ' — ' + esc(C.describeExclusion(r.EXCLTYPE)) : ''}</td><td>${esc(C.formatDate(r.EXCLDATE))}</td></tr>`;
+          <td>${esc(r.EXCLTYPE)}${C.describeExclusion(r.EXCLTYPE) ? ' — ' + esc(C.describeExclusion(r.EXCLTYPE)) : ''}</td><td>${esc(C.formatDate(r.EXCLDATE) || r.EXCLDATE)}</td></tr>`;
       }).join('')}</tbody></table>`;
   }
 
   function printSingle(res) {
     const crit = `<h2 class="rpt-h2">Search criteria</h2><table><tbody>${criteriaRows(res.query).map(([k, v]) => `<tr><th style="width:35%">${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</tbody></table>`;
     const outcome = res.hits.length
-      ? `<div class="rpt-outcome hit"><strong>MATCH${res.hits.length > 1 ? 'ES' : ''} FOUND</strong><span>${res.hits.length} LEIE record${res.hits.length > 1 ? 's' : ''} matched the search criteria. Verification required.</span></div>
-         <h2 class="rpt-h2">Matching LEIE records</h2>${hitsTable(res.hits.map((h) => ({ h })), false)}`
-      : `<div class="rpt-outcome clear"><strong>NO RESULTS FOUND</strong><span>No records in the LEIE matched the search criteria above.</span></div>`;
-    doPrint(reportShell('LEIE Exclusion Check', res, crit + outcome));
+      ? `<div class="rpt-outcome hit"><strong>MATCH${res.hits.length > 1 ? 'ES' : ''} FOUND</strong><span>${res.hits.length} record${res.hits.length > 1 ? 's' : ''} on the exclusion lists matched the search criteria. Verification required.</span></div>
+         <h2 class="rpt-h2">Matching records</h2>${hitsTable(res.hits.map((h) => ({ h })), false)}`
+      : `<div class="rpt-outcome clear"><strong>NO RESULTS FOUND</strong><span>No records in any of the exclusion lists searched matched the search criteria above.</span></div>`;
+    doPrint(reportShell('Exclusion Check', res, crit + outcome));
   }
 
   function printRoster(res) {
@@ -433,12 +546,12 @@
       <tr><th>Clear (no results found)</th><td>${fmtNum(c.clear)}</td></tr></tbody></table>`;
     const flagged = res.results.filter((r) => r.top);
     const outcome = flagged.length
-      ? `<div class="rpt-outcome hit"><strong>MATCHES FOUND</strong><span>${flagged.length} of ${fmtNum(c.screened)} employees matched one or more LEIE records. Verification required.</span></div>
+      ? `<div class="rpt-outcome hit"><strong>MATCHES FOUND</strong><span>${flagged.length} of ${fmtNum(c.screened)} employees matched one or more exclusion list records. Verification required.</span></div>
          <h2 class="rpt-h2">Records needing review</h2>${hitsTable(flagged.flatMap((r) => r.hits.map((h) => ({ h, emp: C.displayName(r.query) + (r.query.id ? ` (ID ${r.query.id})` : '') }))), true)}`
-      : `<div class="rpt-outcome clear"><strong>NO RESULTS FOUND</strong><span>None of the ${fmtNum(c.screened - c.incomplete)} employees checked matched a record in the LEIE.${c.incomplete ? ` ${c.incomplete} not checked (first name missing).` : ''}</span></div>`;
+      : `<div class="rpt-outcome clear"><strong>NO RESULTS FOUND</strong><span>None of the ${fmtNum(c.screened - c.incomplete)} employees checked matched a record in any exclusion list searched.${c.incomplete ? ` ${c.incomplete} not checked (first name missing).` : ''}</span></div>`;
     const all = `<h2 class="rpt-h2">Employees screened</h2><table><thead><tr><th>#</th><th>Employee ID</th><th>Name</th><th>DOB</th><th>Result</th></tr></thead><tbody>
       ${res.results.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.query.id)}</td><td>${esc(C.displayName(r.query))}</td><td>${esc(C.formatDate(r.query.dob) || r.query.dob)}</td><td>${r.top ? esc(C.LEVELS[r.top].label) : r.incomplete ? 'Not checked – first name missing' : 'No results found'}</td></tr>`).join('')}</tbody></table>`;
-    doPrint(reportShell('LEIE Employee Screening', res, summary + outcome + all));
+    doPrint(reportShell('Employee Exclusion Screening', res, summary + outcome + all));
   }
 
   function doPrint(html) {
@@ -453,7 +566,7 @@
 
   function addHistory(entry) {
     const list = local.get(HISTORY_KEY, []);
-    list.unshift({ ...entry, by: screener(), file: state.meta && state.meta.fileName });
+    list.unshift({ ...entry, by: screener(), file: state.lists.map((l) => l.name).join(', ') });
     local.set(HISTORY_KEY, list.slice(0, 500));
   }
 
@@ -461,7 +574,7 @@
     const list = local.get(HISTORY_KEY, []);
     show($('#history-empty'), !list.length);
     show($('#history-table').parentElement, list.length > 0);
-    $('#history-table').innerHTML = `<thead><tr><th>Date</th><th>Type</th><th>Searched</th><th>Result</th><th>Screened by</th><th>LEIE file</th></tr></thead>
+    $('#history-table').innerHTML = `<thead><tr><th>Date</th><th>Type</th><th>Searched</th><th>Result</th><th>Screened by</th><th>Lists searched</th></tr></thead>
       <tbody>${list.map((h) => `<tr><td class="nowrap">${esc(fmtDateTime(h.at))}</td><td>${esc(h.kind)}</td><td>${esc(h.subject)}</td>
         <td><span class="badge ${h.flagged ? 'warn' : 'clear'}">${esc(h.outcome)}</span></td><td>${esc(h.by)}</td><td>${esc(h.file)}</td></tr>`).join('')}</tbody>`;
   }
@@ -480,12 +593,20 @@
 
   (async () => {
     try {
-      const saved = await idb.get('leie');
-      if (saved && saved.records) {
-        state.meta = saved.meta;
-        state.index = C.buildIndex(saved.records);
-        selectTab('single');
+      const summaries = (await idb.get('lists')) || [];
+      for (const sum of summaries) {
+        const records = await idb.get('list:' + sum.id);
+        if (records) state.lists.push({ ...sum, index: C.buildIndex(records) });
       }
+      // Earlier versions stored only the LEIE, under 'leie'.
+      const old = await idb.get('leie');
+      if (old && old.records) {
+        if (!state.lists.some((l) => l.kind === 'leie')) {
+          await addList({ name: 'OIG LEIE', kind: 'leie', fileName: old.meta.fileName, fileModified: old.meta.fileModified, loadedAt: old.meta.loadedAt, records: old.records });
+        }
+        await idb.del('leie');
+      }
+      if (state.lists.length) selectTab('single');
     } catch { /* storage unavailable; the file can still be loaded each session */ }
     renderDb();
   })();

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Lynx EMS · LEIE Exclusion Screening</title>
-  <meta name="description" content="Screen employees and vendors against the OIG List of Excluded Individuals/Entities. All data stays on this computer.">
+  <title>Lynx EMS · Exclusion Screening</title>
+  <meta name="description" content="Screen employees and vendors against the OIG LEIE and state exclusion lists. All data stays on this computer.">
   <link rel="icon" href="lynx-ems-logo.png" type="image/png">
   <link rel="stylesheet" href="leie.css">
 </head>
@@ -15,10 +15,10 @@
         <img class="logo" src="lynx-ems-logo.png" alt="Lynx EMS">
         <div class="masthead-title">
           <h1>Exclusion Screening</h1>
-          <p>OIG List of Excluded Individuals/Entities (LEIE)</p>
+          <p>OIG LEIE and state exclusion lists</p>
         </div>
         <div class="db-pill" id="db-pill" data-state="empty">
-          <span class="dot"></span><span id="db-pill-text">No LEIE file loaded</span>
+          <span class="dot"></span><span id="db-pill-text">No exclusion lists loaded</span>
         </div>
       </div>
       <div class="ekg" aria-hidden="true"></div>
@@ -26,49 +26,65 @@
 
     <div class="privacy">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Z"/></svg>
-      <span><strong>Private by design.</strong> Files you open here are read in this browser only. Nothing is uploaded or sent anywhere — the LEIE database and search history are stored on this computer.</span>
+      <span><strong>Private by design.</strong> Files you open here are read in this browser only. Nothing is uploaded or sent anywhere. The exclusion lists and search history are stored on this computer.</span>
     </div>
 
     <nav class="tabs" role="tablist">
-      <button role="tab" class="tab" data-tab="database" aria-selected="true"><span class="num">1</span> LEIE Database</button>
+      <button role="tab" class="tab" data-tab="database" aria-selected="true"><span class="num">1</span> Exclusion Lists</button>
       <button role="tab" class="tab" data-tab="single" aria-selected="false"><span class="num">2</span> Individual / Business Check</button>
       <button role="tab" class="tab" data-tab="roster" aria-selected="false"><span class="num">3</span> Employee List Screening</button>
       <button role="tab" class="tab" data-tab="history" aria-selected="false"><span class="num"><svg viewBox="0 0 24 24"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg></span> History</button>
     </nav>
 
     <main>
-      <!-- ============================================== 1. DATABASE -->
+      <!-- ============================================== 1. EXCLUSION LISTS -->
       <section class="panel" data-panel="database">
         <div class="panel-head">
-          <h2>Load the most recent LEIE spreadsheet</h2>
-          <p>The OIG updates the LEIE monthly. Download the full database file (<code>UPDATED.csv</code>) from
-            <a href="https://oig.hhs.gov/exclusions/exclusions_list.asp" target="_blank" rel="noopener">oig.hhs.gov/exclusions</a>
-            and open it here. CSV and Excel (.xlsx) are supported.</p>
+          <h2>Load exclusion lists</h2>
+          <p>Every search is checked against all lists loaded here. Load the most recent files each month.</p>
+          <ul class="sources">
+            <li><strong>OIG LEIE:</strong> download the full database file (<code>UPDATED.csv</code>) from
+              <a href="https://oig.hhs.gov/exclusions/exclusions_list.asp" target="_blank" rel="noopener">oig.hhs.gov/exclusions</a>. It is recognized automatically.</li>
+            <li><strong>State exclusion lists:</strong> download your state Medicaid exclusion or sanction list (from the state Medicaid agency or Medicaid Fraud/OIG website) as CSV or Excel. You'll confirm which columns hold the names the first time.</li>
+          </ul>
         </div>
 
         <label class="dropzone" id="leie-drop">
-          <input type="file" id="leie-file" accept=".csv,.xlsx,text/csv">
+          <input type="file" id="leie-file" accept=".csv,.xlsx,text/csv" multiple>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
-          <strong>Drop the LEIE file here or click to choose</strong>
-          <span>UPDATED.csv · LEIE .xlsx</span>
+          <strong>Drop one or more exclusion list files here or click to choose</strong>
+          <span>OIG LEIE · state Medicaid exclusion lists · .csv or .xlsx</span>
         </label>
         <div class="progress" id="leie-progress" hidden><div class="bar"></div><span id="leie-progress-text">Reading…</span></div>
         <div class="alert alert-error" id="leie-error" hidden></div>
 
-        <div class="db-card" id="db-card" hidden>
-          <div class="db-card-head">
-            <h3>Database loaded</h3>
-            <button class="btn btn-ghost btn-sm" id="leie-clear" type="button">Remove from this computer</button>
+        <div id="list-setup" class="card" hidden>
+          <div class="card-head">
+            <h3>Set up <span id="list-setup-file"></span></h3>
+            <span class="muted" id="list-setup-meta"></span>
           </div>
-          <dl class="stats">
-            <div><dt>File</dt><dd id="db-file"></dd></div>
-            <div><dt>Loaded</dt><dd id="db-loaded"></dd></div>
-            <div><dt>Most recent exclusion in file</dt><dd id="db-latest"></dd></div>
-            <div><dt>Total records</dt><dd id="db-total"></dd></div>
-            <div><dt>Individuals</dt><dd id="db-ind"></dd></div>
-            <div><dt>Entities</dt><dd id="db-ent"></dd></div>
-          </dl>
+          <div class="grid">
+            <label class="wide">List name <span class="req">required</span><input id="list-name" placeholder="e.g. Texas Medicaid Exclusions"></label>
+          </div>
+          <p class="muted setup-help">Choose the columns that hold the names. Use <em>Last name</em> and <em>First name</em> if the file has them, or <em>Full name</em> for a single name column. Add <em>Business name</em> for entities.</p>
+          <div class="mapping" id="list-mapping"></div>
+          <div class="table-wrap preview"><table id="list-preview"></table></div>
+          <div class="alert alert-error" id="list-error" hidden></div>
+          <div class="form-actions">
+            <button class="btn btn-primary" id="list-add" type="button">Add list</button>
+            <button class="btn btn-ghost" id="list-skip" type="button">Skip this file</button>
+          </div>
+        </div>
+
+        <div class="card" id="lists-card" hidden>
+          <div class="card-head"><h3>Lists loaded on this computer</h3><span class="muted" id="lists-total"></span></div>
+          <div class="table-wrap"><table class="data" id="lists-table"></table></div>
           <div class="alert alert-warn" id="db-stale" hidden></div>
+        </div>
+        <div class="confirm" id="remove-confirm" hidden>
+          <span id="remove-confirm-text"></span>
+          <button class="btn btn-primary btn-sm" id="remove-yes" type="button">Remove</button>
+          <button class="btn btn-ghost btn-sm" id="remove-no" type="button">Cancel</button>
         </div>
       </section>
 
@@ -96,7 +112,7 @@
             <label class="wide">Business / entity name <span class="req">required</span><input name="business" id="q-business"></label>
           </div>
           <div class="form-actions">
-            <button class="btn btn-primary" type="submit">Search LEIE</button>
+            <button class="btn btn-primary" type="submit">Search all lists</button>
             <button class="btn btn-ghost" type="reset">Clear</button>
           </div>
         </form>
@@ -156,9 +172,9 @@
     </main>
 
     <footer class="foot">
-      <p>Source: U.S. Department of Health &amp; Human Services, Office of Inspector General — List of Excluded Individuals/Entities.
-        A name match alone does not confirm an exclusion. Verify any match with the OIG online search
-        (<a href="https://exclusions.oig.hhs.gov/" target="_blank" rel="noopener">exclusions.oig.hhs.gov</a>) using SSN or EIN before taking action.</p>
+      <p>Sources: the U.S. Department of Health &amp; Human Services, Office of Inspector General List of Excluded Individuals/Entities, and any state exclusion lists loaded on this computer.
+        A name match alone does not confirm an exclusion. Verify any match with the agency that publishes the list (for the LEIE, the OIG online search at
+        <a href="https://exclusions.oig.hhs.gov/" target="_blank" rel="noopener">exclusions.oig.hhs.gov</a>, using SSN or EIN) before taking action.</p>
       <p>&copy; <span id="year"></span> Lynx EMS · Internal compliance tool</p>
     </footer>
   </div>

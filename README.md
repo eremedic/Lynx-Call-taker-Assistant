@@ -67,17 +67,17 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 - **Audit Log:** search, filter, and export the audit trail.
 - **Settings:** organization name and AI on/off and auto-analyze toggles.
 
-## Lynx EMS LEIE exclusion screening (`/leie/`)
+## Lynx EMS exclusion screening (`/leie/`)
 
-A separate, Lynx-branded page for checking people and businesses against the OIG **List of Excluded Individuals/Entities (LEIE)**. It needs no sign-in, server, or database: everything runs in the browser, and nothing is uploaded.
+A separate, Lynx-branded page for checking people and businesses against the OIG **List of Excluded Individuals/Entities (LEIE)** and **state Medicaid exclusion lists**. It needs no sign-in, server, or database: everything runs in the browser, and nothing is uploaded.
 
-1. **LEIE Database.** Download the full LEIE file (`UPDATED.csv`) from [oig.hhs.gov/exclusions](https://oig.hhs.gov/exclusions/exclusions_list.asp) and drop it on the page (CSV or .xlsx). It is saved in the browser's IndexedDB on that computer, so it only needs reloading when the OIG publishes a new month (the page warns after 35 days).
-2. **Individual / Business Check.** Enter a first and last name (date of birth and NPI optional), or a business name.
-3. **Employee List Screening.** Drop a CSV or .xlsx roster. Columns (first/last, a single full-name column, DOB, NPI, employee ID, business name) are detected automatically and can be changed before screening. Results can be exported to CSV.
+1. **Exclusion Lists.** Drop in one or more files at once (CSV or .xlsx). The OIG LEIE file (`UPDATED.csv` from [oig.hhs.gov/exclusions](https://oig.hhs.gov/exclusions/exclusions_list.asp)) is recognized automatically. For a state list, name it (for example "Texas Medicaid Exclusions") and confirm which columns hold the names; title rows above the header are skipped, and a single "Provider Name" column (`DOE, JANE` or `JANE DOE`) works. Lists are saved in the browser's IndexedDB on that computer. Loading a newer LEIE file replaces the old one, and adding a list with an existing name replaces that list. Lists older than 35 days are marked "Update due".
+2. **Individual / Business Check.** Enter a first and last name (date of birth and NPI optional), or a business name. Every loaded list is searched.
+3. **Employee List Screening.** Drop a CSV or .xlsx roster. Columns (first/last, a single full-name column, DOB, NPI, employee ID, business name) are detected automatically and can be changed before screening. Every employee is checked against every loaded list. Results can be exported to CSV.
 
-Every search can be printed as a Lynx EMS report, either **"No results found"** or the matching LEIE records, with the LEIE file used, the date, who screened, and a signature line. A search history is kept in the browser's local storage.
+Every search can be printed as a Lynx EMS report, either **"No results found"** or the matching records, with each list searched (file, load date, record count), the date, who screened, and a signature line. Each match shows which list it came from. A search history is kept in the browser's local storage.
 
-**Exact matches only.** A name is reported only when it appears in the LEIE exactly as written: first and last name for individuals, the full name for businesses. Capitalization, spaces, and punctuation are ignored ("O'Brien" = "OBRIEN"); initials, shortened names, part of a name, or a different business suffix (LLC vs. Inc.) are not matched. If a date of birth is entered and the LEIE record has one, they must be the same; a different date of birth is not a match. Results are *Match – name and DOB/NPI* or *Match – name* (no date of birth to compare). Roster rows with a last name but no first name are listed as *Not checked*. A match is not proof of exclusion; verify it through the OIG online search with SSN/EIN.
+**Exact matches only.** A name is reported only when it appears in the LEIE exactly as written: first and last name for individuals, the full name for businesses. Capitalization, spaces, and punctuation are ignored ("O'Brien" = "OBRIEN"); initials, shortened names, part of a name, or a different business suffix (LLC vs. Inc.) are not matched. If a date of birth is entered and the LEIE record has one, they must be the same; a different date of birth is not a match. Results are *Match – name and DOB/NPI* or *Match – name* (no date of birth to compare). Roster rows with a last name but no first name are listed as *Not checked*. A match is not proof of exclusion; verify it with the agency that publishes the list (for the LEIE, the OIG online search with SSN/EIN).
 
 **Ways to open it**
 - **Single file (easiest):** save `public/leie/lynx-leie-screening.html` to the computer and double-click it. It opens in the default browser (Chrome, Edge, Firefox or Safari) with no server or internet connection needed. The LEIE file you load is remembered by that browser for that file.
@@ -247,7 +247,7 @@ public/
   pcs.html, js/pcs.js         printable PCS form (css/pcs.css)
   admin.html, js/admin.js     admin dashboard
   css/app.css                 shared styles
-  leie/                       Lynx EMS LEIE exclusion screening (browser-only; leie-core.js is the matching engine;
+  leie/                       Lynx EMS exclusion screening, LEIE and state lists (browser-only; leie-core.js is the matching engine;
                               lynx-leie-screening.html is the generated single-file copy)
 scripts/build-leie-standalone.js  builds that single file (npm run build:leie)
 test/                 engine and API tests (node:test)

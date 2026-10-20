@@ -97,3 +97,36 @@ test('the standalone LEIE page is up to date with its source files', async () =>
   assert.ok(!/(src|href)="(?!data:|https?:)[^"#]+"/.test(html), 'every asset is inlined');
   assert.equal(fs.readFileSync(OUTPUT, 'utf8'), html, 'run `npm run build:leie` and commit the result');
 });
+
+test('imports a state exclusion list with title rows and a single name column', () => {
+  const table = C.parseCSV([
+    'State Medicaid Provider Exclusion List',
+    'As of 10/01/2026',
+    'Provider Name,Provider Type,License Number,NPI,Exclusion Date,Reason',
+    '"DOE, JANE M",LVN,LV12345,,09/15/2026,Fraud',
+    'MARK ALAN TWAIN,PARAMEDIC,P999,,08/01/2026,License revoked',
+    'ACME AMBULANCE SERVICE INC,AMBULANCE PROVIDER,,1112223334,07/01/2026,Program violation',
+  ].join('\n'));
+  assert.equal(C.findLeieHeader(table), -1);
+  const headerAt = C.findListHeader(table);
+  assert.equal(headerAt, 2);
+  const map = C.detectListColumns(table[headerAt]);
+  assert.deepEqual([map.full, map.specialty, map.license, map.npi, map.excldate, map.excltype], [0, 1, 2, 3, 4, 5]);
+  const recs = C.buildListRecords(table, headerAt, map);
+  assert.equal(recs.length, 3);
+  const state = C.buildIndex(recs);
+  const lists = [{ id: 'leie', name: 'OIG LEIE', index }, { id: 'tx', name: 'Texas Medicaid Exclusions', index: state }];
+
+  const jane = C.searchIndividual(state, { first: 'Jane', last: 'Doe' });
+  assert.equal(jane.length, 1);
+  assert.equal(jane[0].record.LICENSE, 'LV12345');
+  assert.equal(C.recordName(jane[0].record), 'DOE, JANE M', 'shown as written in the state list');
+  assert.equal(C.searchIndividual(state, { first: 'Mark', last: 'Twain' }).length, 1, '"First Middle Last" names');
+  assert.equal(C.searchIndividual(state, { first: 'Jan', last: 'Doe' }).length, 0, 'still exact only');
+  assert.equal(C.searchBusiness(state, 'Acme Ambulance Service Inc').length, 1);
+
+  // A roster is checked against every list; each hit names its list.
+  const roster = C.parseCSV('First,Last\nJohn,Smith\nJane,Doe\nPat,Clean');
+  const results = C.screenRoster(lists, roster.slice(1), C.detectColumns(roster[0]));
+  assert.deepEqual(results.map((r) => r.hits.map((h) => h.list)), [['OIG LEIE'], ['Texas Medicaid Exclusions'], []]);
+});
