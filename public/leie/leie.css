@@ -202,7 +202,6 @@ td.nowrap { white-space: nowrap; }
 .tile.green b { color: var(--green); }
 
 .hit-card { border: 1px solid var(--line); border-left: 4px solid var(--red); border-radius: 10px; background: #fff; padding: 14px 18px; margin-top: 12px; }
-.hit-card[data-level="possible"] { border-left-color: #f59e0b; }
 .hit-card[data-level="differs"] { border-left-color: #a1a1aa; }
 .hit-card header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
 .hit-card h4 { margin: 0; font-size: 16px; }
@@ -213,7 +212,7 @@ td.nowrap { white-space: nowrap; }
 
 .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
 .badge.strong, .badge.name { background: var(--red); color: #fff; }
-.badge.possible { background: #fef3c7; color: #92400e; }
+.badge.warn { background: #fef3c7; color: #92400e; }
 .badge.differs { background: #f4f4f5; color: var(--ink-2); border: 1px solid var(--line-strong); }
 .badge.clear { background: var(--green-50); color: var(--green); }
 

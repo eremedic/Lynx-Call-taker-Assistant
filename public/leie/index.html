@@ -76,7 +76,7 @@
       <section class="panel" data-panel="single" hidden>
         <div class="panel-head">
           <h2>Check an individual or business</h2>
-          <p>Enter a first and last name, or a business name. Date of birth and NPI are optional but help confirm a match.</p>
+          <p>Enter a first and last name, or a business name, exactly as written. Only exact matches are reported (capitalization, spaces, and punctuation are ignored). Date of birth and NPI are optional and confirm a match.</p>
         </div>
 
         <div class="seg" role="radiogroup" aria-label="Search type">
@@ -86,7 +86,7 @@
 
         <form id="single-form" class="form" autocomplete="off">
           <div class="grid person-fields">
-            <label>First name <input name="first" id="q-first"></label>
+            <label>First name <span class="req">required</span><input name="first" id="q-first"></label>
             <label>Middle <span class="opt">optional</span><input name="middle"></label>
             <label>Last name <span class="req">required</span><input name="last" id="q-last"></label>
             <label>Date of birth <span class="opt">optional</span><input name="dob" type="date"></label>
@@ -157,7 +157,7 @@
 
     <footer class="foot">
       <p>Source: U.S. Department of Health &amp; Human Services, Office of Inspector General — List of Excluded Individuals/Entities.
-        A name match alone does not confirm an exclusion. Verify any possible match with the OIG online search
+        A name match alone does not confirm an exclusion. Verify any match with the OIG online search
         (<a href="https://exclusions.oig.hhs.gov/" target="_blank" rel="noopener">exclusions.oig.hhs.gov</a>) using SSN or EIN before taking action.</p>
       <p>&copy; <span id="year"></span> Lynx EMS · Internal compliance tool</p>
     </footer>

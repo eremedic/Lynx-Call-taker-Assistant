@@ -72,12 +72,12 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 A separate, Lynx-branded page for checking people and businesses against the OIG **List of Excluded Individuals/Entities (LEIE)**. It needs no sign-in, server, or database: everything runs in the browser, and nothing is uploaded.
 
 1. **LEIE Database.** Download the full LEIE file (`UPDATED.csv`) from [oig.hhs.gov/exclusions](https://oig.hhs.gov/exclusions/exclusions_list.asp) and drop it on the page (CSV or .xlsx). It is saved in the browser's IndexedDB on that computer, so it only needs reloading when the OIG publishes a new month (the page warns after 35 days).
-2. **Individual / Business Check.** Enter a first and last name (date of birth and NPI optional) or a business name.
+2. **Individual / Business Check.** Enter a first and last name (date of birth and NPI optional), or a business name.
 3. **Employee List Screening.** Drop a CSV or .xlsx roster. Columns (first/last, a single full-name column, DOB, NPI, employee ID, business name) are detected automatically and can be changed before screening. Results can be exported to CSV.
 
 Every search can be printed as a Lynx EMS report, either **"No results found"** or the matching LEIE records, with the LEIE file used, the date, who screened, and a signature line. A search history is kept in the browser's local storage.
 
-**Match levels:** *Strong match* (name plus DOB or NPI), *Name match* (first and last name), *Possible match* (first initial, shortened first name, part of a hyphenated last name, or a similar business name), and *Name match – DOB differs* (likely a different person). A name match is not proof of exclusion; verify it through the OIG online search with SSN/EIN.
+**Exact matches only.** A name is reported only when it appears in the LEIE exactly as written: first and last name for individuals, the full name for businesses. Capitalization, spaces, and punctuation are ignored ("O'Brien" = "OBRIEN"); initials, shortened names, part of a name, or a different business suffix (LLC vs. Inc.) are not matched. Results are *Match – name and DOB/NPI*, *Match – name*, or *Name match – DOB differs* (likely a different person). Roster rows with a last name but no first name are listed as *Not checked*. A match is not proof of exclusion; verify it through the OIG online search with SSN/EIN.
 
 **Ways to open it**
 - **Single file (easiest):** save `public/leie/lynx-leie-screening.html` to the computer and double-click it. It opens in the default browser (Chrome, Edge, Firefox or Safari) with no server or internet connection needed. The LEIE file you load is remembered by that browser for that file.

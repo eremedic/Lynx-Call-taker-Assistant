@@ -60,16 +60,6 @@
   function compact(s) { return clean(s).replace(/ /g, ''); }
 
   const NAME_SUFFIXES = new Set(['JR', 'SR', 'II', 'III', 'IV', 'V']);
-  const BUSINESS_NOISE = new Set([
-    'THE', 'INC', 'INCORPORATED', 'LLC', 'LLP', 'LP', 'LTD', 'LIMITED', 'CORP', 'CORPORATION',
-    'CO', 'COMPANY', 'PC', 'PA', 'PLLC', 'PLC', 'DBA', 'AND', 'OF',
-  ]);
-
-  function businessKey(s) {
-    return clean(s).replace(/\bL L C\b/g, 'LLC').split(' ')
-      .filter((w) => w && !BUSINESS_NOISE.has(w)).join('');
-  }
-
   // "Smith, John A" / "John A Smith" / "Smith Jr, John" -> { first, middle, last }
   function splitFullName(full) {
     const raw = String(full || '').trim();
@@ -207,7 +197,7 @@
   function buildIndex(records) {
     const byLast = new Map();
     const byNpi = new Map();
-    const businesses = [];
+    const byBusiness = new Map();
     const add = (map, key, i) => {
       if (!key) return;
       let list = map.get(key);
@@ -215,86 +205,56 @@
       if (list[list.length - 1] !== i) list.push(i);
     };
     records.forEach((r, i) => {
-      if (r[0]) {
-        add(byLast, compact(r[0]), i);
-        const tokens = clean(r[0]).split(' ');
-        if (tokens.length > 1) tokens.forEach((t) => t.length > 1 && add(byLast, t, i));
-      }
+      if (r[0]) add(byLast, compact(r[0]), i);
       add(byNpi, normalizeNPI(r[7]), i);
-      if (r[3]) businesses.push([businessKey(r[3]), i]);
+      if (r[3]) add(byBusiness, compact(r[3]), i);
     });
-    return { records, byLast, byNpi, businesses };
+    return { records, byLast, byNpi, byBusiness };
   }
 
-  // Match strength, strongest first.
+  // Only exact matches are reported: a name either appears in the LEIE as
+  // written or it doesn't. Comparison ignores capitalization, spacing, and
+  // punctuation only ("O'Brien" = "OBRIEN"); nothing is matched on part of a
+  // name, an initial, or a similar spelling.
   const LEVELS = {
-    strong: { rank: 4, label: 'Strong match', note: 'Name and DOB/NPI match' },
-    name: { rank: 3, label: 'Name match', note: 'First and last name match' },
-    possible: { rank: 2, label: 'Possible match', note: 'Partial name match' },
-    differs: { rank: 1, label: 'Name match – DOB differs', note: 'Likely a different person; verify' },
+    strong: { rank: 3, label: 'Match – name and DOB/NPI' },
+    name: { rank: 2, label: 'Match – name' },
+    differs: { rank: 1, label: 'Name match – DOB differs' },
   };
 
-  function firstNameRelation(q, l) {
-    if (!q || !l) return 'none';
-    if (q === l) return 'exact';
-    if (q.length === 1 || l.length === 1) return q[0] === l[0] ? 'initial' : 'none';
-    if (q.length >= 3 && l.length >= 3 && (q.startsWith(l) || l.startsWith(q))) return 'prefix';
-    return 'none';
-  }
-
-  // query: { first, middle, last, dob, npi }
+  // query: { first, middle, last, dob, npi }. Needs first and last name, or an NPI.
   function searchIndividual(index, query) {
     const qLast = compact(query.last);
     const qFirst = compact(query.first);
     const qDob = normalizeDate(query.dob);
     const qNpi = normalizeNPI(query.npi);
     const hits = new Map();
-    const consider = (i, level, why) => {
-      const prev = hits.get(i);
-      if (!prev || LEVELS[level].rank > LEVELS[prev.level].rank) hits.set(i, { index: i, level, why });
-    };
 
-    if (qLast) {
-      const candidates = new Set(index.byLast.get(qLast) || []);
-      const qTokens = clean(query.last).split(' ');
-      if (qTokens.length > 1) qTokens.forEach((t) => t.length > 1 && (index.byLast.get(t) || []).forEach((i) => candidates.add(i)));
-      for (const i of candidates) {
+    if (qLast && qFirst) {
+      for (const i of index.byLast.get(qLast) || []) {
         const r = index.records[i];
-        const lastExact = compact(r[0]) === qLast;
-        const rel = qFirst ? firstNameRelation(qFirst, compact(r[1])) : 'lastonly';
-        if (rel === 'none') continue;
-        let level = lastExact && rel === 'exact' ? 'name' : 'possible';
-        const why = [];
-        why.push(lastExact ? 'last name' : 'part of last name');
-        if (qFirst) why.push(rel === 'exact' ? 'first name' : rel === 'initial' ? 'first initial' : 'similar first name');
+        if (compact(r[1]) !== qFirst) continue;
+        let level = 'name';
+        const why = ['first name', 'last name'];
         const rDob = normalizeDate(r[8]);
         if (qDob && rDob) {
-          if (qDob === rDob) { level = 'strong'; why.push('date of birth'); }
-          else if (level === 'name') level = 'differs';
+          if (qDob === rDob) { level = 'strong'; why.push('date of birth'); } else level = 'differs';
         }
         const rNpi = normalizeNPI(r[7]);
         if (qNpi && rNpi && qNpi === rNpi) { level = 'strong'; why.push('NPI'); }
-        consider(i, level, why);
+        hits.set(i, { index: i, level, why });
       }
     }
     if (qNpi) {
-      for (const i of index.byNpi.get(qNpi) || []) consider(i, 'strong', ['NPI']);
+      for (const i of index.byNpi.get(qNpi) || []) if (!hits.has(i)) hits.set(i, { index: i, level: 'strong', why: ['NPI'] });
     }
     return sortHits(index, [...hits.values()]);
   }
 
   function searchBusiness(index, name) {
-    const q = businessKey(name);
+    const q = compact(name);
     if (!q) return [];
-    const hits = [];
-    for (const [key, i] of index.businesses) {
-      if (!key) continue;
-      if (key === q) hits.push({ index: i, level: 'name', why: ['business name'] });
-      else if (q.length >= 4 && (key.includes(q) || (key.length >= 6 && q.includes(key)))) {
-        hits.push({ index: i, level: 'possible', why: ['similar business name'] });
-      }
-    }
-    return sortHits(index, hits);
+    return sortHits(index, (index.byBusiness.get(q) || []).map((i) => ({ index: i, level: 'name', why: ['business name'] })));
   }
 
   function sortHits(index, hits) {
@@ -348,12 +308,13 @@
     rows.forEach((row, n) => {
       const q = rowToQuery(row, map);
       if (!q) return;
+      const incomplete = !!q.last && !q.first && !q.business && !normalizeNPI(q.npi);
       let hits = [];
-      if (q.last || normalizeNPI(q.npi)) hits = hits.concat(searchIndividual(index, q));
+      if ((q.last && q.first) || normalizeNPI(q.npi)) hits = hits.concat(searchIndividual(index, q));
       if (q.business) hits = hits.concat(searchBusiness(index, q.business));
       const seen = new Set();
       hits = hits.filter((h) => !seen.has(h.index) && seen.add(h.index));
-      results.push({ row: n, query: q, hits, top: hits.length ? hits[0].level : null });
+      results.push({ row: n, query: q, hits, top: hits.length ? hits[0].level : null, incomplete });
     });
     return results;
   }
@@ -369,7 +330,7 @@
   }
 
   const api = {
-    parseCSV, toCSV, clean, compact, businessKey, splitFullName, normalizeDate, formatDate, normalizeNPI,
+    parseCSV, toCSV, clean, compact, splitFullName, normalizeDate, formatDate, normalizeNPI,
     describeExclusion, LEIE_COLUMNS, buildRecords, summarize, buildIndex, searchIndividual, searchBusiness,
     detectColumns, rowToQuery, screenRoster, displayName, recordName, LEVELS,
   };

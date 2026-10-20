@@ -27,21 +27,27 @@ test('rejects files that are not the LEIE', () => {
   assert.throws(() => C.buildRecords(C.parseCSV('Name,Phone\nBob,555')), /does not look like the OIG LEIE/);
 });
 
-test('individual search: exact name, case and punctuation insensitive', () => {
+test('individual search: exact name only, ignoring case and punctuation', () => {
   const hits = C.searchIndividual(index, { first: 'john', last: 'Smith' });
+  assert.equal(hits.length, 1);
   assert.equal(hits[0].record.FIRSTNAME, 'JOHN');
   assert.equal(hits[0].level, 'name');
-  assert.ok(!hits.some((h) => h.record.FIRSTNAME === 'JONATHAN'));
-  const jon = C.searchIndividual(index, { first: 'Jon', last: 'Smith' });
-  assert.ok(jon.some((h) => h.record.FIRSTNAME === 'JONATHAN' && h.level === 'possible'), 'JON is a prefix of JONATHAN');
-  assert.equal(C.searchIndividual(index, { first: 'J', last: 'Smith' }).length, 2, 'an initial matches both');
   assert.equal(C.searchIndividual(index, { first: 'Mary', last: 'OBrien' })[0].level, 'name');
+  assert.equal(C.searchIndividual(index, { first: 'Ana', last: 'Garcia-Lopez' })[0].level, 'name');
 });
 
-test('date of birth strengthens or weakens a name match', () => {
+test('partial names are never reported', () => {
+  assert.equal(C.searchIndividual(index, { first: 'Jon', last: 'Smith' }).length, 0, 'shortened first name');
+  assert.equal(C.searchIndividual(index, { first: 'J', last: 'Smith' }).length, 0, 'first initial');
+  assert.equal(C.searchIndividual(index, { first: 'Ana', last: 'Garcia' }).length, 0, 'part of a last name');
+  assert.equal(C.searchIndividual(index, { last: 'Smith' }).length, 0, 'last name alone');
+  assert.equal(C.searchBusiness(index, 'acme ambulance').length, 0, 'part of a business name');
+  assert.equal(C.searchBusiness(index, 'Acme Ambulance Service LLC').length, 0, 'different legal suffix');
+});
+
+test('date of birth confirms or contradicts a name match', () => {
   assert.equal(C.searchIndividual(index, { first: 'John', last: 'Smith', dob: '1980-01-15' })[0].level, 'strong');
-  const differs = C.searchIndividual(index, { first: 'John', last: 'Smith', dob: '01/15/1999' });
-  assert.equal(differs.find((h) => h.record.FIRSTNAME === 'JOHN').level, 'differs');
+  assert.equal(C.searchIndividual(index, { first: 'John', last: 'Smith', dob: '01/15/1999' })[0].level, 'differs');
 });
 
 test('NPI alone finds a record', () => {
@@ -55,14 +61,8 @@ test('no results for a clean name', () => {
   assert.equal(C.searchIndividual(index, { first: 'Paul', last: 'Smith' }).length, 0);
 });
 
-test('hyphenated last names match multi-part LEIE names', () => {
-  assert.equal(C.searchIndividual(index, { first: 'Ana', last: 'Garcia-Lopez' })[0].level, 'name');
-  assert.equal(C.searchIndividual(index, { first: 'Ana', last: 'Garcia' })[0].level, 'possible');
-});
-
-test('business search ignores legal suffixes and finds partial names', () => {
-  assert.equal(C.searchBusiness(index, 'Acme Ambulance Service LLC')[0].level, 'name');
-  assert.equal(C.searchBusiness(index, 'acme ambulance')[0].level, 'possible');
+test('business search matches the full name as written', () => {
+  assert.equal(C.searchBusiness(index, 'Acme Ambulance Service Inc')[0].level, 'name');
   assert.equal(C.searchBusiness(index, 'Lynx EMS').length, 0);
 });
 
@@ -76,15 +76,17 @@ test('splits full names and normalizes dates', () => {
 });
 
 test('screens an employee roster with detected columns', () => {
-  const table = C.parseCSV('Emp ID,Employee Name,Date of Birth\n1,"Smith, John",01/15/1980\n2,Jane Doe,\n3,,');
+  const table = C.parseCSV('Emp ID,Employee Name,Date of Birth\n1,"Smith, John",01/15/1980\n2,Jane Doe,\n3,,\n4,Smith,');
   const map = C.detectColumns(table[0]);
   assert.equal(map.full, 1);
   assert.equal(map.dob, 2);
   assert.equal(map.id, 0);
   const results = C.screenRoster(index, table.slice(1), map);
-  assert.equal(results.length, 2, 'blank rows are skipped');
+  assert.equal(results.length, 3, 'blank rows are skipped');
   assert.equal(results[0].top, 'strong');
   assert.equal(results[1].top, null);
+  assert.equal(results[2].top, null, 'a last name alone is not matched');
+  assert.equal(results[2].incomplete, true);
 });
 
 test('the standalone LEIE page is up to date with its source files', async () => {

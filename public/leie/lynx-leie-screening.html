@@ -212,7 +212,6 @@ td.nowrap { white-space: nowrap; }
 .tile.green b { color: var(--green); }
 
 .hit-card { border: 1px solid var(--line); border-left: 4px solid var(--red); border-radius: 10px; background: #fff; padding: 14px 18px; margin-top: 12px; }
-.hit-card[data-level="possible"] { border-left-color: #f59e0b; }
 .hit-card[data-level="differs"] { border-left-color: #a1a1aa; }
 .hit-card header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
 .hit-card h4 { margin: 0; font-size: 16px; }
@@ -223,7 +222,7 @@ td.nowrap { white-space: nowrap; }
 
 .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
 .badge.strong, .badge.name { background: var(--red); color: #fff; }
-.badge.possible { background: #fef3c7; color: #92400e; }
+.badge.warn { background: #fef3c7; color: #92400e; }
 .badge.differs { background: #f4f4f5; color: var(--ink-2); border: 1px solid var(--line-strong); }
 .badge.clear { background: var(--green-50); color: var(--green); }
 
@@ -356,7 +355,7 @@ td.nowrap { white-space: nowrap; }
       <section class="panel" data-panel="single" hidden>
         <div class="panel-head">
           <h2>Check an individual or business</h2>
-          <p>Enter a first and last name, or a business name. Date of birth and NPI are optional but help confirm a match.</p>
+          <p>Enter a first and last name, or a business name, exactly as written. Only exact matches are reported (capitalization, spaces, and punctuation are ignored). Date of birth and NPI are optional and confirm a match.</p>
         </div>
 
         <div class="seg" role="radiogroup" aria-label="Search type">
@@ -366,7 +365,7 @@ td.nowrap { white-space: nowrap; }
 
         <form id="single-form" class="form" autocomplete="off">
           <div class="grid person-fields">
-            <label>First name <input name="first" id="q-first"></label>
+            <label>First name <span class="req">required</span><input name="first" id="q-first"></label>
             <label>Middle <span class="opt">optional</span><input name="middle"></label>
             <label>Last name <span class="req">required</span><input name="last" id="q-last"></label>
             <label>Date of birth <span class="opt">optional</span><input name="dob" type="date"></label>
@@ -437,7 +436,7 @@ td.nowrap { white-space: nowrap; }
 
     <footer class="foot">
       <p>Source: U.S. Department of Health &amp; Human Services, Office of Inspector General — List of Excluded Individuals/Entities.
-        A name match alone does not confirm an exclusion. Verify any possible match with the OIG online search
+        A name match alone does not confirm an exclusion. Verify any match with the OIG online search
         (<a href="https://exclusions.oig.hhs.gov/" target="_blank" rel="noopener">exclusions.oig.hhs.gov</a>) using SSN or EIN before taking action.</p>
       <p>&copy; <span id="year"></span> Lynx EMS · Internal compliance tool</p>
     </footer>
@@ -509,16 +508,6 @@ td.nowrap { white-space: nowrap; }
   function compact(s) { return clean(s).replace(/ /g, ''); }
 
   const NAME_SUFFIXES = new Set(['JR', 'SR', 'II', 'III', 'IV', 'V']);
-  const BUSINESS_NOISE = new Set([
-    'THE', 'INC', 'INCORPORATED', 'LLC', 'LLP', 'LP', 'LTD', 'LIMITED', 'CORP', 'CORPORATION',
-    'CO', 'COMPANY', 'PC', 'PA', 'PLLC', 'PLC', 'DBA', 'AND', 'OF',
-  ]);
-
-  function businessKey(s) {
-    return clean(s).replace(/\bL L C\b/g, 'LLC').split(' ')
-      .filter((w) => w && !BUSINESS_NOISE.has(w)).join('');
-  }
-
   // "Smith, John A" / "John A Smith" / "Smith Jr, John" -> { first, middle, last }
   function splitFullName(full) {
     const raw = String(full || '').trim();
@@ -656,7 +645,7 @@ td.nowrap { white-space: nowrap; }
   function buildIndex(records) {
     const byLast = new Map();
     const byNpi = new Map();
-    const businesses = [];
+    const byBusiness = new Map();
     const add = (map, key, i) => {
       if (!key) return;
       let list = map.get(key);
@@ -664,86 +653,56 @@ td.nowrap { white-space: nowrap; }
       if (list[list.length - 1] !== i) list.push(i);
     };
     records.forEach((r, i) => {
-      if (r[0]) {
-        add(byLast, compact(r[0]), i);
-        const tokens = clean(r[0]).split(' ');
-        if (tokens.length > 1) tokens.forEach((t) => t.length > 1 && add(byLast, t, i));
-      }
+      if (r[0]) add(byLast, compact(r[0]), i);
       add(byNpi, normalizeNPI(r[7]), i);
-      if (r[3]) businesses.push([businessKey(r[3]), i]);
+      if (r[3]) add(byBusiness, compact(r[3]), i);
     });
-    return { records, byLast, byNpi, businesses };
+    return { records, byLast, byNpi, byBusiness };
   }
 
-  // Match strength, strongest first.
+  // Only exact matches are reported: a name either appears in the LEIE as
+  // written or it doesn't. Comparison ignores capitalization, spacing, and
+  // punctuation only ("O'Brien" = "OBRIEN"); nothing is matched on part of a
+  // name, an initial, or a similar spelling.
   const LEVELS = {
-    strong: { rank: 4, label: 'Strong match', note: 'Name and DOB/NPI match' },
-    name: { rank: 3, label: 'Name match', note: 'First and last name match' },
-    possible: { rank: 2, label: 'Possible match', note: 'Partial name match' },
-    differs: { rank: 1, label: 'Name match – DOB differs', note: 'Likely a different person; verify' },
+    strong: { rank: 3, label: 'Match – name and DOB/NPI' },
+    name: { rank: 2, label: 'Match – name' },
+    differs: { rank: 1, label: 'Name match – DOB differs' },
   };
 
-  function firstNameRelation(q, l) {
-    if (!q || !l) return 'none';
-    if (q === l) return 'exact';
-    if (q.length === 1 || l.length === 1) return q[0] === l[0] ? 'initial' : 'none';
-    if (q.length >= 3 && l.length >= 3 && (q.startsWith(l) || l.startsWith(q))) return 'prefix';
-    return 'none';
-  }
-
-  // query: { first, middle, last, dob, npi }
+  // query: { first, middle, last, dob, npi }. Needs first and last name, or an NPI.
   function searchIndividual(index, query) {
     const qLast = compact(query.last);
     const qFirst = compact(query.first);
     const qDob = normalizeDate(query.dob);
     const qNpi = normalizeNPI(query.npi);
     const hits = new Map();
-    const consider = (i, level, why) => {
-      const prev = hits.get(i);
-      if (!prev || LEVELS[level].rank > LEVELS[prev.level].rank) hits.set(i, { index: i, level, why });
-    };
 
-    if (qLast) {
-      const candidates = new Set(index.byLast.get(qLast) || []);
-      const qTokens = clean(query.last).split(' ');
-      if (qTokens.length > 1) qTokens.forEach((t) => t.length > 1 && (index.byLast.get(t) || []).forEach((i) => candidates.add(i)));
-      for (const i of candidates) {
+    if (qLast && qFirst) {
+      for (const i of index.byLast.get(qLast) || []) {
         const r = index.records[i];
-        const lastExact = compact(r[0]) === qLast;
-        const rel = qFirst ? firstNameRelation(qFirst, compact(r[1])) : 'lastonly';
-        if (rel === 'none') continue;
-        let level = lastExact && rel === 'exact' ? 'name' : 'possible';
-        const why = [];
-        why.push(lastExact ? 'last name' : 'part of last name');
-        if (qFirst) why.push(rel === 'exact' ? 'first name' : rel === 'initial' ? 'first initial' : 'similar first name');
+        if (compact(r[1]) !== qFirst) continue;
+        let level = 'name';
+        const why = ['first name', 'last name'];
         const rDob = normalizeDate(r[8]);
         if (qDob && rDob) {
-          if (qDob === rDob) { level = 'strong'; why.push('date of birth'); }
-          else if (level === 'name') level = 'differs';
+          if (qDob === rDob) { level = 'strong'; why.push('date of birth'); } else level = 'differs';
         }
         const rNpi = normalizeNPI(r[7]);
         if (qNpi && rNpi && qNpi === rNpi) { level = 'strong'; why.push('NPI'); }
-        consider(i, level, why);
+        hits.set(i, { index: i, level, why });
       }
     }
     if (qNpi) {
-      for (const i of index.byNpi.get(qNpi) || []) consider(i, 'strong', ['NPI']);
+      for (const i of index.byNpi.get(qNpi) || []) if (!hits.has(i)) hits.set(i, { index: i, level: 'strong', why: ['NPI'] });
     }
     return sortHits(index, [...hits.values()]);
   }
 
   function searchBusiness(index, name) {
-    const q = businessKey(name);
+    const q = compact(name);
     if (!q) return [];
-    const hits = [];
-    for (const [key, i] of index.businesses) {
-      if (!key) continue;
-      if (key === q) hits.push({ index: i, level: 'name', why: ['business name'] });
-      else if (q.length >= 4 && (key.includes(q) || (key.length >= 6 && q.includes(key)))) {
-        hits.push({ index: i, level: 'possible', why: ['similar business name'] });
-      }
-    }
-    return sortHits(index, hits);
+    return sortHits(index, (index.byBusiness.get(q) || []).map((i) => ({ index: i, level: 'name', why: ['business name'] })));
   }
 
   function sortHits(index, hits) {
@@ -797,12 +756,13 @@ td.nowrap { white-space: nowrap; }
     rows.forEach((row, n) => {
       const q = rowToQuery(row, map);
       if (!q) return;
+      const incomplete = !!q.last && !q.first && !q.business && !normalizeNPI(q.npi);
       let hits = [];
-      if (q.last || normalizeNPI(q.npi)) hits = hits.concat(searchIndividual(index, q));
+      if ((q.last && q.first) || normalizeNPI(q.npi)) hits = hits.concat(searchIndividual(index, q));
       if (q.business) hits = hits.concat(searchBusiness(index, q.business));
       const seen = new Set();
       hits = hits.filter((h) => !seen.has(h.index) && seen.add(h.index));
-      results.push({ row: n, query: q, hits, top: hits.length ? hits[0].level : null });
+      results.push({ row: n, query: q, hits, top: hits.length ? hits[0].level : null, incomplete });
     });
     return results;
   }
@@ -818,7 +778,7 @@ td.nowrap { white-space: nowrap; }
   }
 
   const api = {
-    parseCSV, toCSV, clean, compact, businessKey, splitFullName, normalizeDate, formatDate, normalizeNPI,
+    parseCSV, toCSV, clean, compact, splitFullName, normalizeDate, formatDate, normalizeNPI,
     describeExclusion, LEIE_COLUMNS, buildRecords, summarize, buildIndex, searchIndividual, searchBusiness,
     detectColumns, rowToQuery, screenRoster, displayName, recordName, LEVELS,
   };
@@ -1154,11 +1114,11 @@ td.nowrap { white-space: nowrap; }
     let query, hits;
     if (mode === 'person') {
       query = { type: 'Individual', first: f.first.trim(), middle: f.middle.trim(), last: f.last.trim(), dob: f.dob, npi: f.npi.trim() };
-      if (!query.last && !C.normalizeNPI(query.npi)) return setError('#single-error', 'Enter at least a last name (first name recommended).');
+      if (!(C.compact(query.first) && C.compact(query.last)) && !C.normalizeNPI(query.npi)) return setError('#single-error', 'Enter both a first and last name (or an NPI).');
       hits = C.searchIndividual(state.index, query);
     } else {
       query = { type: 'Business / Entity', business: f.business.trim() };
-      if (!C.businessKey(query.business)) return setError('#single-error', 'Enter a business or entity name.');
+      if (!C.compact(query.business)) return setError('#single-error', 'Enter a business or entity name.');
       hits = C.searchBusiness(state.index, query.business);
     }
     const result = { query, hits, at: new Date().toISOString(), meta: state.meta };
@@ -1166,7 +1126,7 @@ td.nowrap { white-space: nowrap; }
     renderSingle(result);
     addHistory({
       at: result.at, kind: query.type, subject: C.displayName(query) || 'NPI ' + query.npi,
-      outcome: hits.length ? `${hits.length} possible match${hits.length > 1 ? 'es' : ''}` : 'No results found', flagged: hits.length > 0,
+      outcome: hits.length ? `${hits.length} match${hits.length > 1 ? 'es' : ''} found` : 'No results found', flagged: hits.length > 0,
     });
   });
 
@@ -1184,7 +1144,7 @@ td.nowrap { white-space: nowrap; }
     const name = C.displayName(res.query) || 'NPI ' + res.query.npi;
     const banner = res.hits.length
       ? `<div class="result-banner hit"><div class="icon">${ICON_ALERT}</div><div>
-          <h3>${res.hits.length} possible match${res.hits.length > 1 ? 'es' : ''} found</h3>
+          <h3>${res.hits.length} match${res.hits.length > 1 ? 'es' : ''} found</h3>
           <p>for <strong>${esc(name)}</strong>. Review each record below and verify through the OIG online search before taking action.</p></div>
           <div class="actions"><button class="btn btn-dark" data-print-single>${PRINT_BTN} Print results</button></div></div>`
       : `<div class="result-banner clear"><div class="icon">${ICON_OK}</div><div>
@@ -1247,23 +1207,25 @@ td.nowrap { white-space: nowrap; }
     renderRoster(res);
     addHistory({
       at: res.at, kind: 'Employee list', subject: `${fileName} (${fmtNum(results.length)} screened)`,
-      outcome: res.counts.flagged ? `${res.counts.flagged} with possible matches` : 'No results found', flagged: res.counts.flagged > 0,
+      outcome: res.counts.flagged ? `${res.counts.flagged} with matches` : 'No results found', flagged: res.counts.flagged > 0,
     });
   });
 
   function countRoster(results) {
-    const c = { screened: results.length, match: 0, possible: 0, differs: 0, clear: 0, flagged: 0 };
+    const c = { screened: results.length, match: 0, differs: 0, incomplete: 0, clear: 0, flagged: 0 };
     for (const r of results) {
-      if (!r.top) c.clear++;
-      else if (HIT_LEVELS.has(r.top)) c.match++;
-      else c[r.top]++;
+      if (r.top && HIT_LEVELS.has(r.top)) c.match++;
+      else if (r.top) c.differs++;
+      else if (r.incomplete) c.incomplete++;
+      else c.clear++;
     }
-    c.flagged = c.screened - c.clear;
+    c.flagged = c.match + c.differs;
     return c;
   }
 
   function statusBadge(r) {
-    if (!r.top) return '<span class="badge clear">Clear</span>';
+    if (!r.top && r.incomplete) return '<span class="badge warn">Not checked – first name missing</span>';
+    if (!r.top) return '<span class="badge clear">No results found</span>';
     return `<span class="badge ${r.top}">${esc(C.LEVELS[r.top].label)}</span>`;
   }
 
@@ -1273,24 +1235,24 @@ td.nowrap { white-space: nowrap; }
     const flagged = res.results.filter((r) => r.top);
     const banner = c.flagged
       ? `<div class="result-banner hit"><div class="icon">${ICON_ALERT}</div><div>
-          <h3>${c.flagged} employee${c.flagged > 1 ? 's' : ''} need review</h3>
-          <p>${fmtNum(c.screened)} screened against the LEIE. Verify each possible match through the OIG online search.</p></div>
+          <h3>${c.flagged} employee${c.flagged > 1 ? 's' : ''} matched the LEIE</h3>
+          <p>${fmtNum(c.screened)} screened against the LEIE. Verify each match through the OIG online search.</p></div>
           <div class="actions"><button class="btn btn-ghost" data-export>Export CSV</button><button class="btn btn-dark" data-print-roster>${PRINT_BTN} Print results</button></div></div>`
       : `<div class="result-banner clear"><div class="icon">${ICON_OK}</div><div>
           <h3>No results found</h3>
-          <p>None of the ${fmtNum(c.screened)} employees screened appear on the LEIE file loaded ${esc(fmtDateTime(res.meta.loadedAt))}.</p></div>
+          <p>None of the ${fmtNum(c.screened - c.incomplete)} employees checked appear on the LEIE file loaded ${esc(fmtDateTime(res.meta.loadedAt))}.${c.incomplete ? ` ${c.incomplete} row${c.incomplete > 1 ? 's were' : ' was'} not checked because the first name is missing.` : ''}</p></div>
           <div class="actions"><button class="btn btn-ghost" data-export>Export CSV</button><button class="btn btn-dark" data-print-roster>${PRINT_BTN} Print “No results found”</button></div></div>`;
     const tiles = `<div class="summary-tiles">
       <div class="tile"><b>${fmtNum(c.screened)}</b><span>Screened</span></div>
-      <div class="tile red"><b>${fmtNum(c.match)}</b><span>Name matches</span></div>
-      <div class="tile amber"><b>${fmtNum(c.possible)}</b><span>Possible</span></div>
-      <div class="tile"><b>${fmtNum(c.differs)}</b><span>DOB differs</span></div>
-      <div class="tile green"><b>${fmtNum(c.clear)}</b><span>Clear</span></div></div>`;
+      <div class="tile red"><b>${fmtNum(c.match)}</b><span>Matches</span></div>
+      <div class="tile"><b>${fmtNum(c.differs)}</b><span>Name match, DOB differs</span></div>
+      ${c.incomplete ? `<div class="tile amber"><b>${fmtNum(c.incomplete)}</b><span>Not checked</span></div>` : ''}
+      <div class="tile green"><b>${fmtNum(c.clear)}</b><span>No results found</span></div></div>`;
     const details = flagged.map((r) => `<div class="filter-row"><h3>${esc(C.displayName(r.query))}${r.query.id ? ` <span class="muted">· ID ${esc(r.query.id)}</span>` : ''}${r.query.dob ? ` <span class="muted">· DOB ${esc(C.formatDate(r.query.dob) || r.query.dob)}</span>` : ''}</h3></div>${r.hits.map(recordCard).join('')}`).join('');
     const table = `<div class="filter-row"><h3>All employees screened</h3>
-        <label class="check"><input type="checkbox" id="only-flagged"> Show only employees needing review</label></div>
+        <label class="check"><input type="checkbox" id="only-flagged"> Show only matches and rows not checked</label></div>
       <div class="table-wrap"><table class="data" id="roster-table"><thead><tr><th>Row</th><th>Employee ID</th><th>Name</th><th>DOB</th><th>NPI</th><th>Result</th><th>LEIE records</th></tr></thead>
-      <tbody>${res.results.map((r) => `<tr data-flagged="${r.top ? 1 : 0}"><td>${r.row + 2}</td><td>${esc(r.query.id)}</td><td>${esc(C.displayName(r.query))}</td>
+      <tbody>${res.results.map((r) => `<tr data-flagged="${r.top || r.incomplete ? 1 : 0}"><td>${r.row + 2}</td><td>${esc(r.query.id)}</td><td>${esc(C.displayName(r.query))}</td>
         <td class="nowrap">${esc(C.formatDate(r.query.dob) || r.query.dob)}</td><td>${esc(r.query.npi)}</td><td>${statusBadge(r)}</td><td>${r.hits.length || ''}</td></tr>`).join('')}</tbody></table></div>`;
     el.innerHTML = banner + tiles + (flagged.length ? '<div class="filter-row"><h3>Records needing review</h3></div>' + details : '') + table;
     show(el, true);
@@ -1334,7 +1296,7 @@ td.nowrap { white-space: nowrap; }
       </div>
       ${body}
       <p class="rpt-note">Source: U.S. Department of Health &amp; Human Services, Office of Inspector General, LEIE downloadable database. This search compares names (and date of birth / NPI when provided) to the LEIE file listed above.
-      A name match alone does not confirm that a person or entity is excluded; possible matches must be verified with the OIG online search at exclusions.oig.hhs.gov using SSN or EIN.
+      A name match alone does not confirm that a person or entity is excluded; matches must be verified with the OIG online search at exclusions.oig.hhs.gov using SSN or EIN.
       “No results found” means no record in the listed file matched the criteria on the report date.</p>
       <div class="rpt-sign"><div>Signature of person performing screening</div><div>Date</div></div>`;
   }
@@ -1353,7 +1315,7 @@ td.nowrap { white-space: nowrap; }
   function printSingle(res) {
     const crit = `<h2 class="rpt-h2">Search criteria</h2><table><tbody>${criteriaRows(res.query).map(([k, v]) => `<tr><th style="width:35%">${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</tbody></table>`;
     const outcome = res.hits.length
-      ? `<div class="rpt-outcome hit"><strong>POSSIBLE MATCH${res.hits.length > 1 ? 'ES' : ''} FOUND</strong><span>${res.hits.length} LEIE record${res.hits.length > 1 ? 's' : ''} matched the search criteria. Verification required.</span></div>
+      ? `<div class="rpt-outcome hit"><strong>MATCH${res.hits.length > 1 ? 'ES' : ''} FOUND</strong><span>${res.hits.length} LEIE record${res.hits.length > 1 ? 's' : ''} matched the search criteria. Verification required.</span></div>
          <h2 class="rpt-h2">Matching LEIE records</h2>${hitsTable(res.hits.map((h) => ({ h })), false)}`
       : `<div class="rpt-outcome clear"><strong>NO RESULTS FOUND</strong><span>No records in the LEIE matched the search criteria above.</span></div>`;
     doPrint(reportShell('LEIE Exclusion Check', res, crit + outcome));
@@ -1364,17 +1326,17 @@ td.nowrap { white-space: nowrap; }
     const summary = `<h2 class="rpt-h2">Employee list</h2><table><tbody>
       <tr><th style="width:35%">File</th><td>${esc(res.fileName)}</td></tr>
       <tr><th>Employees screened</th><td>${fmtNum(c.screened)}</td></tr>
-      <tr><th>Name matches</th><td>${fmtNum(c.match)}</td></tr>
-      <tr><th>Possible matches</th><td>${fmtNum(c.possible)}</td></tr>
+      <tr><th>Matches</th><td>${fmtNum(c.match)}</td></tr>
       <tr><th>Name match, DOB differs</th><td>${fmtNum(c.differs)}</td></tr>
+      ${c.incomplete ? `<tr><th>Not checked (first name missing)</th><td>${fmtNum(c.incomplete)}</td></tr>` : ''}
       <tr><th>Clear (no results found)</th><td>${fmtNum(c.clear)}</td></tr></tbody></table>`;
     const flagged = res.results.filter((r) => r.top);
     const outcome = flagged.length
-      ? `<div class="rpt-outcome hit"><strong>POSSIBLE MATCHES FOUND</strong><span>${flagged.length} of ${fmtNum(c.screened)} employees matched one or more LEIE records. Verification required.</span></div>
+      ? `<div class="rpt-outcome hit"><strong>MATCHES FOUND</strong><span>${flagged.length} of ${fmtNum(c.screened)} employees matched one or more LEIE records. Verification required.</span></div>
          <h2 class="rpt-h2">Records needing review</h2>${hitsTable(flagged.flatMap((r) => r.hits.map((h) => ({ h, emp: C.displayName(r.query) + (r.query.id ? ` (ID ${r.query.id})` : '') }))), true)}`
-      : `<div class="rpt-outcome clear"><strong>NO RESULTS FOUND</strong><span>None of the ${fmtNum(c.screened)} employees screened matched a record in the LEIE.</span></div>`;
+      : `<div class="rpt-outcome clear"><strong>NO RESULTS FOUND</strong><span>None of the ${fmtNum(c.screened - c.incomplete)} employees checked matched a record in the LEIE.${c.incomplete ? ` ${c.incomplete} not checked (first name missing).` : ''}</span></div>`;
     const all = `<h2 class="rpt-h2">Employees screened</h2><table><thead><tr><th>#</th><th>Employee ID</th><th>Name</th><th>DOB</th><th>Result</th></tr></thead><tbody>
-      ${res.results.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.query.id)}</td><td>${esc(C.displayName(r.query))}</td><td>${esc(C.formatDate(r.query.dob) || r.query.dob)}</td><td>${r.top ? esc(C.LEVELS[r.top].label) : 'No results found'}</td></tr>`).join('')}</tbody></table>`;
+      ${res.results.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.query.id)}</td><td>${esc(C.displayName(r.query))}</td><td>${esc(C.formatDate(r.query.dob) || r.query.dob)}</td><td>${r.top ? esc(C.LEVELS[r.top].label) : r.incomplete ? 'Not checked – first name missing' : 'No results found'}</td></tr>`).join('')}</tbody></table>`;
     doPrint(reportShell('LEIE Employee Screening', res, summary + outcome + all));
   }
 
@@ -1400,7 +1362,7 @@ td.nowrap { white-space: nowrap; }
     show($('#history-table').parentElement, list.length > 0);
     $('#history-table').innerHTML = `<thead><tr><th>Date</th><th>Type</th><th>Searched</th><th>Result</th><th>Screened by</th><th>LEIE file</th></tr></thead>
       <tbody>${list.map((h) => `<tr><td class="nowrap">${esc(fmtDateTime(h.at))}</td><td>${esc(h.kind)}</td><td>${esc(h.subject)}</td>
-        <td><span class="badge ${h.flagged ? 'possible' : 'clear'}">${esc(h.outcome)}</span></td><td>${esc(h.by)}</td><td>${esc(h.file)}</td></tr>`).join('')}</tbody>`;
+        <td><span class="badge ${h.flagged ? 'warn' : 'clear'}">${esc(h.outcome)}</span></td><td>${esc(h.by)}</td><td>${esc(h.file)}</td></tr>`).join('')}</tbody>`;
   }
 
   $('#history-clear').addEventListener('click', () => {

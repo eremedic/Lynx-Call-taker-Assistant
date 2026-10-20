@@ -219,11 +219,11 @@
     let query, hits;
     if (mode === 'person') {
       query = { type: 'Individual', first: f.first.trim(), middle: f.middle.trim(), last: f.last.trim(), dob: f.dob, npi: f.npi.trim() };
-      if (!query.last && !C.normalizeNPI(query.npi)) return setError('#single-error', 'Enter at least a last name (first name recommended).');
+      if (!(C.compact(query.first) && C.compact(query.last)) && !C.normalizeNPI(query.npi)) return setError('#single-error', 'Enter both a first and last name (or an NPI).');
       hits = C.searchIndividual(state.index, query);
     } else {
       query = { type: 'Business / Entity', business: f.business.trim() };
-      if (!C.businessKey(query.business)) return setError('#single-error', 'Enter a business or entity name.');
+      if (!C.compact(query.business)) return setError('#single-error', 'Enter a business or entity name.');
       hits = C.searchBusiness(state.index, query.business);
     }
     const result = { query, hits, at: new Date().toISOString(), meta: state.meta };
@@ -231,7 +231,7 @@
     renderSingle(result);
     addHistory({
       at: result.at, kind: query.type, subject: C.displayName(query) || 'NPI ' + query.npi,
-      outcome: hits.length ? `${hits.length} possible match${hits.length > 1 ? 'es' : ''}` : 'No results found', flagged: hits.length > 0,
+      outcome: hits.length ? `${hits.length} match${hits.length > 1 ? 'es' : ''} found` : 'No results found', flagged: hits.length > 0,
     });
   });
 
@@ -249,7 +249,7 @@
     const name = C.displayName(res.query) || 'NPI ' + res.query.npi;
     const banner = res.hits.length
       ? `<div class="result-banner hit"><div class="icon">${ICON_ALERT}</div><div>
-          <h3>${res.hits.length} possible match${res.hits.length > 1 ? 'es' : ''} found</h3>
+          <h3>${res.hits.length} match${res.hits.length > 1 ? 'es' : ''} found</h3>
           <p>for <strong>${esc(name)}</strong>. Review each record below and verify through the OIG online search before taking action.</p></div>
           <div class="actions"><button class="btn btn-dark" data-print-single>${PRINT_BTN} Print results</button></div></div>`
       : `<div class="result-banner clear"><div class="icon">${ICON_OK}</div><div>
@@ -312,23 +312,25 @@
     renderRoster(res);
     addHistory({
       at: res.at, kind: 'Employee list', subject: `${fileName} (${fmtNum(results.length)} screened)`,
-      outcome: res.counts.flagged ? `${res.counts.flagged} with possible matches` : 'No results found', flagged: res.counts.flagged > 0,
+      outcome: res.counts.flagged ? `${res.counts.flagged} with matches` : 'No results found', flagged: res.counts.flagged > 0,
     });
   });
 
   function countRoster(results) {
-    const c = { screened: results.length, match: 0, possible: 0, differs: 0, clear: 0, flagged: 0 };
+    const c = { screened: results.length, match: 0, differs: 0, incomplete: 0, clear: 0, flagged: 0 };
     for (const r of results) {
-      if (!r.top) c.clear++;
-      else if (HIT_LEVELS.has(r.top)) c.match++;
-      else c[r.top]++;
+      if (r.top && HIT_LEVELS.has(r.top)) c.match++;
+      else if (r.top) c.differs++;
+      else if (r.incomplete) c.incomplete++;
+      else c.clear++;
     }
-    c.flagged = c.screened - c.clear;
+    c.flagged = c.match + c.differs;
     return c;
   }
 
   function statusBadge(r) {
-    if (!r.top) return '<span class="badge clear">Clear</span>';
+    if (!r.top && r.incomplete) return '<span class="badge warn">Not checked – first name missing</span>';
+    if (!r.top) return '<span class="badge clear">No results found</span>';
     return `<span class="badge ${r.top}">${esc(C.LEVELS[r.top].label)}</span>`;
   }
 
@@ -338,24 +340,24 @@
     const flagged = res.results.filter((r) => r.top);
     const banner = c.flagged
       ? `<div class="result-banner hit"><div class="icon">${ICON_ALERT}</div><div>
-          <h3>${c.flagged} employee${c.flagged > 1 ? 's' : ''} need review</h3>
-          <p>${fmtNum(c.screened)} screened against the LEIE. Verify each possible match through the OIG online search.</p></div>
+          <h3>${c.flagged} employee${c.flagged > 1 ? 's' : ''} matched the LEIE</h3>
+          <p>${fmtNum(c.screened)} screened against the LEIE. Verify each match through the OIG online search.</p></div>
           <div class="actions"><button class="btn btn-ghost" data-export>Export CSV</button><button class="btn btn-dark" data-print-roster>${PRINT_BTN} Print results</button></div></div>`
       : `<div class="result-banner clear"><div class="icon">${ICON_OK}</div><div>
           <h3>No results found</h3>
-          <p>None of the ${fmtNum(c.screened)} employees screened appear on the LEIE file loaded ${esc(fmtDateTime(res.meta.loadedAt))}.</p></div>
+          <p>None of the ${fmtNum(c.screened - c.incomplete)} employees checked appear on the LEIE file loaded ${esc(fmtDateTime(res.meta.loadedAt))}.${c.incomplete ? ` ${c.incomplete} row${c.incomplete > 1 ? 's were' : ' was'} not checked because the first name is missing.` : ''}</p></div>
           <div class="actions"><button class="btn btn-ghost" data-export>Export CSV</button><button class="btn btn-dark" data-print-roster>${PRINT_BTN} Print “No results found”</button></div></div>`;
     const tiles = `<div class="summary-tiles">
       <div class="tile"><b>${fmtNum(c.screened)}</b><span>Screened</span></div>
-      <div class="tile red"><b>${fmtNum(c.match)}</b><span>Name matches</span></div>
-      <div class="tile amber"><b>${fmtNum(c.possible)}</b><span>Possible</span></div>
-      <div class="tile"><b>${fmtNum(c.differs)}</b><span>DOB differs</span></div>
-      <div class="tile green"><b>${fmtNum(c.clear)}</b><span>Clear</span></div></div>`;
+      <div class="tile red"><b>${fmtNum(c.match)}</b><span>Matches</span></div>
+      <div class="tile"><b>${fmtNum(c.differs)}</b><span>Name match, DOB differs</span></div>
+      ${c.incomplete ? `<div class="tile amber"><b>${fmtNum(c.incomplete)}</b><span>Not checked</span></div>` : ''}
+      <div class="tile green"><b>${fmtNum(c.clear)}</b><span>No results found</span></div></div>`;
     const details = flagged.map((r) => `<div class="filter-row"><h3>${esc(C.displayName(r.query))}${r.query.id ? ` <span class="muted">· ID ${esc(r.query.id)}</span>` : ''}${r.query.dob ? ` <span class="muted">· DOB ${esc(C.formatDate(r.query.dob) || r.query.dob)}</span>` : ''}</h3></div>${r.hits.map(recordCard).join('')}`).join('');
     const table = `<div class="filter-row"><h3>All employees screened</h3>
-        <label class="check"><input type="checkbox" id="only-flagged"> Show only employees needing review</label></div>
+        <label class="check"><input type="checkbox" id="only-flagged"> Show only matches and rows not checked</label></div>
       <div class="table-wrap"><table class="data" id="roster-table"><thead><tr><th>Row</th><th>Employee ID</th><th>Name</th><th>DOB</th><th>NPI</th><th>Result</th><th>LEIE records</th></tr></thead>
-      <tbody>${res.results.map((r) => `<tr data-flagged="${r.top ? 1 : 0}"><td>${r.row + 2}</td><td>${esc(r.query.id)}</td><td>${esc(C.displayName(r.query))}</td>
+      <tbody>${res.results.map((r) => `<tr data-flagged="${r.top || r.incomplete ? 1 : 0}"><td>${r.row + 2}</td><td>${esc(r.query.id)}</td><td>${esc(C.displayName(r.query))}</td>
         <td class="nowrap">${esc(C.formatDate(r.query.dob) || r.query.dob)}</td><td>${esc(r.query.npi)}</td><td>${statusBadge(r)}</td><td>${r.hits.length || ''}</td></tr>`).join('')}</tbody></table></div>`;
     el.innerHTML = banner + tiles + (flagged.length ? '<div class="filter-row"><h3>Records needing review</h3></div>' + details : '') + table;
     show(el, true);
@@ -399,7 +401,7 @@
       </div>
       ${body}
       <p class="rpt-note">Source: U.S. Department of Health &amp; Human Services, Office of Inspector General, LEIE downloadable database. This search compares names (and date of birth / NPI when provided) to the LEIE file listed above.
-      A name match alone does not confirm that a person or entity is excluded; possible matches must be verified with the OIG online search at exclusions.oig.hhs.gov using SSN or EIN.
+      A name match alone does not confirm that a person or entity is excluded; matches must be verified with the OIG online search at exclusions.oig.hhs.gov using SSN or EIN.
       “No results found” means no record in the listed file matched the criteria on the report date.</p>
       <div class="rpt-sign"><div>Signature of person performing screening</div><div>Date</div></div>`;
   }
@@ -418,7 +420,7 @@
   function printSingle(res) {
     const crit = `<h2 class="rpt-h2">Search criteria</h2><table><tbody>${criteriaRows(res.query).map(([k, v]) => `<tr><th style="width:35%">${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</tbody></table>`;
     const outcome = res.hits.length
-      ? `<div class="rpt-outcome hit"><strong>POSSIBLE MATCH${res.hits.length > 1 ? 'ES' : ''} FOUND</strong><span>${res.hits.length} LEIE record${res.hits.length > 1 ? 's' : ''} matched the search criteria. Verification required.</span></div>
+      ? `<div class="rpt-outcome hit"><strong>MATCH${res.hits.length > 1 ? 'ES' : ''} FOUND</strong><span>${res.hits.length} LEIE record${res.hits.length > 1 ? 's' : ''} matched the search criteria. Verification required.</span></div>
          <h2 class="rpt-h2">Matching LEIE records</h2>${hitsTable(res.hits.map((h) => ({ h })), false)}`
       : `<div class="rpt-outcome clear"><strong>NO RESULTS FOUND</strong><span>No records in the LEIE matched the search criteria above.</span></div>`;
     doPrint(reportShell('LEIE Exclusion Check', res, crit + outcome));
@@ -429,17 +431,17 @@
     const summary = `<h2 class="rpt-h2">Employee list</h2><table><tbody>
       <tr><th style="width:35%">File</th><td>${esc(res.fileName)}</td></tr>
       <tr><th>Employees screened</th><td>${fmtNum(c.screened)}</td></tr>
-      <tr><th>Name matches</th><td>${fmtNum(c.match)}</td></tr>
-      <tr><th>Possible matches</th><td>${fmtNum(c.possible)}</td></tr>
+      <tr><th>Matches</th><td>${fmtNum(c.match)}</td></tr>
       <tr><th>Name match, DOB differs</th><td>${fmtNum(c.differs)}</td></tr>
+      ${c.incomplete ? `<tr><th>Not checked (first name missing)</th><td>${fmtNum(c.incomplete)}</td></tr>` : ''}
       <tr><th>Clear (no results found)</th><td>${fmtNum(c.clear)}</td></tr></tbody></table>`;
     const flagged = res.results.filter((r) => r.top);
     const outcome = flagged.length
-      ? `<div class="rpt-outcome hit"><strong>POSSIBLE MATCHES FOUND</strong><span>${flagged.length} of ${fmtNum(c.screened)} employees matched one or more LEIE records. Verification required.</span></div>
+      ? `<div class="rpt-outcome hit"><strong>MATCHES FOUND</strong><span>${flagged.length} of ${fmtNum(c.screened)} employees matched one or more LEIE records. Verification required.</span></div>
          <h2 class="rpt-h2">Records needing review</h2>${hitsTable(flagged.flatMap((r) => r.hits.map((h) => ({ h, emp: C.displayName(r.query) + (r.query.id ? ` (ID ${r.query.id})` : '') }))), true)}`
-      : `<div class="rpt-outcome clear"><strong>NO RESULTS FOUND</strong><span>None of the ${fmtNum(c.screened)} employees screened matched a record in the LEIE.</span></div>`;
+      : `<div class="rpt-outcome clear"><strong>NO RESULTS FOUND</strong><span>None of the ${fmtNum(c.screened - c.incomplete)} employees checked matched a record in the LEIE.${c.incomplete ? ` ${c.incomplete} not checked (first name missing).` : ''}</span></div>`;
     const all = `<h2 class="rpt-h2">Employees screened</h2><table><thead><tr><th>#</th><th>Employee ID</th><th>Name</th><th>DOB</th><th>Result</th></tr></thead><tbody>
-      ${res.results.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.query.id)}</td><td>${esc(C.displayName(r.query))}</td><td>${esc(C.formatDate(r.query.dob) || r.query.dob)}</td><td>${r.top ? esc(C.LEVELS[r.top].label) : 'No results found'}</td></tr>`).join('')}</tbody></table>`;
+      ${res.results.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.query.id)}</td><td>${esc(C.displayName(r.query))}</td><td>${esc(C.formatDate(r.query.dob) || r.query.dob)}</td><td>${r.top ? esc(C.LEVELS[r.top].label) : r.incomplete ? 'Not checked – first name missing' : 'No results found'}</td></tr>`).join('')}</tbody></table>`;
     doPrint(reportShell('LEIE Employee Screening', res, summary + outcome + all));
   }
 
@@ -465,7 +467,7 @@
     show($('#history-table').parentElement, list.length > 0);
     $('#history-table').innerHTML = `<thead><tr><th>Date</th><th>Type</th><th>Searched</th><th>Result</th><th>Screened by</th><th>LEIE file</th></tr></thead>
       <tbody>${list.map((h) => `<tr><td class="nowrap">${esc(fmtDateTime(h.at))}</td><td>${esc(h.kind)}</td><td>${esc(h.subject)}</td>
-        <td><span class="badge ${h.flagged ? 'possible' : 'clear'}">${esc(h.outcome)}</span></td><td>${esc(h.by)}</td><td>${esc(h.file)}</td></tr>`).join('')}</tbody>`;
+        <td><span class="badge ${h.flagged ? 'warn' : 'clear'}">${esc(h.outcome)}</span></td><td>${esc(h.by)}</td><td>${esc(h.file)}</td></tr>`).join('')}</tbody>`;
   }
 
   $('#history-clear').addEventListener('click', () => {
