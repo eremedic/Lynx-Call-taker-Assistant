@@ -79,7 +79,11 @@ Every search can be printed as a Lynx EMS report, either **"No results found"** 
 
 **Match levels:** *Strong match* (name plus DOB or NPI), *Name match* (first and last name), *Possible match* (first initial, shortened first name, part of a hyphenated last name, or a similar business name), and *Name match – DOB differs* (likely a different person). A name match is not proof of exclusion; verify it through the OIG online search with SSN/EIN.
 
-Open it at `/leie/` on the deployed site or local server, or open `public/leie/index.html` directly from disk.
+**Ways to open it**
+- **Single file (easiest):** save `public/leie/lynx-leie-screening.html` to the computer and double-click it. It opens in the default browser (Chrome, Edge, Firefox or Safari) with no server or internet connection needed. The LEIE file you load is remembered by that browser for that file.
+- **Hosted:** once this branch is merged and deployed, visit `/leie/` on the Netlify site (for example `https://<your-site>.netlify.app/leie/`).
+
+The single file is generated from the files in `public/leie/`. After changing them, run `npm run build:leie` and commit the result (a test checks that it is up to date).
 
 ## Try it in your browser (GitHub Codespaces)
 
@@ -243,7 +247,9 @@ public/
   pcs.html, js/pcs.js         printable PCS form (css/pcs.css)
   admin.html, js/admin.js     admin dashboard
   css/app.css                 shared styles
-  leie/                       Lynx EMS LEIE exclusion screening (browser-only; leie-core.js is the matching engine)
+  leie/                       Lynx EMS LEIE exclusion screening (browser-only; leie-core.js is the matching engine;
+                              lynx-leie-screening.html is the generated single-file copy)
+scripts/build-leie-standalone.js  builds that single file (npm run build:leie)
 test/                 engine and API tests (node:test)
 ```
 

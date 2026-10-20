@@ -1,7 +1,7 @@
 {
   "name": "ambuintake",
   "version": "1.0.0",
-  "description": "AmbuIntake — AI call-taker assistant for ambulance transport medical necessity (CMS), with an admin question-bank dashboard",
+  "description": "AmbuIntake \u2014 AI call-taker assistant for ambulance transport medical necessity (CMS), with an admin question-bank dashboard",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
@@ -9,7 +9,8 @@
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "db:setup": "node server/setup-db.js",
     "reset-password": "node server/reset-password.js",
-    "db:export-sql": "node server/export-sql.js"
+    "db:export-sql": "node server/export-sql.js",
+    "build:leie": "node scripts/build-leie-standalone.js"
   },
   "repository": {
     "type": "git",

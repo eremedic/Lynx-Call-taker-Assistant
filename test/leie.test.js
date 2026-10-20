@@ -86,3 +86,11 @@ test('screens an employee roster with detected columns', () => {
   assert.equal(results[0].top, 'strong');
   assert.equal(results[1].top, null);
 });
+
+test('the standalone LEIE page is up to date with its source files', async () => {
+  const fs = await import('node:fs');
+  const { buildStandalone, OUTPUT } = await import('../scripts/build-leie-standalone.js');
+  const html = buildStandalone();
+  assert.ok(!/(src|href)="(?!data:|https?:)[^"#]+"/.test(html), 'every asset is inlined');
+  assert.equal(fs.readFileSync(OUTPUT, 'utf8'), html, 'run `npm run build:leie` and commit the result');
+});
