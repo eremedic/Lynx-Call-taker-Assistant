@@ -9,7 +9,6 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const HISTORY_KEY = 'lynx-leie-history';
   const SCREENER_KEY = 'lynx-leie-screener';
-  const HIT_LEVELS = new Set(['strong', 'name']);
 
   const state = { index: null, meta: null, roster: null, rosterResults: null, lastSingle: null };
 
@@ -317,14 +316,13 @@
   });
 
   function countRoster(results) {
-    const c = { screened: results.length, match: 0, differs: 0, incomplete: 0, clear: 0, flagged: 0 };
+    const c = { screened: results.length, match: 0, incomplete: 0, clear: 0, flagged: 0 };
     for (const r of results) {
-      if (r.top && HIT_LEVELS.has(r.top)) c.match++;
-      else if (r.top) c.differs++;
+      if (r.top) c.match++;
       else if (r.incomplete) c.incomplete++;
       else c.clear++;
     }
-    c.flagged = c.match + c.differs;
+    c.flagged = c.match;
     return c;
   }
 
@@ -350,7 +348,6 @@
     const tiles = `<div class="summary-tiles">
       <div class="tile"><b>${fmtNum(c.screened)}</b><span>Screened</span></div>
       <div class="tile red"><b>${fmtNum(c.match)}</b><span>Matches</span></div>
-      <div class="tile"><b>${fmtNum(c.differs)}</b><span>Name match, DOB differs</span></div>
       ${c.incomplete ? `<div class="tile amber"><b>${fmtNum(c.incomplete)}</b><span>Not checked</span></div>` : ''}
       <div class="tile green"><b>${fmtNum(c.clear)}</b><span>No results found</span></div></div>`;
     const details = flagged.map((r) => `<div class="filter-row"><h3>${esc(C.displayName(r.query))}${r.query.id ? ` <span class="muted">· ID ${esc(r.query.id)}</span>` : ''}${r.query.dob ? ` <span class="muted">· DOB ${esc(C.formatDate(r.query.dob) || r.query.dob)}</span>` : ''}</h3></div>${r.hits.map(recordCard).join('')}`).join('');
@@ -432,7 +429,6 @@
       <tr><th style="width:35%">File</th><td>${esc(res.fileName)}</td></tr>
       <tr><th>Employees screened</th><td>${fmtNum(c.screened)}</td></tr>
       <tr><th>Matches</th><td>${fmtNum(c.match)}</td></tr>
-      <tr><th>Name match, DOB differs</th><td>${fmtNum(c.differs)}</td></tr>
       ${c.incomplete ? `<tr><th>Not checked (first name missing)</th><td>${fmtNum(c.incomplete)}</td></tr>` : ''}
       <tr><th>Clear (no results found)</th><td>${fmtNum(c.clear)}</td></tr></tbody></table>`;
     const flagged = res.results.filter((r) => r.top);

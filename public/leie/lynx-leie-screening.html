@@ -663,12 +663,14 @@ td.nowrap { white-space: nowrap; }
   // Only exact matches are reported: a name either appears in the LEIE as
   // written or it doesn't. Comparison ignores capitalization, spacing, and
   // punctuation only ("O'Brien" = "OBRIEN"); nothing is matched on part of a
-  // name, an initial, or a similar spelling.
+  // name, an initial, or a similar spelling. When a date of birth is entered
+  // and the LEIE record has one, they must be the same or the record is not
+  // a match.
   const LEVELS = {
-    strong: { rank: 3, label: 'Match – name and DOB/NPI' },
-    name: { rank: 2, label: 'Match – name' },
-    differs: { rank: 1, label: 'Name match – DOB differs' },
+    strong: { rank: 2, label: 'Match – name and DOB/NPI' },
+    name: { rank: 1, label: 'Match – name' },
   };
+  const dobConflicts = (qDob, r) => { const rDob = normalizeDate(r[8]); return !!(qDob && rDob && qDob !== rDob); };
 
   // query: { first, middle, last, dob, npi }. Needs first and last name, or an NPI.
   function searchIndividual(index, query) {
@@ -681,20 +683,17 @@ td.nowrap { white-space: nowrap; }
     if (qLast && qFirst) {
       for (const i of index.byLast.get(qLast) || []) {
         const r = index.records[i];
-        if (compact(r[1]) !== qFirst) continue;
+        if (compact(r[1]) !== qFirst || dobConflicts(qDob, r)) continue;
         let level = 'name';
         const why = ['first name', 'last name'];
-        const rDob = normalizeDate(r[8]);
-        if (qDob && rDob) {
-          if (qDob === rDob) { level = 'strong'; why.push('date of birth'); } else level = 'differs';
-        }
+        if (qDob && normalizeDate(r[8])) { level = 'strong'; why.push('date of birth'); }
         const rNpi = normalizeNPI(r[7]);
         if (qNpi && rNpi && qNpi === rNpi) { level = 'strong'; why.push('NPI'); }
         hits.set(i, { index: i, level, why });
       }
     }
     if (qNpi) {
-      for (const i of index.byNpi.get(qNpi) || []) if (!hits.has(i)) hits.set(i, { index: i, level: 'strong', why: ['NPI'] });
+      for (const i of index.byNpi.get(qNpi) || []) if (!hits.has(i) && !dobConflicts(qDob, index.records[i])) hits.set(i, { index: i, level: 'strong', why: ['NPI'] });
     }
     return sortHits(index, [...hits.values()]);
   }
@@ -904,7 +903,6 @@ td.nowrap { white-space: nowrap; }
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const HISTORY_KEY = 'lynx-leie-history';
   const SCREENER_KEY = 'lynx-leie-screener';
-  const HIT_LEVELS = new Set(['strong', 'name']);
 
   const state = { index: null, meta: null, roster: null, rosterResults: null, lastSingle: null };
 
@@ -1212,14 +1210,13 @@ td.nowrap { white-space: nowrap; }
   });
 
   function countRoster(results) {
-    const c = { screened: results.length, match: 0, differs: 0, incomplete: 0, clear: 0, flagged: 0 };
+    const c = { screened: results.length, match: 0, incomplete: 0, clear: 0, flagged: 0 };
     for (const r of results) {
-      if (r.top && HIT_LEVELS.has(r.top)) c.match++;
-      else if (r.top) c.differs++;
+      if (r.top) c.match++;
       else if (r.incomplete) c.incomplete++;
       else c.clear++;
     }
-    c.flagged = c.match + c.differs;
+    c.flagged = c.match;
     return c;
   }
 
@@ -1245,7 +1242,6 @@ td.nowrap { white-space: nowrap; }
     const tiles = `<div class="summary-tiles">
       <div class="tile"><b>${fmtNum(c.screened)}</b><span>Screened</span></div>
       <div class="tile red"><b>${fmtNum(c.match)}</b><span>Matches</span></div>
-      <div class="tile"><b>${fmtNum(c.differs)}</b><span>Name match, DOB differs</span></div>
       ${c.incomplete ? `<div class="tile amber"><b>${fmtNum(c.incomplete)}</b><span>Not checked</span></div>` : ''}
       <div class="tile green"><b>${fmtNum(c.clear)}</b><span>No results found</span></div></div>`;
     const details = flagged.map((r) => `<div class="filter-row"><h3>${esc(C.displayName(r.query))}${r.query.id ? ` <span class="muted">· ID ${esc(r.query.id)}</span>` : ''}${r.query.dob ? ` <span class="muted">· DOB ${esc(C.formatDate(r.query.dob) || r.query.dob)}</span>` : ''}</h3></div>${r.hits.map(recordCard).join('')}`).join('');
@@ -1327,7 +1323,6 @@ td.nowrap { white-space: nowrap; }
       <tr><th style="width:35%">File</th><td>${esc(res.fileName)}</td></tr>
       <tr><th>Employees screened</th><td>${fmtNum(c.screened)}</td></tr>
       <tr><th>Matches</th><td>${fmtNum(c.match)}</td></tr>
-      <tr><th>Name match, DOB differs</th><td>${fmtNum(c.differs)}</td></tr>
       ${c.incomplete ? `<tr><th>Not checked (first name missing)</th><td>${fmtNum(c.incomplete)}</td></tr>` : ''}
       <tr><th>Clear (no results found)</th><td>${fmtNum(c.clear)}</td></tr></tbody></table>`;
     const flagged = res.results.filter((r) => r.top);

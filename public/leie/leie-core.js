@@ -215,12 +215,14 @@
   // Only exact matches are reported: a name either appears in the LEIE as
   // written or it doesn't. Comparison ignores capitalization, spacing, and
   // punctuation only ("O'Brien" = "OBRIEN"); nothing is matched on part of a
-  // name, an initial, or a similar spelling.
+  // name, an initial, or a similar spelling. When a date of birth is entered
+  // and the LEIE record has one, they must be the same or the record is not
+  // a match.
   const LEVELS = {
-    strong: { rank: 3, label: 'Match – name and DOB/NPI' },
-    name: { rank: 2, label: 'Match – name' },
-    differs: { rank: 1, label: 'Name match – DOB differs' },
+    strong: { rank: 2, label: 'Match – name and DOB/NPI' },
+    name: { rank: 1, label: 'Match – name' },
   };
+  const dobConflicts = (qDob, r) => { const rDob = normalizeDate(r[8]); return !!(qDob && rDob && qDob !== rDob); };
 
   // query: { first, middle, last, dob, npi }. Needs first and last name, or an NPI.
   function searchIndividual(index, query) {
@@ -233,20 +235,17 @@
     if (qLast && qFirst) {
       for (const i of index.byLast.get(qLast) || []) {
         const r = index.records[i];
-        if (compact(r[1]) !== qFirst) continue;
+        if (compact(r[1]) !== qFirst || dobConflicts(qDob, r)) continue;
         let level = 'name';
         const why = ['first name', 'last name'];
-        const rDob = normalizeDate(r[8]);
-        if (qDob && rDob) {
-          if (qDob === rDob) { level = 'strong'; why.push('date of birth'); } else level = 'differs';
-        }
+        if (qDob && normalizeDate(r[8])) { level = 'strong'; why.push('date of birth'); }
         const rNpi = normalizeNPI(r[7]);
         if (qNpi && rNpi && qNpi === rNpi) { level = 'strong'; why.push('NPI'); }
         hits.set(i, { index: i, level, why });
       }
     }
     if (qNpi) {
-      for (const i of index.byNpi.get(qNpi) || []) if (!hits.has(i)) hits.set(i, { index: i, level: 'strong', why: ['NPI'] });
+      for (const i of index.byNpi.get(qNpi) || []) if (!hits.has(i) && !dobConflicts(qDob, index.records[i])) hits.set(i, { index: i, level: 'strong', why: ['NPI'] });
     }
     return sortHits(index, [...hits.values()]);
   }

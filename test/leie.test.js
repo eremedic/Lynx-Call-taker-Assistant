@@ -45,9 +45,10 @@ test('partial names are never reported', () => {
   assert.equal(C.searchBusiness(index, 'Acme Ambulance Service LLC').length, 0, 'different legal suffix');
 });
 
-test('date of birth confirms or contradicts a name match', () => {
+test('date of birth confirms a match, and a different one rules it out', () => {
   assert.equal(C.searchIndividual(index, { first: 'John', last: 'Smith', dob: '1980-01-15' })[0].level, 'strong');
-  assert.equal(C.searchIndividual(index, { first: 'John', last: 'Smith', dob: '01/15/1999' })[0].level, 'differs');
+  assert.equal(C.searchIndividual(index, { first: 'John', last: 'Smith', dob: '01/15/1999' }).length, 0, 'a different DOB is not a match');
+  assert.equal(C.searchIndividual(index, { first: 'Mary', last: "O'Brien", dob: '01/15/1999' }).length, 1, 'no DOB on the LEIE record to compare');
 });
 
 test('NPI alone finds a record', () => {
