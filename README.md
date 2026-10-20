@@ -67,6 +67,20 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 - **Audit Log:** search, filter, and export the audit trail.
 - **Settings:** organization name and AI on/off and auto-analyze toggles.
 
+## Lynx EMS LEIE exclusion screening (`/leie/`)
+
+A separate, Lynx-branded page for checking people and businesses against the OIG **List of Excluded Individuals/Entities (LEIE)**. It needs no sign-in, server, or database: everything runs in the browser, and nothing is uploaded.
+
+1. **LEIE Database.** Download the full LEIE file (`UPDATED.csv`) from [oig.hhs.gov/exclusions](https://oig.hhs.gov/exclusions/exclusions_list.asp) and drop it on the page (CSV or .xlsx). It is saved in the browser's IndexedDB on that computer, so it only needs reloading when the OIG publishes a new month (the page warns after 35 days).
+2. **Individual / Business Check.** Enter a first and last name (date of birth and NPI optional) or a business name.
+3. **Employee List Screening.** Drop a CSV or .xlsx roster. Columns (first/last, a single full-name column, DOB, NPI, employee ID, business name) are detected automatically and can be changed before screening. Results can be exported to CSV.
+
+Every search can be printed as a Lynx EMS report, either **"No results found"** or the matching LEIE records, with the LEIE file used, the date, who screened, and a signature line. A search history is kept in the browser's local storage.
+
+**Match levels:** *Strong match* (name plus DOB or NPI), *Name match* (first and last name), *Possible match* (first initial, shortened first name, part of a hyphenated last name, or a similar business name), and *Name match – DOB differs* (likely a different person). A name match is not proof of exclusion; verify it through the OIG online search with SSN/EIN.
+
+Open it at `/leie/` on the deployed site or local server, or open `public/leie/index.html` directly from disk.
+
 ## Try it in your browser (GitHub Codespaces)
 
 1. Click **[Open in GitHub Codespaces](https://codespaces.new/eremedic/Lynx-Call-taker-Assistant?quickstart=1)** and then **Create codespace**.
@@ -229,6 +243,7 @@ public/
   pcs.html, js/pcs.js         printable PCS form (css/pcs.css)
   admin.html, js/admin.js     admin dashboard
   css/app.css                 shared styles
+  leie/                       Lynx EMS LEIE exclusion screening (browser-only; leie-core.js is the matching engine)
 test/                 engine and API tests (node:test)
 ```
 

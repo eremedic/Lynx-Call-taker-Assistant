@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lynx EMS · LEIE Exclusion Screening</title>
+  <meta name="description" content="Screen employees and vendors against the OIG List of Excluded Individuals/Entities. All data stays on this computer.">
+  <link rel="icon" href="lynx-ems-logo.png" type="image/png">
+  <link rel="stylesheet" href="leie.css">
+</head>
+<body>
+  <div id="app">
+    <header class="masthead">
+      <div class="masthead-inner">
+        <img class="logo" src="lynx-ems-logo.png" alt="Lynx EMS">
+        <div class="masthead-title">
+          <h1>Exclusion Screening</h1>
+          <p>OIG List of Excluded Individuals/Entities (LEIE)</p>
+        </div>
+        <div class="db-pill" id="db-pill" data-state="empty">
+          <span class="dot"></span><span id="db-pill-text">No LEIE file loaded</span>
+        </div>
+      </div>
+      <div class="ekg" aria-hidden="true"></div>
+    </header>
+
+    <div class="privacy">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Z"/></svg>
+      <span><strong>Private by design.</strong> Files you open here are read in this browser only. Nothing is uploaded or sent anywhere — the LEIE database and search history are stored on this computer.</span>
+    </div>
+
+    <nav class="tabs" role="tablist">
+      <button role="tab" class="tab" data-tab="database" aria-selected="true"><span class="num">1</span> LEIE Database</button>
+      <button role="tab" class="tab" data-tab="single" aria-selected="false"><span class="num">2</span> Individual / Business Check</button>
+      <button role="tab" class="tab" data-tab="roster" aria-selected="false"><span class="num">3</span> Employee List Screening</button>
+      <button role="tab" class="tab" data-tab="history" aria-selected="false"><span class="num"><svg viewBox="0 0 24 24"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg></span> History</button>
+    </nav>
+
+    <main>
+      <!-- ============================================== 1. DATABASE -->
+      <section class="panel" data-panel="database">
+        <div class="panel-head">
+          <h2>Load the most recent LEIE spreadsheet</h2>
+          <p>The OIG updates the LEIE monthly. Download the full database file (<code>UPDATED.csv</code>) from
+            <a href="https://oig.hhs.gov/exclusions/exclusions_list.asp" target="_blank" rel="noopener">oig.hhs.gov/exclusions</a>
+            and open it here. CSV and Excel (.xlsx) are supported.</p>
+        </div>
+
+        <label class="dropzone" id="leie-drop">
+          <input type="file" id="leie-file" accept=".csv,.xlsx,text/csv">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          <strong>Drop the LEIE file here or click to choose</strong>
+          <span>UPDATED.csv · LEIE .xlsx</span>
+        </label>
+        <div class="progress" id="leie-progress" hidden><div class="bar"></div><span id="leie-progress-text">Reading…</span></div>
+        <div class="alert alert-error" id="leie-error" hidden></div>
+
+        <div class="db-card" id="db-card" hidden>
+          <div class="db-card-head">
+            <h3>Database loaded</h3>
+            <button class="btn btn-ghost btn-sm" id="leie-clear" type="button">Remove from this computer</button>
+          </div>
+          <dl class="stats">
+            <div><dt>File</dt><dd id="db-file"></dd></div>
+            <div><dt>Loaded</dt><dd id="db-loaded"></dd></div>
+            <div><dt>Most recent exclusion in file</dt><dd id="db-latest"></dd></div>
+            <div><dt>Total records</dt><dd id="db-total"></dd></div>
+            <div><dt>Individuals</dt><dd id="db-ind"></dd></div>
+            <div><dt>Entities</dt><dd id="db-ent"></dd></div>
+          </dl>
+          <div class="alert alert-warn" id="db-stale" hidden></div>
+        </div>
+      </section>
+
+      <!-- ============================================== 2. SINGLE CHECK -->
+      <section class="panel" data-panel="single" hidden>
+        <div class="panel-head">
+          <h2>Check an individual or business</h2>
+          <p>Enter a first and last name, or a business name. Date of birth and NPI are optional but help confirm a match.</p>
+        </div>
+
+        <div class="seg" role="radiogroup" aria-label="Search type">
+          <button type="button" class="seg-btn" data-mode="person" aria-pressed="true">Individual</button>
+          <button type="button" class="seg-btn" data-mode="business" aria-pressed="false">Business / Entity</button>
+        </div>
+
+        <form id="single-form" class="form" autocomplete="off">
+          <div class="grid person-fields">
+            <label>First name <input name="first" id="q-first"></label>
+            <label>Middle <span class="opt">optional</span><input name="middle"></label>
+            <label>Last name <span class="req">required</span><input name="last" id="q-last"></label>
+            <label>Date of birth <span class="opt">optional</span><input name="dob" type="date"></label>
+            <label>NPI <span class="opt">optional</span><input name="npi" inputmode="numeric" maxlength="10"></label>
+          </div>
+          <div class="grid business-fields" hidden>
+            <label class="wide">Business / entity name <span class="req">required</span><input name="business" id="q-business"></label>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Search LEIE</button>
+            <button class="btn btn-ghost" type="reset">Clear</button>
+          </div>
+        </form>
+        <div class="alert alert-error" id="single-error" hidden></div>
+
+        <div id="single-results" class="results" hidden></div>
+      </section>
+
+      <!-- ============================================== 3. ROSTER -->
+      <section class="panel" data-panel="roster" hidden>
+        <div class="panel-head">
+          <h2>Screen an employee list</h2>
+          <p>Open a CSV or Excel (.xlsx) file with one employee per row. Include a header row with columns such as
+            <em>First Name</em>, <em>Last Name</em> (or a single <em>Name</em> column), and optionally <em>DOB</em>, <em>NPI</em>, <em>Employee ID</em>, or <em>Business Name</em> for vendors.
+            <a href="#" id="template-link">Download a template</a>.</p>
+        </div>
+
+        <label class="dropzone" id="roster-drop">
+          <input type="file" id="roster-file" accept=".csv,.xlsx,text/csv">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm11 10v-2a4 4 0 0 0-3-3.9M16 2.1a4 4 0 0 1 0 7.8"/></svg>
+          <strong>Drop the employee list here or click to choose</strong>
+          <span>.csv · .xlsx</span>
+        </label>
+        <div class="alert alert-error" id="roster-error" hidden></div>
+
+        <div id="roster-setup" class="card" hidden>
+          <div class="card-head">
+            <h3>Confirm columns</h3>
+            <span class="muted" id="roster-meta"></span>
+          </div>
+          <div class="mapping" id="roster-mapping"></div>
+          <div class="table-wrap preview"><table id="roster-preview"></table></div>
+          <div class="form-actions">
+            <button class="btn btn-primary" id="roster-run" type="button">Screen employees</button>
+          </div>
+        </div>
+
+        <div id="roster-results" class="results" hidden></div>
+      </section>
+
+      <!-- ============================================== HISTORY -->
+      <section class="panel" data-panel="history" hidden>
+        <div class="panel-head row">
+          <div>
+            <h2>Search history</h2>
+            <p>A log of searches run on this computer (kept in this browser only).</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="history-clear" type="button">Clear history</button>
+        </div>
+        <div class="table-wrap"><table class="data" id="history-table"></table></div>
+        <p class="empty" id="history-empty">No searches yet.</p>
+      </section>
+
+      <div class="screener">
+        <label>Screened by <input id="screener" placeholder="Your name (printed on reports)"></label>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <p>Source: U.S. Department of Health &amp; Human Services, Office of Inspector General — List of Excluded Individuals/Entities.
+        A name match alone does not confirm an exclusion. Verify any possible match with the OIG online search
+        (<a href="https://exclusions.oig.hhs.gov/" target="_blank" rel="noopener">exclusions.oig.hhs.gov</a>) using SSN or EIN before taking action.</p>
+      <p>&copy; <span id="year"></span> Lynx EMS · Internal compliance tool</p>
+    </footer>
+  </div>
+
+  <!-- Printable report; filled in just before printing. -->
+  <div id="report" aria-hidden="true"></div>
+
+  <script src="leie-core.js"></script>
+  <script src="leie-xlsx.js"></script>
+  <script src="leie-app.js"></script>
+</body>
+</html>
