@@ -91,6 +91,10 @@
         const cur = new Date().getFullYear() % 100;
         y = String(yy > cur ? 1900 + yy : 2000 + yy);
       }
+    } else if ((mt = s.match(/^([A-Za-z]{3,9})\.? (\d{1,2}),? (\d{4})$/)) && monthNumber(mt[1])) {
+      m = monthNumber(mt[1]); d = mt[2]; y = mt[3];
+    } else if ((mt = s.match(/^(\d{1,2})[ -]([A-Za-z]{3,9})\.?[\s,-]+(\d{4})$/)) && monthNumber(mt[2])) {
+      d = mt[1]; m = monthNumber(mt[2]); y = mt[3];
     } else if (/^\d{4,5}(\.\d+)?$/.test(s)) {
       const serial = Math.floor(Number(s));
       if (serial < 600 || serial > 80000) return '';
@@ -100,6 +104,12 @@
     m = Number(m); d = Number(d); y = Number(y);
     if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1800) return '';
     return y + String(m).padStart(2, '0') + String(d).padStart(2, '0');
+  }
+
+  const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  function monthNumber(name) {
+    const i = MONTHS.indexOf(String(name).slice(0, 3).toUpperCase());
+    return i < 0 ? 0 : i + 1;
   }
 
   function formatDate(yyyymmdd) {
@@ -428,10 +438,118 @@
     return rec.BUSNAME;
   }
 
+  // ------------------------------------------------------------ PDF text
+  // leie-pdf.js turns each PDF page into lines of positioned text:
+  // [{ page, y, items: [{ x, w, h, str }] }], top to bottom, left to right.
+
+  // Joins words that sit close together into cells; a wider gap starts a new cell.
+  function splitCells(items) {
+    const cells = [];
+    let cur = null;
+    for (const it of items) {
+      if (!String(it.str).trim()) continue;
+      const gap = cur ? it.x - (cur.x + cur.w) : Infinity;
+      if (cur && gap <= Math.max(4, (it.h || 10) * 0.9)) {
+        cur.str += (gap > 0.5 && !/\s$/.test(cur.str) ? ' ' : '') + it.str;
+        cur.w = Math.max(cur.w, it.x + it.w - cur.x);
+      } else {
+        cur = { x: it.x, w: it.w, str: it.str };
+        cells.push(cur);
+      }
+    }
+    return cells.map((c) => ({ ...c, str: c.str.replace(/\s+/g, ' ').trim() }));
+  }
+
+  function looksLikeHeader(strings) {
+    if (strings.length < 2) return false;
+    const roster = detectColumns(strings);
+    const list = detectListColumns(strings);
+    return (roster.last >= 0 && roster.first >= 0) || roster.full >= 0 || list.last >= 0 || list.full >= 0 || list.business >= 0;
+  }
+
+  // Rebuilds a table from PDF lines. When a header row is found, every word
+  // below it is placed in the column whose header starts at or left of it, so
+  // columns stay aligned even when a cell is blank. Title lines above the
+  // header and repeated headers on later pages are dropped.
+  function pdfLinesToTable(lines) {
+    const rows = lines.map((l) => splitCells(l.items));
+    const headerAt = rows.findIndex((cells) => looksLikeHeader(cells.map((c) => c.str)));
+    if (headerAt < 0) return { table: rows.map((cells) => cells.map((c) => c.str)).filter((r) => r.length), header: false };
+    const anchors = rows[headerAt].map((c) => c.x);
+    const header = rows[headerAt].map((c) => c.str);
+    const key = header.join('|').toUpperCase();
+    const table = [header];
+    for (let r = headerAt + 1; r < lines.length; r++) {
+      const out = new Array(anchors.length).fill('');
+      for (const it of lines[r].items) {
+        if (!String(it.str).trim()) continue;
+        let col = 0;
+        anchors.forEach((ax, i) => { if (ax - 6 <= it.x) col = i; });
+        out[col] = out[col] ? out[col] + ' ' + it.str.trim() : it.str.trim();
+      }
+      const clean = out.map((v) => v.replace(/\s+/g, ' ').trim());
+      if (clean.join('|').toUpperCase() === key) continue;
+      if (clean.some(Boolean)) table.push(clean);
+    }
+    return { table, header: true };
+  }
+
+  const LABELS = {
+    first: /^(first\s*name|given\s*name|fname)\b/i,
+    middle: /^(middle(\s*(name|initial))?|m\.?\s?i\.?)(?![a-z])/i,
+    last: /^(last\s*name|surname|family\s*name|lname)\b/i,
+    dob: /^(d\.?\s?o\.?\s?b\.?|date\s*of\s*birth|birth\s*date|birthdate)(?![a-z])/i,
+    full: /^((employee|applicant|patient|full|legal|provider|candidate|staff|member)('?s)?\s+)?name(?![a-z])/i,
+  };
+  const DATE_RE = /(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{1,2}-\d{1,2}|[A-Za-z]{3,9}\.? \d{1,2},? \d{4}|\d{1,2}[ -][A-Za-z]{3,9}\.?[\s,-]+\d{4})/;
+
+  // Reads a form-style document ("First Name: Jane", "DOB 01/02/1980", or a
+  // label with its value on the next line) and returns { first, middle, last,
+  // dob } or null when no name is found.
+  function extractPersonFromLines(lines) {
+    const rows = lines.map((l) => splitCells(l.items));
+    const found = {};
+    const valueFor = (r, c, rest) => {
+      if (rest) return rest;
+      const right = rows[r][c + 1];
+      if (right && !Object.values(LABELS).some((re) => re.test(right.str))) return right.str;
+      const below = rows[r + 1];
+      if (!below) return '';
+      const x = rows[r][c].x;
+      const near = below.reduce((best, cell) => (!best || Math.abs(cell.x - x) < Math.abs(best.x - x) ? cell : best), null);
+      return near && Math.abs(near.x - x) < 80 && !Object.values(LABELS).some((re) => re.test(near.str)) ? near.str : '';
+    };
+    rows.forEach((cells, r) => cells.forEach((cell, c) => {
+      for (const field of ['first', 'middle', 'last', 'dob', 'full']) {
+        if (found[field]) continue;
+        const m = cell.str.match(LABELS[field]);
+        if (!m) continue;
+        if (field === 'full' && (LABELS.first.test(cell.str) || LABELS.last.test(cell.str) || /^(business|company|facility|user|file)/i.test(cell.str))) continue;
+        let rest = cell.str.slice(m[0].length).replace(/^\s*[:#-]?\s*/, '');
+        // "Name: Jane Doe DOB: 01/02/1980" in one cell: stop at the next label.
+        rest = rest.split(/\s+(?=(first\s*name|last\s*name|middle|d\.?o\.?b|date\s*of\s*birth|birth\s*date)\b)/i)[0].trim();
+        let value = valueFor(r, c, rest);
+        if (field === 'dob') { const dm = value.match(DATE_RE) || cell.str.match(DATE_RE); value = dm ? dm[1] : ''; }
+        if (value) found[field] = value.trim();
+        break;
+      }
+    }));
+    if (!found.dob) {
+      // A date of birth inside a longer cell: "Name: Jane Doe DOB 01/02/1980".
+      const all = rows.map((cells) => cells.map((c) => c.str).join('  ')).join('\n');
+      const m = all.match(new RegExp('(?:d\\.?\\s?o\\.?\\s?b\\.?|date\\s*of\\s*birth|birth\\s*date)\\s*[:#-]?\\s*' + DATE_RE.source, 'i'));
+      if (m) found.dob = m[1];
+    }
+    let { first = '', middle = '', last = '' } = found;
+    if ((!first || !last) && found.full) ({ first, middle, last } = splitFullName(found.full));
+    if (!first || !last) return null;
+    return { first, middle, last, dob: found.dob || '' };
+  }
+
   const api = {
     parseCSV, toCSV, clean, compact, splitFullName, normalizeDate, formatDate, normalizeNPI,
     describeExclusion, LEIE_COLUMNS, buildRecords, findLeieHeader, findListHeader, detectListColumns, buildListRecords, LIST_FIELDS, summarize, buildIndex, searchIndividual, searchBusiness,
-    detectColumns, rowToQuery, screenRoster, displayName, recordName, LEVELS,
+    detectColumns, rowToQuery, screenRoster, splitCells, pdfLinesToTable, extractPersonFromLines, displayName, recordName, LEVELS,
   };
   root.LeieCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

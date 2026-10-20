@@ -50,10 +50,10 @@
         </div>
 
         <label class="dropzone" id="leie-drop">
-          <input type="file" id="leie-file" accept=".csv,.xlsx,text/csv" multiple>
+          <input type="file" id="leie-file" accept=".csv,.xlsx,.pdf,text/csv,application/pdf" multiple>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
           <strong>Drop one or more exclusion list files here or click to choose</strong>
-          <span>OIG LEIE · state Medicaid exclusion lists · .csv or .xlsx</span>
+          <span>OIG LEIE · state Medicaid exclusion lists · .csv, .xlsx, or .pdf</span>
         </label>
         <div class="progress" id="leie-progress" hidden><div class="bar"></div><span id="leie-progress-text">Reading…</span></div>
         <div class="alert alert-error" id="leie-error" hidden></div>
@@ -95,10 +95,18 @@
           <p>Enter a first and last name, or a business name, exactly as written. Only exact matches are reported (capitalization, spaces, and punctuation are ignored). Date of birth and NPI are optional and confirm a match.</p>
         </div>
 
-        <div class="seg" role="radiogroup" aria-label="Search type">
-          <button type="button" class="seg-btn" data-mode="person" aria-pressed="true">Individual</button>
-          <button type="button" class="seg-btn" data-mode="business" aria-pressed="false">Business / Entity</button>
+        <div class="single-tools">
+          <div class="seg" role="radiogroup" aria-label="Search type">
+            <button type="button" class="seg-btn" data-mode="person" aria-pressed="true">Individual</button>
+            <button type="button" class="seg-btn" data-mode="business" aria-pressed="false">Business / Entity</button>
+          </div>
+          <label class="btn btn-ghost file-btn" id="single-pdf-btn">
+            <input type="file" id="single-pdf" accept=".pdf,application/pdf">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5Zm0 0v5h5M9 13h6m-6 4h6"/></svg>
+            Fill from a PDF
+          </label>
         </div>
+        <div class="alert alert-info" id="single-pdf-note" hidden></div>
 
         <form id="single-form" class="form" autocomplete="off">
           <div class="grid person-fields">
@@ -125,16 +133,16 @@
       <section class="panel" data-panel="roster" hidden>
         <div class="panel-head">
           <h2>Screen an employee list</h2>
-          <p>Open a CSV or Excel (.xlsx) file with one employee per row. Include a header row with columns such as
+          <p>Open a CSV, Excel (.xlsx), or PDF file with one employee per row. Include a header row with columns such as
             <em>First Name</em>, <em>Last Name</em> (or a single <em>Name</em> column), and optionally <em>DOB</em>, <em>NPI</em>, <em>Employee ID</em>, or <em>Business Name</em> for vendors.
             <a href="#" id="template-link">Download a template</a>.</p>
         </div>
 
         <label class="dropzone" id="roster-drop">
-          <input type="file" id="roster-file" accept=".csv,.xlsx,text/csv">
+          <input type="file" id="roster-file" accept=".csv,.xlsx,.pdf,text/csv,application/pdf">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm11 10v-2a4 4 0 0 0-3-3.9M16 2.1a4 4 0 0 1 0 7.8"/></svg>
           <strong>Drop the employee list here or click to choose</strong>
-          <span>.csv · .xlsx</span>
+          <span>.csv · .xlsx · .pdf</span>
         </label>
         <div class="alert alert-error" id="roster-error" hidden></div>
 
@@ -184,6 +192,9 @@
 
   <script src="leie-core.js"></script>
   <script src="leie-xlsx.js"></script>
+  <script src="vendor/pdf.min.js"></script>
+  <script src="vendor/pdf.worker.min.js"></script>
+  <script src="leie-pdf.js"></script>
   <script src="leie-app.js"></script>
 </body>
 </html>

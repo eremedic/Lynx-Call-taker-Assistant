@@ -59,7 +59,18 @@
       if (typeof DecompressionStream === 'undefined') throw new Error('This browser cannot open .xlsx files. Save the file as CSV, or use a current version of Chrome, Edge, Firefox, or Safari.');
       return window.LeieXlsx.readFirstSheet(await file.arrayBuffer());
     }
+    if (name.endsWith('.pdf')) return pdfToTable(await window.LeiePdf.readLines(await file.arrayBuffer()));
     return C.parseCSV(await file.text());
+  }
+
+  // A PDF with a table (a header row naming the columns) becomes that table.
+  // A form-style PDF for one person (Name / DOB fields) becomes a one-row table.
+  function pdfToTable(lines) {
+    const t = C.pdfLinesToTable(lines);
+    if (t.header && t.table.length > 1) return t.table;
+    const person = C.extractPersonFromLines(lines);
+    if (person) return [['First Name', 'Middle Name', 'Last Name', 'DOB'], [person.first, person.middle, person.last, person.dob]];
+    throw new Error('No names were found in this PDF. It needs either a table with name columns (such as First Name and Last Name) or labeled fields such as "Name" and "Date of Birth".');
   }
 
   function wireDropzone(zone, input, onFile) {
@@ -320,7 +331,48 @@
     (mode === 'person' ? $('#q-first') : $('#q-business')).focus();
   }));
 
-  $('#single-form').addEventListener('reset', () => { show($('#single-results'), false); setError('#single-error', ''); });
+  $('#single-form').addEventListener('reset', () => { show($('#single-results'), false); setError('#single-error', ''); show($('#single-pdf-note'), false); });
+
+  // Reads first name, last name, and date of birth from a PDF and fills the form.
+  $('#single-pdf').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setError('#single-error', '');
+    show($('#single-pdf-note'), false);
+    try {
+      const lines = await window.LeiePdf.readLines(await file.arrayBuffer());
+      // A table of people (header row + rows) is read as a table; otherwise
+      // look for labeled fields such as "Name" and "Date of Birth".
+      let person = null;
+      let others = 0;
+      const t = C.pdfLinesToTable(lines);
+      if (t.header) {
+        const map = C.detectColumns(t.table[0]);
+        const people = t.table.slice(1).map((row) => C.rowToQuery(row, map)).filter((q) => q && q.first && q.last);
+        person = people[0] || null;
+        others = Math.max(0, people.length - 1);
+      }
+      if (!person) person = C.extractPersonFromLines(lines);
+      if (!person) throw new Error(`No first name, last name, or date of birth was found in ${file.name}. Type the name in instead.`);
+      if (mode !== 'person') $('.seg-btn[data-mode="person"]').click();
+      const form = $('#single-form');
+      form.first.value = person.first;
+      form.middle.value = person.middle || '';
+      form.last.value = person.last;
+      const dob = C.normalizeDate(person.dob);
+      form.dob.value = dob ? `${dob.slice(0, 4)}-${dob.slice(4, 6)}-${dob.slice(6, 8)}` : '';
+      show($('#single-results'), false);
+      const note = $('#single-pdf-note');
+      note.textContent = `Filled from ${file.name}: ${[person.first, person.middle, person.last].filter(Boolean).join(' ')}` +
+        `${dob ? ', DOB ' + C.formatDate(dob) : ', no date of birth found'}. Check the fields, then select Search all lists.` +
+        (others ? ` This PDF lists ${others} more ${others > 1 ? 'people' : 'person'}; use Employee List Screening to check everyone in it.` : '');
+      show(note, true);
+      $('#single-form button[type="submit"]').focus();
+    } catch (err) {
+      setError('#single-error', err.message || String(err));
+    }
+  });
 
   $('#single-form').addEventListener('submit', (e) => {
     e.preventDefault();

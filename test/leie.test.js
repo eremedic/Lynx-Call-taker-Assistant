@@ -130,3 +130,44 @@ test('imports a state exclusion list with title rows and a single name column', 
   const results = C.screenRoster(lists, roster.slice(1), C.detectColumns(roster[0]));
   assert.deepEqual(results.map((r) => r.hits.map((h) => h.list)), [['OIG LEIE'], ['Texas Medicaid Exclusions'], []]);
 });
+
+// Builds PDF-style positioned lines: each cell is [x, text].
+const pdfLines = (rows) => rows.map((cells, i) => ({ page: 1, y: 700 - i * 14, items: cells.map(([x, str]) => ({ x, w: str.length * 5, h: 10, str })) }));
+
+test('reads an employee table from PDF text, keeping blank cells in their column', () => {
+  const lines = pdfLines([
+    [[40, 'Lynx EMS Active Roster']],
+    [[40, 'Employee ID'], [120, 'First Name'], [220, 'Last Name'], [320, 'DOB']],
+    [[40, '1001'], [120, 'John'], [220, 'Smith'], [320, '01/15/1980']],
+    [[40, '1002'], [120, 'Mary'], [220, "O'Brien"]],
+    [[40, 'Employee ID'], [120, 'First Name'], [220, 'Last Name'], [320, 'DOB']],
+    [[40, '1003'], [120, 'Ana'], [220, 'Garcia'], [222 + 'Garcia'.length * 5, 'Lopez'], [320, 'February 2, 1990']],
+  ]);
+  const { table, header } = C.pdfLinesToTable(lines);
+  assert.equal(header, true);
+  assert.deepEqual(table, [
+    ['Employee ID', 'First Name', 'Last Name', 'DOB'],
+    ['1001', 'John', 'Smith', '01/15/1980'],
+    ['1002', 'Mary', "O'Brien", ''],
+    ['1003', 'Ana', 'Garcia Lopez', 'February 2, 1990'],
+  ]);
+  assert.equal(C.normalizeDate(table[3][3]), '19900202');
+});
+
+test('reads first name, last name, and DOB from a form-style PDF', () => {
+  assert.deepEqual(C.extractPersonFromLines(pdfLines([
+    [[40, 'Employment Application']],
+    [[40, 'Applicant Name: Smith, John A'], [300, 'DOB: 01/15/1980']],
+  ])), { first: 'John', middle: 'A', last: 'Smith', dob: '01/15/1980' });
+
+  assert.deepEqual(C.extractPersonFromLines(pdfLines([
+    [[40, 'First Name'], [200, 'Last Name'], [360, 'Date of Birth']],
+    [[40, 'Jane'], [200, 'Doe'], [360, '5-May-1991']],
+  ])), { first: 'Jane', middle: '', last: 'Doe', dob: '5-May-1991' });
+
+  assert.deepEqual(C.extractPersonFromLines(pdfLines([
+    [[40, 'Name: Carlos Rivera DOB 12/12/1985']],
+  ])), { first: 'Carlos', middle: '', last: 'Rivera', dob: '12/12/1985' });
+
+  assert.equal(C.extractPersonFromLines(pdfLines([[[40, 'Quarterly report']], [[40, 'Nothing here']]])), null);
+});
