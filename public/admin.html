@@ -448,6 +448,17 @@
             <option value="admin">Administrator — console, question bank, users, audit log</option>
           </select>
         </div>
+        <fieldset class="field" id="u-password-set" style="border: 0; padding: 0; margin: 0 0 12px">
+          <legend class="small" style="font-weight: 600; margin-bottom: 6px">Password</legend>
+          <label class="small" style="display: block"><input type="radio" name="pw_mode" value="generate" checked> Generate a temporary password (shown once)</label>
+          <label class="small" style="display: block; margin-top: 4px"><input type="radio" name="pw_mode" value="set"> Set the password myself</label>
+          <div data-pw-fields hidden style="margin-top: 8px">
+            <input name="password" class="input" type="password" autocomplete="new-password" placeholder="New password" aria-label="New password">
+            <input name="password_confirm" class="input" type="password" autocomplete="new-password" placeholder="Type it again" aria-label="Confirm password" style="margin-top: 6px">
+            <span class="hint">At least 10 characters, with letters and numbers, not containing the username.</span>
+            <label class="small" style="display: block; margin-top: 6px"><input type="checkbox" name="must_change_password" checked> Require a new password at first sign-in</label>
+          </div>
+        </fieldset>
         <label class="switch" id="u-active-wrap">
           <input type="checkbox" name="active"><span class="track"></span><span>Account active</span>
         </label>
@@ -457,6 +468,35 @@
       <div class="modal-foot">
         <button type="button" class="btn" data-close>Cancel</button>
         <button type="submit" class="btn btn-primary">Save user</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ================================================ RESET PASSWORD -->
+  <div id="reset-modal" class="modal-backdrop" hidden>
+    <form id="reset-form" class="modal" role="dialog" aria-modal="true" aria-labelledby="reset-modal-title" style="max-width: 480px" novalidate>
+      <div class="modal-head">
+        <h2 id="reset-modal-title">Reset password</h2>
+        <button type="button" class="btn btn-ghost btn-sm" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="small muted" style="margin-top: 0">The user is signed out everywhere and any sign-in lockout is cleared.</p>
+        <fieldset class="field" id="r-password-set" style="border: 0; padding: 0; margin: 0 0 12px">
+          <legend class="small" style="font-weight: 600; margin-bottom: 6px">Password</legend>
+          <label class="small" style="display: block"><input type="radio" name="pw_mode" value="generate" checked> Generate a temporary password (shown once)</label>
+          <label class="small" style="display: block; margin-top: 4px"><input type="radio" name="pw_mode" value="set"> Set the password myself</label>
+          <div data-pw-fields hidden style="margin-top: 8px">
+            <input name="password" class="input" type="password" autocomplete="new-password" placeholder="New password" aria-label="New password">
+            <input name="password_confirm" class="input" type="password" autocomplete="new-password" placeholder="Type it again" aria-label="Confirm password" style="margin-top: 6px">
+            <span class="hint">At least 10 characters, with letters and numbers, not containing the username.</span>
+            <label class="small" style="display: block; margin-top: 6px"><input type="checkbox" name="must_change_password" checked> Require a new password at first sign-in</label>
+          </div>
+        </fieldset>
+        <p id="reset-error" class="small" style="color: var(--red-600)" role="alert" hidden></p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Reset password</button>
       </div>
     </form>
   </div>

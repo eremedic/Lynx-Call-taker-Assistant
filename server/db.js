@@ -39,7 +39,9 @@ const DEFAULT_SETTINGS = {
 
 // Seed version history:
 //   3 - CMS question bank, payer profiles, private/facility pay, brokers
-const SEED_VERSION = 3;
+//   4 - secondary payer on calls (schema only)
+const SEED_VERSION = 4;
+const CONTENT_VERSION = 3; // last version that added built-in questions/payers
 const MIGRATION_LOCK = 724_310_001;
 
 export const SCHEMA_SQL = `
@@ -146,6 +148,7 @@ export const SCHEMA_SQL = `
     user_id INTEGER REFERENCES ${S}.users(id),
     created_at TEXT NOT NULL DEFAULT ${NOW}
   );
+  ALTER TABLE ${S}.calls ADD COLUMN IF NOT EXISTS secondary_payer TEXT;
 
   CREATE TABLE IF NOT EXISTS ${S}.audit_log (
     id SERIAL PRIMARY KEY,
@@ -224,11 +227,14 @@ export async function migrate(db) {
     const [row] = await t.query(`SELECT value FROM ${S}.settings WHERE key = 'seed_version'`);
     if (Number(row?.value) >= SEED_VERSION) return; // another instance finished first
 
-    // One statement per table keeps the first start fast on serverless hosts.
-    await insertMany(t, 'questions', QUESTION_FIELDS, SEED_QUESTIONS.map((q, i) =>
-      ({ ...toRow({ active: true, required: false, priority: 3, ...q, necessity: defaultNecessity(q), sort_order: (i + 1) * 10 }), is_system: true })));
-    await insertMany(t, 'payers', PAYER_FIELDS, SEED_PAYERS.map((p, i) =>
-      ({ ...payerRow({ active: true, kind: 'payer', requires_medical_necessity: true, ...p, sort_order: (i + 1) * 10 }), is_system: true })));
+    // Built-in content is added once; later versions only change the schema.
+    if (Number(row?.value || 0) < CONTENT_VERSION) {
+      // One statement per table keeps the first start fast on serverless hosts.
+      await insertMany(t, 'questions', QUESTION_FIELDS, SEED_QUESTIONS.map((q, i) =>
+        ({ ...toRow({ active: true, required: false, priority: 3, ...q, necessity: defaultNecessity(q), sort_order: (i + 1) * 10 }), is_system: true })));
+      await insertMany(t, 'payers', PAYER_FIELDS, SEED_PAYERS.map((p, i) =>
+        ({ ...payerRow({ active: true, kind: 'payer', requires_medical_necessity: true, ...p, sort_order: (i + 1) * 10 }), is_system: true })));
+    }
     await settingsRepo(t).set('seed_version', SEED_VERSION);
   });
 }
@@ -320,9 +326,10 @@ export function callRepo(db) {
     answers: JSON.parse(row.answers),
     assessment: JSON.parse(row.assessment),
   };
-  const values = ({ callType, payer, details, answers, transcript, assessment }) => [
+  const values = ({ callType, payer, secondaryPayer, details, answers, transcript, assessment }) => [
     callType,
     payer || null,
+    secondaryPayer || null,
     JSON.stringify(details || {}),
     JSON.stringify(answers || {}),
     transcript || '',
@@ -333,22 +340,22 @@ export function callRepo(db) {
   return {
     async create(call) {
       const [row] = await db.query(`INSERT INTO ${S}.calls
-        (call_type, payer, details, answers, transcript, assessment, status, level_of_service, call_taker, user_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        (call_type, payer, secondary_payer, details, answers, transcript, assessment, status, level_of_service, call_taker, user_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
       [...values(call), call.callTaker || null, call.userId ?? null]);
       return parse(row);
     },
     // Replaces the call's content; the call taker and creation time are kept.
     async update(id, call) {
-      const [row] = await db.query(`UPDATE ${S}.calls SET call_type = $1, payer = $2, details = $3, answers = $4, transcript = $5,
-        assessment = $6, status = $7, level_of_service = $8 WHERE id = $9 RETURNING *`, [...values(call), id]);
+      const [row] = await db.query(`UPDATE ${S}.calls SET call_type = $1, payer = $2, secondary_payer = $3, details = $4, answers = $5,
+        transcript = $6, assessment = $7, status = $8, level_of_service = $9 WHERE id = $10 RETURNING *`, [...values(call), id]);
       return parse(row);
     },
     async get(id) {
       return parse((await db.query(`SELECT * FROM ${S}.calls WHERE id = $1`, [id]))[0]);
     },
     async list({ limit = 100 } = {}) {
-      const rows = await db.query(`SELECT id, call_type, payer, details, status, level_of_service, call_taker, created_at
+      const rows = await db.query(`SELECT id, call_type, payer, secondary_payer, details, status, level_of_service, call_taker, created_at
         FROM ${S}.calls ORDER BY id DESC LIMIT $1`, [limit]);
       return rows.map((r) => ({ ...r, details: JSON.parse(r.details) }));
     },

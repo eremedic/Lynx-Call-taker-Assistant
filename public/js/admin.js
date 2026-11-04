@@ -75,6 +75,10 @@ function bindEvents() {
     loadPayers();
   });
   $('#user-form').addEventListener('submit', saveUser);
+  $('#reset-form').addEventListener('submit', submitReset);
+  for (const form of [$('#user-form'), $('#reset-form')]) {
+    form.addEventListener('change', (e) => { if (e.target.name === 'pw_mode') syncPasswordFields(form); });
+  }
   $('#copy-password').addEventListener('click', () => {
     navigator.clipboard.writeText($('#temp-password').textContent).then(() => toast('Copied.', 'success'), () => toast('Clipboard unavailable.', 'error'));
   });
@@ -481,14 +485,14 @@ async function deletePayer(p) {
 function callsTable(calls) {
   if (!calls.length) return '<div class="empty">No calls saved yet. Calls appear here after the call taker clicks “Save Call Record”.</div>';
   return `<table class="table">
-    <thead><tr><th>#</th><th>Date</th><th>Patient</th><th>Type</th><th>Payer</th><th>Assessment</th><th>Level of service</th><th>Call taker</th></tr></thead>
+    <thead><tr><th>#</th><th>Date</th><th>Patient</th><th>Type</th><th>Payer(s)</th><th>Assessment</th><th>Level of service</th><th>Call taker</th></tr></thead>
     <tbody>${calls.map((c) => `
       <tr class="clickable" data-call="${c.id}">
         <td>${c.id}</td>
         <td>${esc(formatDate(c.created_at))}</td>
         <td>${esc(c.details.patient_name || '—')}</td>
         <td>${esc(state.config.callTypes[c.call_type]?.split(' (')[0] || c.call_type)}</td>
-        <td>${esc(c.payer ? payerName(c.payer) : '—')}</td>
+        <td>${esc(c.payer ? payerName(c.payer) : '—')}${c.secondary_payer ? `<div class="small muted">2nd: ${esc(payerName(c.secondary_payer))}</div>` : ''}</td>
         <td><span class="chip ${STATUS_CHIPS[c.status] || ''}">${esc(STATUS_LABELS[c.status] || c.status)}</span></td>
         <td>${esc(c.level_of_service || '—')}</td>
         <td>${esc(c.call_taker || '—')}</td>
@@ -511,9 +515,11 @@ async function openCall(id) {
   }
   const detailRows = [
     ['Call type', state.config.callTypes[c.call_type]],
-    ['Payer', c.payer ? `${payerName(c.payer)}${a.payer ? ` — prior authorization: ${a.payer.priorAuthLabel}` : ''}` : 'Not selected'],
-    ['Patient', [d.patient_name, d.patient_dob && `DOB ${d.patient_dob}`].filter(Boolean).join(' · ')],
+    ['Primary payer', c.payer ? `${payerName(c.payer)}${a.payer ? ` — prior authorization: ${a.payer.priorAuthLabel}` : ''}` : 'Not selected'],
     ['Member ID', d.member_id],
+    ['Secondary payer', c.secondary_payer ? payerName(c.secondary_payer) : ''],
+    ['Secondary member ID', d.secondary_member_id],
+    ['Patient', [d.patient_name, d.patient_dob && `DOB ${d.patient_dob}`].filter(Boolean).join(' · ')],
     ['Caller', [d.caller_name, d.caller_facility, d.caller_phone].filter(Boolean).join(' · ')],
     ['Pick-up', d.pickup_location],
     ['Destination', d.destination],
@@ -578,7 +584,9 @@ function openUser(u) {
   $('#u-active-wrap').hidden = !u;
   $('#u-hint').textContent = u
     ? 'Deactivating an account signs the user out immediately. Accounts are never deleted so the audit trail stays intact.'
-    : 'A temporary password will be generated. The user must change it at first sign-in.';
+    : 'Leave “Generate” selected to get a temporary password, or type one yourself.';
+  $('#u-password-set').hidden = Boolean(u);
+  syncPasswordFields($('#user-form'));
   $('#user-modal').hidden = false;
   el.display_name.focus();
 }
@@ -593,9 +601,10 @@ async function saveUser(e) {
       closeModals();
       toast('User updated.', 'success');
     } else {
-      const r = await api('/api/admin/users', { method: 'POST', body: { display_name: el.display_name.value.trim(), username: el.username.value.trim(), role: el.role.value } });
+      const r = await api('/api/admin/users', { method: 'POST', body: { display_name: el.display_name.value.trim(), username: el.username.value.trim(), role: el.role.value, ...passwordBody($('#user-form')) } });
       closeModals();
-      showTempPassword(r.user, r.temporaryPassword, 'created');
+      if (r.temporaryPassword) showTempPassword(r.user, r.temporaryPassword, 'created');
+      else toast(`Account ${r.user.username} created with the password you set.`, 'success');
     }
     loadUsers();
   } catch (err) {
@@ -604,12 +613,45 @@ async function saveUser(e) {
   }
 }
 
-async function resetPassword(u) {
-  if (!u || !confirm(`Reset the password for ${u.display_name}? They will be signed out everywhere.`)) return;
-  const r = await guarded(() => api(`/api/admin/users/${u.id}/reset-password`, { method: 'POST' }));
-  if (!r) return;
-  showTempPassword(r.user, r.temporaryPassword, 'reset');
-  loadUsers();
+function resetPassword(u) {
+  if (!u) return;
+  state.resetUser = u;
+  const form = $('#reset-form');
+  form.reset();
+  $('#reset-error').hidden = true;
+  $('#reset-modal-title').textContent = `Reset password — ${u.display_name}`;
+  syncPasswordFields(form);
+  $('#reset-modal').hidden = false;
+}
+
+async function submitReset(e) {
+  e.preventDefault();
+  const u = state.resetUser;
+  try {
+    const r = await api(`/api/admin/users/${u.id}/reset-password`, { method: 'POST', body: passwordBody($('#reset-form')) });
+    $('#reset-modal').hidden = true;
+    if (r.temporaryPassword) showTempPassword(r.user, r.temporaryPassword, 'reset');
+    else toast(`Password updated for ${u.display_name}.`, 'success');
+    loadUsers();
+  } catch (err) {
+    $('#reset-error').textContent = err.message;
+    $('#reset-error').hidden = false;
+  }
+}
+
+// Shows the password boxes only when the administrator chooses to type one.
+function syncPasswordFields(form) {
+  const set = form.elements.pw_mode.value === 'set';
+  form.querySelector('[data-pw-fields]').hidden = !set;
+}
+
+// The password part of a create/reset request. Throws if the two entries differ.
+function passwordBody(form) {
+  const el = form.elements;
+  if (el.pw_mode.value !== 'set') return {};
+  if (!el.password.value) throw new Error('Type the new password, or choose “Generate a temporary password”.');
+  if (el.password.value !== el.password_confirm.value) throw new Error('The two passwords do not match.');
+  return { password: el.password.value, must_change_password: el.must_change_password.checked };
 }
 
 function showTempPassword(user, password, what) {

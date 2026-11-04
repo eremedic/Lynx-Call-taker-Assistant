@@ -353,3 +353,41 @@ test('call takers can only reach their own calls', async () => {
   assert.equal((await admin(`/api/calls/${mine.id}/pcs`)).status, 200, 'administrators can open any call');
   assert.equal((await taker('/api/calls/999999/pcs')).status, 404);
 });
+
+test('calls record an optional secondary payer, shown on the PCS', async () => {
+  const saved = (await taker('/api/calls', {
+    method: 'POST',
+    body: { callType: 'non_emergency', payer: 'medicare', secondaryPayer: 'medicaid', details: { member_id: 'M1', secondary_member_id: 'S2' }, answers: {} },
+  })).data;
+  const call = (await admin(`/api/admin/calls/${saved.id}`)).data;
+  assert.equal(call.payer, 'medicare');
+  assert.equal(call.secondary_payer, 'medicaid');
+  assert.equal(call.assessment.payer.code, 'medicare', 'the primary payer drives the rules');
+  assert.equal((await admin('/api/admin/calls')).data.find((c) => c.id === saved.id).secondary_payer, 'medicaid');
+  const pcs = (await taker(`/api/calls/${saved.id}/pcs`)).data;
+  assert.equal(pcs.secondaryPayer, 'Medicaid');
+  assert.equal(pcs.secondaryMemberId, 'S2');
+
+  const same = await taker('/api/calls', { method: 'POST', body: { callType: 'non_emergency', payer: 'medicare', secondaryPayer: 'medicare', answers: {} } });
+  assert.equal(same.status, 400);
+  const unknown = await taker('/api/calls', { method: 'POST', body: { callType: 'non_emergency', payer: 'medicare', secondaryPayer: 'nope', answers: {} } });
+  assert.equal(unknown.status, 400);
+});
+
+test('administrators can set a user password themselves', async () => {
+  const weak = await admin('/api/admin/users', { method: 'POST', body: { username: 'asmith', display_name: 'Ann Smith', role: 'call_taker', password: 'short' } });
+  assert.equal(weak.status, 400);
+
+  const r = await admin('/api/admin/users', { method: 'POST', body: { username: 'asmith', display_name: 'Ann Smith', role: 'call_taker', password: 'Chosen-pass-2026', must_change_password: false } });
+  assert.equal(r.status, 201);
+  assert.equal(r.data.temporaryPassword, undefined, 'a typed password is never echoed back');
+  const c = client();
+  const login = await c('/api/auth/login', { method: 'POST', body: { username: 'asmith', password: 'Chosen-pass-2026' } });
+  assert.equal(login.status, 200);
+  assert.equal(login.data.user.must_change_password, false);
+
+  const reset = await admin(`/api/admin/users/${r.data.user.id}/reset-password`, { method: 'POST', body: { password: 'Second-pass-2026' } });
+  assert.equal(reset.status, 200);
+  assert.equal(reset.data.user.must_change_password, true, 'a change is required unless the admin says otherwise');
+  assert.equal((await client()('/api/auth/login', { method: 'POST', body: { username: 'asmith', password: 'Second-pass-2026' } })).status, 200);
+});

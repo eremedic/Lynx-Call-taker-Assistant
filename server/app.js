@@ -314,11 +314,15 @@ export function createApp({ db, staticDir = null }) {
   // Validates a call from the console and re-evaluates it server-side so the
   // stored assessment can't be tampered with.
   const callFromBody = async (body = {}) => {
-    const { callType, details = {}, answers = {}, transcript = '', payer: payerCode = '' } = body;
+    const { callType, details = {}, answers = {}, transcript = '', payer: payerCode = '', secondaryPayer: secondaryCode = '' } = body;
     if (!(callType in CALL_TYPES)) return { error: 'Invalid call type.' };
+    if (secondaryCode && secondaryCode === payerCode) return { error: 'The secondary payer must be different from the primary payer.' };
+    const secondary = secondaryCode ? await activePayer(secondaryCode) : null;
+    if (secondaryCode && !secondary) return { error: 'Unknown secondary payer.' };
+    // The primary payer's rules drive the medical-necessity review.
     const { payer, brokers } = await payerContext(payerCode);
     const { assessment } = evaluateCall({ callType, answers, transcript, payer, brokers, questions: await questions.list({ activeOnly: true }) });
-    return { callType, payer: payer?.code, details, answers, transcript, assessment };
+    return { callType, payer: payer?.code, secondaryPayer: secondary?.code, details, answers, transcript, assessment };
   };
   // Call takers can reach their own calls; administrators can reach any call.
   const ownCall = async (req, res) => {
@@ -334,7 +338,7 @@ export function createApp({ db, staticDir = null }) {
     const input = await callFromBody(req.body);
     if (input.error) return res.status(400).json({ error: input.error });
     const call = await calls.create({ ...input, callTaker: req.user.display_name, userId: req.user.id });
-    await log(req, 'call.saved', { entityType: 'call', entityId: call.id, details: { call_type: input.callType, payer: input.payer || null, status: call.status } });
+    await log(req, 'call.saved', { entityType: 'call', entityId: call.id, details: { call_type: input.callType, payer: input.payer || null, secondary_payer: input.secondaryPayer || null, status: call.status } });
     res.status(201).json({ id: call.id, status: call.status, created_at: call.created_at });
   });
 
@@ -344,7 +348,7 @@ export function createApp({ db, staticDir = null }) {
     const input = await callFromBody(req.body);
     if (input.error) return res.status(400).json({ error: input.error });
     const call = await calls.update(existing.id, input);
-    await log(req, 'call.updated', { entityType: 'call', entityId: call.id, details: { call_type: input.callType, payer: input.payer || null, status: call.status } });
+    await log(req, 'call.updated', { entityType: 'call', entityId: call.id, details: { call_type: input.callType, payer: input.payer || null, secondary_payer: input.secondaryPayer || null, status: call.status } });
     res.json({ id: call.id, status: call.status, created_at: call.created_at });
   });
 
@@ -352,7 +356,8 @@ export function createApp({ db, staticDir = null }) {
     const call = await ownCall(req, res);
     if (!call) return;
     const payer = call.payer ? await payers.getByCode(call.payer) : null;
-    const pcs = buildPcs({ call, payer, questions: await questions.list({ activeOnly: true }), orgName: (await settings.all()).org_name });
+    const secondaryPayer = call.secondary_payer ? await payers.getByCode(call.secondary_payer) : null;
+    const pcs = buildPcs({ call, payer, secondaryPayer, questions: await questions.list({ activeOnly: true }), orgName: (await settings.all()).org_name });
     await log(req, 'pcs.generated', { entityType: 'call', entityId: call.id });
     res.json(pcs);
   });
@@ -474,6 +479,16 @@ export function createApp({ db, staticDir = null }) {
   });
 
   // ------------------------------------------------------ admin: users
+  // An administrator may type the password, or leave it blank to generate a
+  // temporary one. Generated passwords always require a change at sign-in.
+  const chosenPassword = (body, username) => {
+    const typed = typeof body?.password === 'string' ? body.password : '';
+    if (!typed) return { password: generatePassword(), generated: true, mustChange: true };
+    const problems = passwordProblems(typed, { username });
+    if (problems.length) return { error: problems.join(' ') };
+    return { password: typed, generated: false, mustChange: body?.must_change_password !== false };
+  };
+
   app.get('/api/admin/users', requireAdmin, async (req, res) => res.json(await users.list()));
 
   app.post('/api/admin/users', requireAdmin, async (req, res) => {
@@ -485,11 +500,12 @@ export function createApp({ db, staticDir = null }) {
     if (!displayName) errors.push('Full name is required.');
     if (!(role in ROLES)) errors.push('Invalid role.');
     if (await users.getForLogin(username)) errors.push('That username is already taken.');
+    const chosen = chosenPassword(req.body, username);
+    if (chosen.error) errors.push(chosen.error);
     if (errors.length) return res.status(400).json({ error: errors.join(' ') });
-    const temporaryPassword = generatePassword();
-    const user = await users.create({ username, display_name: displayName, role, password_hash: await hashPassword(temporaryPassword), must_change_password: true });
-    await log(req, 'user.created', { entityType: 'user', entityId: user.id, details: { username, display_name: displayName, role } });
-    res.status(201).json({ user, temporaryPassword });
+    const user = await users.create({ username, display_name: displayName, role, password_hash: await hashPassword(chosen.password), must_change_password: chosen.mustChange });
+    await log(req, 'user.created', { entityType: 'user', entityId: user.id, details: { username, display_name: displayName, role, password: chosen.generated ? 'generated' : 'set by administrator' } });
+    res.status(201).json({ user, ...(chosen.generated ? { temporaryPassword: chosen.password } : {}) });
   });
 
   app.put('/api/admin/users/:id', requireAdmin, async (req, res) => {
@@ -524,12 +540,13 @@ export function createApp({ db, staticDir = null }) {
   app.post('/api/admin/users/:id/reset-password', requireAdmin, async (req, res) => {
     const existing = await users.get(Number(req.params.id) || 0);
     if (!existing) return res.status(404).json({ error: 'User not found.' });
-    const temporaryPassword = generatePassword();
-    const user = await users.update(existing.id, { password_hash: await hashPassword(temporaryPassword), must_change_password: true });
+    const chosen = chosenPassword(req.body, existing.username);
+    if (chosen.error) return res.status(400).json({ error: chosen.error });
+    const user = await users.update(existing.id, { password_hash: await hashPassword(chosen.password), must_change_password: chosen.mustChange });
     await sessions.removeForUser(existing.id);
     await lockout.clear(existing.username);
-    await log(req, 'user.password_reset', { entityType: 'user', entityId: existing.id, details: { username: existing.username } });
-    res.json({ user, temporaryPassword });
+    await log(req, 'user.password_reset', { entityType: 'user', entityId: existing.id, details: { username: existing.username, password: chosen.generated ? 'generated' : 'set by administrator' } });
+    res.json({ user, ...(chosen.generated ? { temporaryPassword: chosen.password } : {}) });
   });
 
   // ------------------------------------------------------ admin: audit

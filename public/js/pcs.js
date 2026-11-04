@@ -40,6 +40,7 @@ function render(p) {
         ${field('Weight (lbs)', p.patient.weight)}
         ${field('Medicare / member ID', p.patient.memberId, 'span-2')}
         ${field('Primary payer', p.payer, 'span-2')}
+        ${p.secondaryPayer ? `${field('Secondary payer', p.secondaryPayer, 'span-2')}${field('Secondary member ID', p.secondaryMemberId, 'span-2')}` : ''}
       </div>
     </section>
 

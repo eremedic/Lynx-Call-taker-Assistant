@@ -9,6 +9,7 @@ const state = {
   byCode: new Map(),
   callType: 'non_emergency',
   payer: '',
+  secondaryPayer: '',
   details: {},
   answers: {},
   transcript: '',
@@ -42,6 +43,7 @@ async function init() {
     $('#org-name').textContent = config.orgName ? `${config.orgName} · Call-Taker Assistant` : 'Call-Taker Assistant';
     $('#ai-btn').hidden = !config.aiAvailable;
     $('#payer').innerHTML = `<option value="">Select payer…</option>${payerOptions(config.payers)}`;
+    renderSecondaryOptions();
   } catch (err) {
     toast(`Could not load configuration: ${err.message}`, 'error');
     return;
@@ -50,6 +52,18 @@ async function init() {
   setupSpeech();
   setInterval(tickTimer, 1000);
   setCallType('non_emergency');
+}
+
+// The secondary list offers every payer except the one chosen as primary.
+function renderSecondaryOptions() {
+  const others = state.config.payers.filter((p) => p.code !== state.payer);
+  $('#secondary-payer').innerHTML = `<option value="">None</option>${payerOptions(others, state.secondaryPayer)}`;
+}
+
+function setSecondaryPayer(code) {
+  state.secondaryPayer = code;
+  $('#secondary-payer').value = code;
+  $('#secondary-member-field').hidden = !code;
 }
 
 function setQuestions(list) {
@@ -70,7 +84,13 @@ function bindEvents() {
   $('#payer').addEventListener('change', (e) => {
     markActive();
     state.payer = e.target.value;
+    if (state.secondaryPayer === state.payer) setSecondaryPayer('');
+    renderSecondaryOptions();
     evaluate();
+  });
+  $('#secondary-payer').addEventListener('change', (e) => {
+    markActive();
+    setSecondaryPayer(e.target.value);
   });
 
   const transcript = $('#transcript');
@@ -585,6 +605,8 @@ function buildNarrative() {
   const lines = [];
   lines.push(`Call type: ${state.config.callTypes[state.callType]}`);
   if (a?.payer) lines.push(`Payer: ${a.payer.name}${d.member_id ? ` — member ID ${d.member_id}` : ''} (prior authorization: ${a.payer.priorAuthLabel})`);
+  const secondary = state.config.payers.find((p) => p.code === state.secondaryPayer);
+  if (secondary) lines.push(`Secondary payer: ${secondary.name}${d.secondary_member_id ? ` — member ID ${d.secondary_member_id}` : ''}`);
   lines.push(`Call taker: ${state.user.display_name}`);
   if (d.patient_name) lines.push(`Patient: ${d.patient_name}${d.patient_dob ? ` (DOB ${d.patient_dob})` : ''}`);
   if (d.caller_name || d.caller_facility) lines.push(`Caller: ${[d.caller_name, d.caller_facility].filter(Boolean).join(', ')}${d.caller_phone ? ` — ${d.caller_phone}` : ''}`);
@@ -625,6 +647,7 @@ async function saveCall({ quiet = false } = {}) {
     const body = {
       callType: state.callType,
       payer: state.payer,
+      secondaryPayer: state.secondaryPayer,
       details: { ...state.details, ai_summary: state.aiSummary, ai_questions: state.aiQuestions, duration_seconds: state.startedAt ? Math.round((Date.now() - state.startedAt) / 1000) : 0 },
       answers: state.answers,
       transcript: state.transcript,
@@ -662,13 +685,15 @@ async function newCall() {
   if (state.dirty && !confirm('Discard the current call? It has unsaved changes.')) return;
   if (listening) stopListening();
   Object.assign(state, {
-    callType: 'non_emergency', payer: '', details: {}, answers: {}, transcript: '', evaluation: null,
+    callType: 'non_emergency', payer: '', secondaryPayer: '', details: {}, answers: {}, transcript: '', evaluation: null,
     rejected: new Set(), skipped: new Set(), aiSuggestions: {}, aiQuestions: [], aiSummary: '', aiAnalyzedLength: 0,
     startedAt: null, dirty: false, savedId: null,
   });
   document.querySelectorAll('[data-detail]').forEach((i) => { i.value = ''; });
   $('#transcript').value = '';
   $('#payer').value = '';
+  renderSecondaryOptions();
+  $('#secondary-member-field').hidden = true;
   renderAiQuestions();
   try {
     setQuestions(await api('/api/questions')); // pick up any admin changes

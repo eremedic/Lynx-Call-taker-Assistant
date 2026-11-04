@@ -14,7 +14,7 @@ test('setup is idempotent, safe to run concurrently, and data persists', async (
     await Promise.all([migrate(db), migrate(db)]); // e.g. two function containers starting at once
     assert.equal((await questionRepo(db).list()).length, 41);
     assert.equal((await payerRepo(db).list()).length, 6);
-    assert.equal((await settingsRepo(db).all()).seed_version, '3');
+    assert.equal((await settingsRepo(db).all()).seed_version, '4');
     await settingsRepo(db).set('org_name', 'Metro EMS');
     await db.close();
 
@@ -25,6 +25,22 @@ test('setup is idempotent, safe to run concurrently, and data persists', async (
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('an existing database gains the secondary-payer column without re-adding removed content', async () => {
+  const db = await openDb({ memory: true });
+  // Simulate a database set up before secondary payers existed.
+  await db.query('ALTER TABLE ambuintake.calls DROP COLUMN secondary_payer');
+  await settingsRepo(db).set('seed_version', '3');
+  const q = (await questionRepo(db).list()).find((x) => x.code === 'BRK_TRIP_NUMBER');
+  await db.query('DELETE FROM ambuintake.questions WHERE id = $1', [q.id]);
+
+  await migrate(db);
+  const cols = await db.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'ambuintake' AND table_name = 'calls'`);
+  assert.ok(cols.some((c) => c.column_name === 'secondary_payer'));
+  assert.equal((await questionRepo(db).list()).length, 40, 'removed built-in questions stay removed');
+  assert.equal((await settingsRepo(db).all()).seed_version, '4');
+  await db.close();
 });
 
 test('tables live in their own schema with row-level security enabled', async () => {

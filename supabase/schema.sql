@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS ambuintake.calls (
   user_id INTEGER REFERENCES ambuintake.users(id),
   created_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')
 );
+ALTER TABLE ambuintake.calls ADD COLUMN IF NOT EXISTS secondary_payer TEXT;
 
 CREATE TABLE IF NOT EXISTS ambuintake.audit_log (
   id SERIAL PRIMARY KEY,

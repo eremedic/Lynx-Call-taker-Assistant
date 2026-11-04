@@ -43,6 +43,11 @@
             <select id="payer" class="select"><option value="">Select payer…</option></select>
             <span class="hint">Sets the prior-authorization and documentation rules for this call.</span>
           </div>
+          <div class="field" style="margin: 12px 0 0">
+            <label for="secondary-payer">Secondary payer</label>
+            <select id="secondary-payer" class="select"><option value="">None</option></select>
+            <span class="hint">Optional. Recorded on the call and the PCS for billing; the primary payer's rules apply.</span>
+          </div>
         </div>
       </div>
 
@@ -62,7 +67,8 @@
             <div class="field"><label for="d-patient_dob">Date of birth</label><input class="input" id="d-patient_dob" type="date" data-detail="patient_dob"></div>
             <div class="field"><label for="d-patient_weight">Weight (lbs)</label><input class="input" id="d-patient_weight" inputmode="numeric" data-detail="patient_weight"></div>
           </div>
-          <div class="field"><label for="d-member_id">Medicare / member ID</label><input class="input" id="d-member_id" data-detail="member_id"></div>
+          <div class="field"><label for="d-member_id">Primary member ID</label><input class="input" id="d-member_id" data-detail="member_id"></div>
+          <div class="field" id="secondary-member-field" hidden><label for="d-secondary_member_id">Secondary member ID</label><input class="input" id="d-secondary_member_id" data-detail="secondary_member_id"></div>
 
           <div class="section-label">Trip</div>
           <div class="field"><label for="d-pickup_location">Pick-up location</label><input class="input" id="d-pickup_location" data-detail="pickup_location"></div>

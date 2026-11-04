@@ -12,7 +12,7 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 
 **Accounts and sign-in** (`/login.html`)
 - **Two roles.** *Call Taker* uses the console. *Administrator* also manages questions, users, settings, and the audit log.
-- **Temporary passwords.** Each new account gets one, and the user must choose their own at first sign-in. Passwords need at least 10 characters with letters and numbers, and can't contain the username.
+- **Passwords set by an administrator.** When adding a user or resetting a password, the administrator either types the password, and chooses whether the user must change it at first sign-in, or lets AmbuIntake generate a temporary one, which is shown once and must be changed at first sign-in. Passwords need at least 10 characters with letters and numbers, and can't contain the username.
 - **Lockout.** Five failed sign-ins lock the account for 15 minutes. An administrator password reset clears the lock.
 - **Sessions** last 12 hours. Deactivating an account or resetting its password signs that user out everywhere. Accounts are deactivated, never deleted, so the audit trail stays intact.
 
@@ -23,7 +23,8 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 - **Filtering and export:** filter by user, action, date, or text, and export to CSV.
 
 **Payer rules** (Original Medicare, Medicare Advantage, Medicaid, Commercial, Private pay, Facility pay, and any transport brokers you add)
-- **Choose the payer at the start of the call.** That selection sets which questions are asked, how prior authorization is handled, the documentation checklist, and the authorization contacts shown to the call taker.
+- **Primary and secondary payer.** The call taker picks both from drop-downs that list only the payers and brokers set up under **Admin → Payers & Brokers**. The secondary payer is optional. It's saved with the call, shown in the call log, and printed on the PCS with its member ID, while the primary payer's rules drive the review.
+- **Choose the primary payer at the start of the call.** That selection sets which questions are asked, how prior authorization is handled, the documentation checklist, and the authorization contacts shown to the call taker.
 - **Prior authorization per call type.** Each payer has a policy (*Required*, *Varies — verify*, or *Not required*) for emergency, non-emergency, and repetitive calls. The console asks for the authorization status only when the policy calls for it, and makes it required when the policy is *Required*. A pending authorization keeps the call from reaching "meets". A denied one raises a critical alert.
 - **Medicare Advantage.** No prior auth on emergency calls (42 CFR 422.113). Prior auth and network status are checked on non-emergency calls. The call taker records the plan name and the authorization number. Patients who don't qualify for ambulance are referred to the plan's supplemental transportation benefit.
 - **Medicaid.** The call taker verifies eligibility for the date of service and completes the state's certification form instead of the Medicare PCS. Dual-eligible patients get a payer-of-last-resort alert (bill Medicare first). Managed-care (MCO) members get an alert too. Patients who don't qualify for ambulance are referred to the state NEMT broker (42 CFR 431.53).

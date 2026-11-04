@@ -47,7 +47,7 @@ export const CERTIFIER_TYPES = [
 
 const shortLabel = (q) => CONDITION_LABELS[q.code] || q.text.replace(/\?\s*$/, '');
 
-export function buildPcs({ call, questions, payer, orgName }) {
+export function buildPcs({ call, questions, payer, secondaryPayer = null, orgName }) {
   const a = call.answers || {};
   const d = call.details || {};
   const assessment = call.assessment || {};
@@ -84,6 +84,8 @@ export function buildPcs({ call, questions, payer, orgName }) {
       weight: d.patient_weight || '',
     },
     payer: payer ? payer.name : '',
+    secondaryPayer: secondaryPayer ? secondaryPayer.name : '',
+    secondaryMemberId: d.secondary_member_id || '',
     transport: {
       type: CALL_TYPES[call.call_type] || call.call_type,
       repetitive,
