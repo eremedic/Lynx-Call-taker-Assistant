@@ -117,6 +117,36 @@ export async function ensureInitialAdmin(db, {
   return { username, password: generated };
 }
 
+// Account recovery without a terminal (e.g. on Netlify). With ADMIN_RESET=true,
+// the ADMIN_USERNAME account (default "admin") is given ADMIN_PASSWORD: it is
+// created if missing, made an active administrator, unlocked, signed out, and
+// must choose a new password at sign-in. This happens once per username and
+// password pair, so later restarts don't undo the new password.
+const ADMIN_RESET_MARKER = '_admin_reset';
+export async function applyAdminReset(db, env = process.env) {
+  if (String(env.ADMIN_RESET || '').trim().toLowerCase() !== 'true') return null;
+  const username = String(env.ADMIN_USERNAME || 'admin').trim();
+  const password = env.ADMIN_PASSWORD;
+  if (!password) return { error: 'ADMIN_RESET is on but ADMIN_PASSWORD is not set.' };
+  const settings = settingsRepo(db);
+  const marker = (await settings.all())[ADMIN_RESET_MARKER];
+  const pair = `${username.toLowerCase()}\n${password}`;
+  if (marker && (await verifyPassword(pair, marker))) return null; // already applied
+
+  const users = userRepo(db);
+  const fields = { role: 'admin', active: true, password_hash: await hashPassword(password), must_change_password: true };
+  const existing = await users.getForLogin(username);
+  const user = existing
+    ? await users.update(existing.id, fields)
+    : await users.create({ username, display_name: 'Administrator', ...fields });
+  if (existing) await sessionRepo(db).removeForUser(existing.id);
+  await lockoutRepo(db).clear(username);
+  await settings.set(ADMIN_RESET_MARKER, await hashPassword(pair));
+  await auditRepo(db).log({ user: null, action: 'user.password_reset', entityType: 'user', entityId: user.id,
+    details: { username: user.username, reason: existing ? 'ADMIN_RESET setting' : 'ADMIN_RESET setting; account created' } });
+  return { username: user.username, created: !existing };
+}
+
 // staticDir: folder of web pages to serve (the local server passes public/).
 // On Netlify the pages are served by Netlify itself, so it is omitted.
 // This module must not use import.meta: Netlify bundles functions as CommonJS.
@@ -571,13 +601,14 @@ export function createApp({ db, staticDir = null }) {
   });
 
   // --------------------------------------------------- admin: settings
-  app.get('/api/admin/settings', requireAdmin, async (req, res) => res.json({ ...(await settings.all()), ai_configured: aiConfigured() }));
+  const visibleSettings = async () => Object.fromEntries(Object.entries(await settings.all()).filter(([k]) => !k.startsWith('_')));
+  app.get('/api/admin/settings', requireAdmin, async (req, res) => res.json({ ...(await visibleSettings()), ai_configured: aiConfigured() }));
   app.put('/api/admin/settings', requireAdmin, async (req, res) => {
     const before = await settings.all();
     for (const key of ['org_name', 'ai_enabled', 'ai_auto_analyze']) {
       if (key in (req.body || {})) await settings.set(key, req.body[key]);
     }
-    const after = await settings.all();
+    const after = await visibleSettings();
     const changes = diff(before, after, ['org_name', 'ai_enabled', 'ai_auto_analyze']);
     if (Object.keys(changes).length) await log(req, 'settings.updated', { details: { changes } });
     res.json({ ...after, ai_configured: aiConfigured() });

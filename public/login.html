@@ -30,7 +30,9 @@
         <details class="small muted" style="margin-top: 12px">
           <summary style="cursor: pointer">First time signing in, or forgot your password?</summary>
           <p style="margin: 8px 0 0"><strong>Call takers:</strong> ask an administrator to reset your password.</p>
-          <p style="margin: 6px 0 0"><strong>First administrator:</strong> the username (usually <code>admin</code>) and a temporary password are shown in the terminal where the server is running. To get a new one, run <code>npm run reset-password -- admin</code> in a terminal in the project folder.</p>
+          <p style="margin: 6px 0 0"><strong>This is not your Supabase or Netlify login.</strong> AmbuIntake has its own accounts. The first administrator's username is <code>admin</code> unless you set <code>ADMIN_USERNAME</code>.</p>
+          <p style="margin: 6px 0 0"><strong>Administrator locked out (Netlify):</strong> in Netlify → Environment variables set <code>ADMIN_PASSWORD</code> to a new password and add <code>ADMIN_RESET</code> = <code>true</code>, then redeploy. Sign in as <code>admin</code> with that password, choose a new one, and delete <code>ADMIN_RESET</code>.</p>
+          <p style="margin: 6px 0 0"><strong>Running it yourself:</strong> run <code>npm run reset-password -- admin</code> in a terminal in the project folder.</p>
         </details>
         <p class="small" style="margin-bottom: 0"><a href="status.html">System status</a></p>
       </form>

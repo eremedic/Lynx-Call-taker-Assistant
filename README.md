@@ -105,6 +105,7 @@ AmbuIntake creates its own tables the first time it starts. They go in a separat
 |---|---|---|
 | `DATABASE_URL` | Your Supabase Transaction pooler connection string (step 1) | **Yes** (mark as secret) |
 | `ADMIN_PASSWORD` | A temporary password for the first administrator. You'll be asked to change it at first sign-in. | **Yes, for the first deploy** (mark as secret) |
+| `ADMIN_RESET` | Locked out of the administrator account? Set this to `true`, set `ADMIN_PASSWORD` to a new password, and redeploy. The `admin` account (or `ADMIN_USERNAME`) is unlocked and given that password once. Delete it again after signing in. | No — only for recovery |
 | `ADMIN_USERNAME` | Username for the first administrator | No (default `admin`) |
 | `COOKIE_SECURE` | `true` | **Yes** |
 | `TRUST_PROXY` | `true`, so the audit log records real IP addresses | **Yes** |

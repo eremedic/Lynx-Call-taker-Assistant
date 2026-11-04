@@ -147,6 +147,11 @@ export async function diagnose({ env = process.env, db = null, connect = null, r
     add('COOKIE_SECURE', env.COOKIE_SECURE === 'true', env.COOKIE_SECURE === 'true' ? 'Set.' : 'Should be true on Netlify (HTTPS).', { warn: env.COOKIE_SECURE !== 'true' });
     add('TRUST_PROXY', env.TRUST_PROXY === 'true', env.TRUST_PROXY === 'true' ? 'Set.' : 'Should be true on Netlify so the audit log records real IP addresses.', { warn: env.TRUST_PROXY !== 'true' });
   }
+  if (String(env.ADMIN_RESET || '').trim().toLowerCase() === 'true') {
+    add('ADMIN_RESET', Boolean(env.ADMIN_PASSWORD), env.ADMIN_PASSWORD
+      ? `On: the "${env.ADMIN_USERNAME || 'admin'}" account uses ADMIN_PASSWORD (applied once). After you sign in and choose a new password, delete ADMIN_RESET in Netlify.`
+      : 'On, but ADMIN_PASSWORD is not set. Add ADMIN_PASSWORD and redeploy.', { warn: Boolean(env.ADMIN_PASSWORD) });
+  }
   add('AI analysis', true, env.ANTHROPIC_API_KEY ? 'ANTHROPIC_API_KEY is set.' : 'Off (ANTHROPIC_API_KEY not set). Optional.', { info: true });
 
   const ok = checks.every((c) => c.ok || c.warn || c.info);

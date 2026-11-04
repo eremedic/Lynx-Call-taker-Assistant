@@ -2,7 +2,7 @@
 // (netlify/functions/api.mjs) and Netlify serves the pages.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createApp, ensureInitialAdmin } from './app.js';
+import { createApp, ensureInitialAdmin, applyAdminReset } from './app.js';
 import { openDb } from './db.js';
 
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -22,6 +22,10 @@ if (initial) {
   console.log('  You will be asked to choose a new password at first sign-in.');
   console.log(`  Lost it later? Run: npm run reset-password -- ${initial.username}\n${line}\n`);
 }
+
+const reset = await applyAdminReset(db);
+if (reset?.error) console.warn(reset.error);
+else if (reset) console.log(`ADMIN_RESET: administrator "${reset.username}" now uses ADMIN_PASSWORD. Remove ADMIN_RESET after signing in.`);
 
 createApp({ db, staticDir: publicDir }).listen(port, () => {
   console.log(`AmbuIntake running at http://localhost:${port}`);

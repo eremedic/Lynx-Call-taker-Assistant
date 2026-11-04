@@ -5,7 +5,7 @@
 // Request. The adapter below turns it into the event shape serverless-http
 // understands and turns the result back into a web Response.
 import serverless from 'serverless-http';
-import { createApp, ensureInitialAdmin } from '../../server/app.js';
+import { createApp, ensureInitialAdmin, applyAdminReset } from '../../server/app.js';
 import { openDb } from '../../server/db.js';
 import { connectPostgres } from '../../server/db/client.js';
 import { diagnose, describeDatabaseUrl, explainDatabaseError } from '../../server/health.js';
@@ -24,7 +24,12 @@ export function createHandler(connect, { checkHealth = (env) => diagnose({ env, 
 
   const init = async () => {
     const db = await connect();
-    const initial = await ensureInitialAdmin(db);
+    // With ADMIN_PASSWORD set, an administrator who has never signed in gets
+    // that password even if the account was created earlier without it.
+    const initial = await ensureInitialAdmin(db, { reissue: Boolean(process.env.ADMIN_PASSWORD) });
+    const reset = await applyAdminReset(db);
+    if (reset?.error) console.warn(`[AmbuIntake] ${reset.error}`);
+    else if (reset) console.log(`[AmbuIntake] ADMIN_RESET: administrator "${reset.username}" ${reset.created ? 'created' : 'reset'} with ADMIN_PASSWORD. Remove ADMIN_RESET after signing in.`);
     if (initial) {
       console.log(`[AmbuIntake] First administrator "${initial.username}" created.${initial.password
         ? ` Temporary password: ${initial.password} (set ADMIN_PASSWORD to choose it yourself).`
