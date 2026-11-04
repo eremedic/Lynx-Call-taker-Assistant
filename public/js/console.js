@@ -1,3 +1,4 @@
+import { createChatbot } from './chat.js';
 import { api, esc, toast, showLoadFailure, debounce, requireUser, mountUserMenu, payerOptions, STATUS_LABELS, CRITERION_LABELS, CRITERION_CHIPS, formatAnswer } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -26,6 +27,18 @@ const state = {
   savedId: null,
 };
 
+let chatbot = null;
+
+// Adds the caller's words (typed into the Intake Assistant) to the transcript.
+function appendTranscript(text) {
+  markActive();
+  const box = $('#transcript');
+  box.value = box.value.trim() ? `${box.value.replace(/\s+$/, '')}\n${text}` : text;
+  state.transcript = box.value;
+  evaluateSoon();
+  maybeAutoAnalyze();
+}
+
 // ------------------------------------------------------------------ setup
 async function init() {
   state.user = await requireUser();
@@ -49,6 +62,7 @@ async function init() {
     return;
   }
   bindEvents();
+  chatbot = createChatbot({ state, setAnswer, appendTranscript, currentSuggestions, answerControls, markActive, onAskedHeard: () => evaluateSoon() });
   setupSpeech();
   setInterval(tickTimer, 1000);
   setCallType('non_emergency');
@@ -197,7 +211,7 @@ async function evaluate() {
   try {
     const result = await api('/api/evaluate', {
       method: 'POST',
-      body: { callType: state.callType, payer: state.payer, answers: state.answers, transcript: state.transcript },
+      body: { callType: state.callType, payer: state.payer, answers: state.answers, transcript: chatbot ? chatbot.forDetection(state.transcript) : state.transcript },
     });
     if (seq !== evalSeq) return; // a newer evaluation is in flight
     state.evaluation = result;
@@ -234,6 +248,7 @@ function render() {
   renderChecklist();
   renderAssessment();
   restoreFocus(focus);
+  chatbot?.sync();
 }
 
 function captureFocus() {
@@ -695,6 +710,7 @@ async function newCall() {
   renderSecondaryOptions();
   $('#secondary-member-field').hidden = true;
   renderAiQuestions();
+  chatbot?.reset();
   try {
     setQuestions(await api('/api/questions')); // pick up any admin changes
   } catch { /* keep the existing bank */ }

@@ -10,6 +10,13 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 
 ## Features
 
+**Intake Assistant (guided chat)** on the call-taker console
+- **One question at a time.** The assistant posts the next question to ask, using the same ranking as *Ask next*. Questions prompted by what it heard come first.
+- **Listens for the answer.** With the microphone on, it notices when the call taker reads the question aloud, then listens to the caller's reply. Without the microphone, click **I asked it** and type the caller's reply into the chat.
+- **The call taker confirms.** It shows what it heard and the answer it would record (yes/no, a number, one of the choices, or the caller's own words, which can be edited). **Accept** records it and the next question appears. The call taker can also pick a different answer or **Skip**.
+- **Picks up other answers.** Answers to other questions heard along the way are listed for one-click acceptance. The call taker's spoken questions are ignored when looking for answers, so a question's own words aren't mistaken for the caller's reply.
+- **Stays in sync with the rest of the console.** Answers recorded in the chat, the checklist or *Ask next* all update the same call.
+
 **Accounts and sign-in** (`/login.html`)
 - **Two roles.** *Call Taker* uses the console. *Administrator* also manages questions, users, settings, and the audit log.
 - **Passwords set by an administrator.** When adding a user or resetting a password, the administrator either types the password, and chooses whether the user must change it at first sign-in, or lets AmbuIntake generate a temporary one, which is shown once and must be changed at first sign-in. Passwords need at least 10 characters with letters and numbers, and can't contain the username.

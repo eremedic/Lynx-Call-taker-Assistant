@@ -97,6 +97,21 @@
         </div>
       </div>
 
+      <div id="chat-card" class="card chat-card">
+        <div class="card-header">
+          <h2 class="card-title">Intake Assistant</h2>
+          <span class="chip chip-violet">Guided chat</span>
+        </div>
+        <div id="chat-scroll" class="chat-scroll">
+          <div id="chat-history"></div>
+          <div id="chat-active" aria-live="polite"></div>
+        </div>
+        <form id="chat-form" class="chat-compose" autocomplete="off">
+          <input id="chat-input" class="input" placeholder="Type what the caller said, then press Enter" aria-label="What the caller said">
+          <button type="submit" class="btn btn-primary">Send</button>
+        </form>
+      </div>
+
       <div id="ask-next" class="ask-next" aria-live="polite"></div>
 
       <div id="suggestions-card" class="card" hidden>
