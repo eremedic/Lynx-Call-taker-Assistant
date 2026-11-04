@@ -25,6 +25,30 @@ export async function api(path, { method = 'GET', body } = {}) {
   return data;
 }
 
+// Replaces the page with a clear explanation when it can't load (for example
+// the server can't reach the database), instead of leaving dead buttons.
+export function showLoadFailure(err) {
+  console.error('[AmbuIntake] Page failed to load:', err);
+  if (document.getElementById('load-failure')) return;
+  const box = document.createElement('div');
+  box.id = 'load-failure';
+  box.className = 'load-failure';
+  box.setAttribute('role', 'alert');
+  box.innerHTML = `
+    <div class="load-failure-card">
+      <h1>AmbuIntake couldn't load</h1>
+      <p class="reason">${esc(err?.message || err || 'Unknown error.')}</p>
+      <p>Nothing on this page will work until this is fixed. The system status page checks the server, the database connection and the settings, and says what to change.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="status.html">Open system status</a>
+        <button type="button" class="btn" data-retry>Try again</button>
+        <a class="btn btn-ghost" href="login.html">Sign in again</a>
+      </div>
+    </div>`;
+  box.querySelector('[data-retry]').addEventListener('click', () => location.reload());
+  document.body.prepend(box);
+}
+
 export function redirectToLogin({ change = false } = {}) {
   const next = encodeURIComponent(location.pathname + location.hash);
   location.href = `login.html?next=${next}${change ? '&change=1' : ''}`;

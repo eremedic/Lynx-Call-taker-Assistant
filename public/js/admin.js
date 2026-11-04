@@ -1,4 +1,4 @@
-import { api, esc, toast, requireUser, mountUserMenu, ROLE_LABELS, STATUS_LABELS, STATUS_CHIPS, CRITERION_LABELS, CRITERION_CHIPS, PRIORITY_LABELS, formatAnswer, formatDate } from './common.js';
+import { api, esc, toast, showLoadFailure, requireUser, mountUserMenu, ROLE_LABELS, STATUS_LABELS, STATUS_CHIPS, CRITERION_LABELS, CRITERION_CHIPS, PRIORITY_LABELS, formatAnswer, formatDate } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -787,4 +787,4 @@ async function saveSettings(e) {
   toast('Settings saved.', 'success');
 }
 
-init().catch((err) => toast(err.message, 'error'));
+init().catch(showLoadFailure);

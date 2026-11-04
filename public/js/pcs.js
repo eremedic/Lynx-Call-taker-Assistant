@@ -1,4 +1,4 @@
-import { api, esc, requireUser, formatDate } from './common.js';
+import { api, esc, requireUser, formatDate, showLoadFailure } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
 const params = new URLSearchParams(location.search);
@@ -151,4 +151,4 @@ async function init() {
   });
 }
 
-init();
+init().catch(showLoadFailure);

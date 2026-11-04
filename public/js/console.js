@@ -1,4 +1,4 @@
-import { api, esc, toast, debounce, requireUser, mountUserMenu, payerOptions, STATUS_LABELS, CRITERION_LABELS, CRITERION_CHIPS, formatAnswer } from './common.js';
+import { api, esc, toast, showLoadFailure, debounce, requireUser, mountUserMenu, payerOptions, STATUS_LABELS, CRITERION_LABELS, CRITERION_CHIPS, formatAnswer } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -45,7 +45,7 @@ async function init() {
     $('#payer').innerHTML = `<option value="">Select payer…</option>${payerOptions(config.payers)}`;
     renderSecondaryOptions();
   } catch (err) {
-    toast(`Could not load configuration: ${err.message}`, 'error');
+    showLoadFailure(err);
     return;
   }
   bindEvents();
@@ -701,4 +701,4 @@ async function newCall() {
   setCallType('non_emergency');
 }
 
-init();
+init().catch(showLoadFailure);
