@@ -402,6 +402,30 @@ function fitView() {
   drawEdges();
 }
 
+// ------------------------------------------------------------ full screen
+// The workspace covers the whole window. Where the browser allows it, the
+// page also goes true full screen; the whole page, not just the canvas, so
+// pop-ups (e.g. + New question) and messages still show.
+export function isFullscreen() {
+  return $('#lb-workspace').classList.contains('lb-fullscreen');
+}
+
+function setFullscreen(on) {
+  const ws = $('#lb-workspace');
+  if (on === isFullscreen()) return;
+  ws.classList.toggle('lb-fullscreen', on);
+  document.body.classList.toggle('lb-fullscreen-open', on);
+  const fs = $('#lb-fullscreen');
+  fs.textContent = on ? '✕ Exit full screen' : '⛶ Full screen';
+  fs.setAttribute('aria-pressed', String(on));
+  $$('#lb-workspace [data-fullscreen]').forEach((b) => b.classList.toggle('active', on));
+  const root = document.documentElement;
+  if (on && root.requestFullscreen && !document.fullscreenElement) root.requestFullscreen().catch(() => {});
+  if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  // Box positions on screen changed: redraw the lines once layout settles.
+  requestAnimationFrame(() => requestAnimationFrame(fitView));
+}
+
 // ------------------------------------------------------------ save/load
 async function saveFlow() {
   const errors = validateGraph(graph(), questionsByCode());
@@ -495,6 +519,16 @@ function bind() {
   $('#lb-name').addEventListener('input', (e) => { ed.flow.name = e.target.value; markChanged(); });
   $('#lb-active').addEventListener('change', (e) => { ed.flow.active = e.target.checked; markChanged(); });
   $('#lb-save').addEventListener('click', saveFlow);
+  $('#lb-workspace').addEventListener('click', (e) => {
+    if (e.target.closest('[data-fullscreen]')) setFullscreen(!isFullscreen());
+  });
+  // Esc in the browser's full screen exits it; leave our full-window mode too.
+  // Esc closes an open pop-up first; with none open, it leaves full screen.
+  // (Capture phase: runs before the admin page closes the pop-up.)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isFullscreen() && !$('.modal-backdrop:not([hidden])')) setFullscreen(false);
+  }, true);
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && isFullscreen()) setFullscreen(false); });
   $('#lb-delete').addEventListener('click', deleteFlow);
   $('#lb-test').addEventListener('change', (e) => {
     ed.testMode = e.target.checked;

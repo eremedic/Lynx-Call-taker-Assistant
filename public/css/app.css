@@ -530,3 +530,10 @@ fieldset.group legend { font-size: 12px; font-weight: 700; color: var(--ink-700)
   .lb-palette { max-height: 280px; }
   .lb-canvas { height: 70vh; }
 }
+
+/* Logic Builder full screen: the workspace covers the window. */
+#lb-workspace.lb-fullscreen { position: fixed; inset: 0; z-index: 30; background: var(--bg); padding: 12px; display: flex; flex-direction: column; overflow: auto; }
+#lb-workspace.lb-fullscreen .lb-layout { flex: 1; height: auto; min-height: 420px; }
+#lb-workspace.lb-fullscreen .lb-toolbar { margin-bottom: 10px; }
+body.lb-fullscreen-open { overflow: hidden; }
+[data-fullscreen].active { background: var(--blue-50); border-color: var(--blue-500); color: var(--blue-600); }

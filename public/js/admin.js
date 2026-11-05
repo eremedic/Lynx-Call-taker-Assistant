@@ -1,4 +1,4 @@
-import { initLogicBuilder, showLogicBuilder, logicHasUnsavedChanges } from './logic-builder.js';
+import { initLogicBuilder, showLogicBuilder, logicHasUnsavedChanges, isFullscreen as logicIsFullscreen } from './logic-builder.js';
 import { api, esc, toast, showLoadFailure, requireUser, mountUserMenu, ROLE_LABELS, STATUS_LABELS, STATUS_CHIPS, CRITERION_LABELS, CRITERION_CHIPS, PRIORITY_LABELS, formatAnswer, formatDate } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -138,6 +138,7 @@ function bindEvents() {
 function showView(view) {
   if (!['overview', 'questions', 'payers', 'logic', 'calls', 'users', 'audit', 'settings'].includes(view)) view = 'overview';
   const current = $('[data-panel]:not([hidden])')?.dataset.panel;
+  if (current === 'logic' && view !== 'logic' && logicIsFullscreen()) $('#lb-fullscreen').click();
   if (current === 'logic' && view !== 'logic' && logicHasUnsavedChanges() && !confirm('Leave the Logic Builder? Your unsaved changes to this flow will stay here until you come back, but are not saved yet.')) return;
   history.replaceState(null, '', `#${view}`);
   $$('.sidenav [data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
