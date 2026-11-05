@@ -722,3 +722,24 @@ body.console-page .emergency-bar { flex: none; }
 .popout-questions.tone-no-necessity .card-header { background: var(--violet-50); }
 .popout-intro { margin: 0; padding: 10px 16px; font-size: 13px; color: var(--ink-700); border-bottom: 1px solid var(--line); }
 .popout-questions .q-row:first-child { border-top: 0; }
+
+/* Logic Builder: condition boxes (decision-tree starts) and test-mode call. */
+.lb-pal-item.condition { border-left: 4px solid var(--navy-700); }
+.lnode-condition .lnode-head { background: #e8edf7; }
+.lnode-payers { display: flex; flex-direction: column; gap: 3px; max-height: 150px; overflow-y: auto; font-size: 12px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); }
+.lnode-payers label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.lb-test-ctx { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 8px 0 4px; }
+.lb-test-ctx label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
+.lb-test-ctx .select { width: auto; min-width: 140px; padding: 4px 8px; font-size: 12.5px; }
+
+/* Decision-tree pop-outs in the console. */
+.tree-popouts { display: flex; flex-direction: column; gap: 14px; }
+.tree-popouts:empty { display: none; }
+.popout-questions.tone-tree { border-color: var(--navy-700); box-shadow: 0 10px 28px rgba(18, 35, 74, .2); }
+.popout-questions.tone-tree .card-header { background: #e8edf7; }
+.tree-result { padding: 12px 16px; border-top: 1px solid var(--line); background: var(--surface-2); }
+.tree-result-label { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-500); margin-bottom: 4px; }
+.tree-result ul { margin: 0; padding-left: 18px; }
+.tree-outcome { font-weight: 650; }
+.tree-outcome.kind-status, .tree-outcome.kind-level { color: var(--green-600); }
+.tree-outcome.kind-alert { color: var(--amber-600); }

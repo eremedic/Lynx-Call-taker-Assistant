@@ -316,10 +316,10 @@ export function createApp({ db, staticDir = null }) {
   app.get('/api/questions', requireAuth, async (req, res) => res.json(await questions.list({ activeOnly: true })));
 
   app.post('/api/evaluate', requireAuth, async (req, res) => {
-    const { callType = 'non_emergency', answers = {}, transcript = '', payer = '', allQuestions = false } = req.body || {};
+    const { callType = 'non_emergency', answers = {}, transcript = '', payer = '', allQuestions = false, level = '' } = req.body || {};
     if (!(callType in CALL_TYPES)) return res.status(400).json({ error: 'Invalid call type.' });
     const [context, bank, rules] = await Promise.all([payerContext(payer), questions.list({ activeOnly: true }), flows.list({ activeOnly: true })]);
-    res.json(evaluateCall({ callType, answers, transcript, ...context, questions: bank, flows: rules, allQuestions: Boolean(allQuestions) }));
+    res.json(evaluateCall({ callType, answers, transcript, ...context, questions: bank, flows: rules, allQuestions: Boolean(allQuestions), level: String(level || '') }));
   });
 
   // ---------------------------------------------- saved pickup facilities
@@ -389,7 +389,7 @@ export function createApp({ db, staticDir = null }) {
     if (secondaryCode && !secondary) return { error: 'Unknown secondary payer.' };
     // The primary payer's rules drive the medical-necessity review.
     const { payer, brokers } = await payerContext(payerCode);
-    const { assessment } = evaluateCall({ callType, answers, transcript, payer, brokers, questions: await questions.list({ activeOnly: true }), flows: await flows.list({ activeOnly: true }), allQuestions: Boolean(allQuestions) });
+    const { assessment } = evaluateCall({ callType, answers, transcript, payer, brokers, questions: await questions.list({ activeOnly: true }), flows: await flows.list({ activeOnly: true }), allQuestions: Boolean(allQuestions), level: String(details?.requested_level || '') });
     return { callType, payer: payer?.code, secondaryPayer: secondary?.code, details, answers, transcript, assessment };
   };
   // Call takers can reach their own calls; administrators can reach any call.
@@ -550,7 +550,7 @@ export function createApp({ db, staticDir = null }) {
       const g = body.graph || { nodes: [], edges: [] };
       input.graph = { nodes: Array.isArray(g.nodes) ? g.nodes : [], edges: Array.isArray(g.edges) ? g.edges : [] };
       if (JSON.stringify(input.graph).length > 500_000) errors.push('The flow is too large.');
-      else errors.push(...validateGraph(input.graph, new Map((await questions.list()).map((q) => [q.code, q]))));
+      else errors.push(...validateGraph(input.graph, new Map((await questions.list()).map((q) => [q.code, q])), { payerCodes: new Set((await payers.list()).map((p) => p.code)) }));
     }
     return { input, errors };
   };

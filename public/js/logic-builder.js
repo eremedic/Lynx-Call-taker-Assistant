@@ -5,6 +5,7 @@
 import { api, esc, toast } from './common.js';
 import {
   portsFor, runFlow, validateGraph, hasCycle, OUTCOME_KINDS, STATUS_OPTIONS, LEVEL_OPTIONS, ALERT_LEVELS, NUMBER_OPS,
+  CONDITION_FIELDS, conditionPorts, LEVELS, TRIP_TYPES,
 } from './flow-logic.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -30,6 +31,7 @@ const ed = {
   selected: null, // { type: 'node', id } | { type: 'edge', index }
   testMode: false,
   testAnswers: {},
+  testCtx: { payer: '', level: '', callType: '' }, // Test mode: the call's payer / level / trip type
   gesture: null, // current drag: pan | node | wire
 };
 
@@ -80,6 +82,7 @@ function openFlow(flow) {
   ed.savedJson = flow.id ? flowJson(ed.flow) : '';
   ed.selected = null;
   ed.testAnswers = {};
+  ed.testCtx = { payer: '', level: '', callType: '' };
   $('#lb-errors').hidden = true;
   renderFlowPicker();
   renderAll();
@@ -223,10 +226,44 @@ function outcomeNodeHtml(n, run) {
     </div>`;
 }
 
+// The call details Test mode checks condition boxes against.
+function testContext() {
+  const p = deps.getPayers().find((x) => x.code === ed.testCtx.payer);
+  return { payer: p ? { code: p.code, parent_code: p.parent_code } : null, level: ed.testCtx.level, callType: ed.testCtx.callType };
+}
+const runTest = () => runFlow(graph(), ed.testAnswers, testContext());
+
+// A condition box starts a tree from something chosen in Call Setup.
+function conditionNodeHtml(n, run) {
+  const gated = incomingCount(n.id) > 0;
+  const state = ed.testMode ? (run.nodeOn.get(n.id) ? 'on' : 'off') : '';
+  const payers = deps.getPayers();
+  const picked = new Set(n.values || []);
+  const body = n.field === 'payer'
+    ? `<div class="lnode-payers">${payers.map((p) => `<label><input type="checkbox" data-cond-payer="${n.id}" value="${esc(p.code)}" ${picked.has(p.code) ? 'checked' : ''}> ${esc(p.name)}${p.kind === 'broker' ? ' (broker)' : ''}</label>`).join('')}</div>
+       <div class="lnode-note">Yes = one of the checked payers. Brokers count as the payer they book for.</div>`
+    : `<div class="lnode-note">${n.field === 'level' ? 'One line per level chosen on the Trip tab.' : 'One line per trip type chosen on the Trip tab.'}</div>`;
+  return `
+    <div class="lnode lnode-condition ${state} ${ed.selected?.id === n.id ? 'selected' : ''}" data-node="${n.id}" style="${boxStyle(n)}">
+      <div class="lnode-in" data-in="${n.id}" title="Optional: lines into a condition must also match"></div>
+      <div class="lnode-head" data-drag="${n.id}">
+        <span class="lnode-type">◆ ${esc(CONDITION_FIELDS[n.field] || 'Condition')}</span>
+        <button type="button" class="lnode-del" data-del-node="${n.id}" aria-label="Remove box">×</button>
+      </div>
+      <div class="lnode-body">${body}${gated ? matchControl(n) : ''}</div>
+      <div class="lnode-ports">
+        ${conditionPorts(n).map((p) => `<div class="lport"><span>${esc(p.label)}</span>
+          <span class="lnode-out port-${p.key === 'yes' ? 'yes' : p.key === 'no' ? 'no' : 'other'}" data-out="${n.id}" data-port="${esc(p.key)}" title="Drag to the next box"></span></div>`).join('')}
+      </div>
+      <div class="lnode-resize" data-resize="${n.id}" title="Drag to resize · double-click for the default size" aria-hidden="true"></div>
+    </div>`;
+}
+
 function renderNodes() {
   const qs = questionsByCode();
-  const run = runFlow(graph(), ed.testAnswers);
-  $('#lb-nodes').innerHTML = graph().nodes.map((n) => (n.type === 'question' ? questionNodeHtml(n, qs.get(n.code), run) : outcomeNodeHtml(n, run))).join('');
+  const run = runTest();
+  $('#lb-nodes').innerHTML = graph().nodes.map((n) => (n.type === 'question' ? questionNodeHtml(n, qs.get(n.code), run)
+    : n.type === 'condition' ? conditionNodeHtml(n, run) : outcomeNodeHtml(n, run))).join('');
   // Redraw the lines whenever a box changes size (resize grip, text areas, wrapping).
   sizeWatcher.disconnect();
   $$('#lb-nodes .lnode').forEach((el) => sizeWatcher.observe(el));
@@ -263,7 +300,7 @@ const midpoint = (a, b) => {
 
 function drawEdges() {
   const svg = $('#lb-edges');
-  const run = ed.testMode ? runFlow(graph(), ed.testAnswers) : null;
+  const run = ed.testMode ? runTest() : null;
   const parts = [];
   let selectedMid = null;
   graph().edges.forEach((e, i) => {
@@ -299,12 +336,18 @@ function renderTestSummary() {
   const box = $('#lb-test-summary');
   box.hidden = !ed.testMode;
   if (!ed.testMode) return;
-  const run = runFlow(graph(), ed.testAnswers);
+  const run = runTest();
   const fired = run.outcomes.map((n) => {
     const what = n.kind === 'status' ? STATUS_OPTIONS[n.value] : n.kind === 'level' ? LEVEL_OPTIONS[n.value] : n.text;
     return `<li><strong>${esc(OUTCOME_KINDS[n.kind])}:</strong> ${esc(what || '—')}</li>`;
   });
-  box.innerHTML = `<strong>Test mode.</strong> Pick answers in the question boxes to see which lines and outcomes switch on (green).
+  const opt = (map, value) => Object.entries(map).map(([k, label]) => `<option value="${esc(k)}" ${value === k ? 'selected' : ''}>${esc(label)}</option>`).join('');
+  box.innerHTML = `<strong>Test mode.</strong> Choose a call below, then pick answers in the question boxes to see which lines and outcomes switch on (green).
+    <div class="lb-test-ctx">
+      <label>Payer <select class="select" data-test-ctx="payer"><option value="">— none —</option>${deps.getPayers().map((p) => `<option value="${esc(p.code)}" ${ed.testCtx.payer === p.code ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+      <label>Level <select class="select" data-test-ctx="level"><option value="">— none —</option>${opt(LEVELS, ed.testCtx.level)}</select></label>
+      <label>Trip type <select class="select" data-test-ctx="callType"><option value="">— none —</option>${opt(TRIP_TYPES, ed.testCtx.callType)}</select></label>
+    </div>
     ${fired.length ? `<ul>${fired.join('')}</ul>` : '<div class="muted">No outcome fires with these answers.</div>'}`;
 }
 
@@ -326,9 +369,10 @@ function addNode(spec, at) {
     }
   }
   const pos = at || visibleCenter();
-  const node = spec.type === 'question'
-    ? { id: nextId(), type: 'question', code: spec.code, match: 'all', x: Math.round(pos.x - NODE_WIDTH / 2), y: Math.round(pos.y - 30) }
-    : { id: nextId(), type: 'outcome', kind: spec.kind, value: spec.kind === 'alert' ? 'warning' : '', text: '', match: 'all', x: Math.round(pos.x - NODE_WIDTH / 2), y: Math.round(pos.y - 30) };
+  const place = { x: Math.round(pos.x - NODE_WIDTH / 2), y: Math.round(pos.y - 30) };
+  const node = spec.type === 'question' ? { id: nextId(), type: 'question', code: spec.code, match: 'all', ...place }
+    : spec.type === 'condition' ? { id: nextId(), type: 'condition', field: spec.field, values: [], match: 'all', ...place }
+    : { id: nextId(), type: 'outcome', kind: spec.kind, value: spec.kind === 'alert' ? 'warning' : '', text: '', match: 'all', ...place };
   graph().nodes.push(node);
   ed.selected = { type: 'node', id: node.id };
   renderAll();
@@ -568,22 +612,42 @@ function bind() {
     markChanged();
   });
   $('#lb-search').addEventListener('input', renderPalette);
-  $('#lb-new-question').addEventListener('click', () => deps.openQuestion());
-  document.addEventListener('questions-changed', () => { if (ed.flow) { renderPalette(); renderAll(); } });
+  // A question created from here drops onto the canvas once it is saved.
+  let codesBeforeNew = null;
+  $('#lb-new-question').addEventListener('click', () => {
+    codesBeforeNew = new Set(deps.getQuestions().map((q) => q.code));
+    deps.openQuestion();
+  });
+  document.addEventListener('questions-changed', () => {
+    if (!ed.flow) return;
+    renderPalette();
+    renderAll();
+    if (codesBeforeNew) {
+      const added = deps.getQuestions().find((q) => !codesBeforeNew.has(q.code));
+      if (added) {
+        codesBeforeNew = null;
+        addNode({ type: 'question', code: added.code });
+        toast(`“${added.text}” is on the canvas. Draw a line into it from the answer that should lead to it.`, 'success');
+      }
+    }
+  });
 
   // Palette: drag onto the canvas, or click to add in the middle.
   const palette = $('#lb-palette');
+  const specFor = (item) => (item.dataset.addQuestion ? { type: 'question', code: item.dataset.addQuestion }
+    : item.dataset.addCondition ? { type: 'condition', field: item.dataset.addCondition }
+    : { type: 'outcome', kind: item.dataset.addOutcome });
   palette.addEventListener('dragstart', (e) => {
-    const item = e.target.closest('[data-add-question], [data-add-outcome]');
+    const item = e.target.closest('[data-add-question], [data-add-outcome], [data-add-condition]');
     if (!item) return;
-    const spec = item.dataset.addQuestion ? { type: 'question', code: item.dataset.addQuestion } : { type: 'outcome', kind: item.dataset.addOutcome };
+    const spec = specFor(item);
     e.dataTransfer.setData('application/x-ambuintake-box', JSON.stringify(spec));
     e.dataTransfer.effectAllowed = 'copy';
   });
   palette.addEventListener('click', (e) => {
-    const item = e.target.closest('[data-add-question], [data-add-outcome]');
+    const item = e.target.closest('[data-add-question], [data-add-outcome], [data-add-condition]');
     if (!item) return;
-    addNode(item.dataset.addQuestion ? { type: 'question', code: item.dataset.addQuestion } : { type: 'outcome', kind: item.dataset.addOutcome });
+    addNode(specFor(item));
   });
   canvas.addEventListener('dragover', (e) => {
     if (e.dataTransfer.types.includes('application/x-ambuintake-box')) {
@@ -770,7 +834,22 @@ function bind() {
     if (test) {
       ed.testAnswers[test.dataset.test] = e.target.value;
       renderAll();
+      return;
     }
+    const pick = e.target.closest('[data-cond-payer]');
+    if (pick) {
+      const node = nodeById(pick.dataset.condPayer);
+      const values = new Set(node.values || []);
+      if (pick.checked) values.add(pick.value); else values.delete(pick.value);
+      node.values = [...values];
+      renderAll();
+    }
+  });
+  $('#lb-test-summary').addEventListener('change', (e) => {
+    const ctx = e.target.closest('[data-test-ctx]');
+    if (!ctx) return;
+    ed.testCtx[ctx.dataset.testCtx] = e.target.value;
+    renderAll();
   });
   canvas.addEventListener('input', (e) => {
     const field = e.target.closest('textarea[data-node-field]');

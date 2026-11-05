@@ -4,12 +4,14 @@
 // admin editor (which uses them for its Test mode), so the two always agree.
 // No browser or Node APIs here.
 //
-// A flow is a graph:
+// A flow is a graph (a decision tree, or several):
 //   nodes: { id, type: 'question', code, match, conditions?, x, y }
+//          { id, type: 'condition', field: 'payer' | 'level' | 'call_type', values?, match, x, y }
 //          { id, type: 'outcome', kind, value, text, match, x, y }
-//   edges: { from: questionNodeId, port: answerKey, to: nodeId }
-// An edge is "on" when its source question is in play and the answer matches
-// the port. A node with incoming edges is on when ALL of them are on
+//   edges: { from: questionOrConditionNodeId, port: answerKey, to: nodeId }
+// An edge is "on" when its source box is in play and the source matches the
+// port: the question's answer, or the call's payer / level / trip type for a
+// condition box. A node with incoming edges is on when ALL of them are on
 // (match: 'all', the default) or ANY of them is (match: 'any').
 //   - A question node with incoming edges is only asked when it is on.
 //   - An outcome node fires when it is on.
@@ -42,6 +44,36 @@ export const LEVEL_RANK = { none: 0, bls: 1, als: 2, sct: 3 };
 export const ALERT_LEVELS = { info: 'Information', warning: 'Warning', critical: 'Critical' };
 
 export const NUMBER_OPS = ['>=', '>', '<=', '<', '='];
+
+// Condition boxes start a tree from something chosen in Call Setup.
+export const CONDITION_FIELDS = {
+  payer: 'Payer is…',
+  level: 'Level is…',
+  call_type: 'Trip type is…',
+};
+export const LEVELS = { BLS: 'BLS', ALS: 'ALS', SCT: 'SCT' };
+export const TRIP_TYPES = { emergency: 'Emergency', non_emergency: 'Non-emergency', repetitive: 'Repetitive' };
+
+export function conditionPorts(node) {
+  if (node.field === 'payer') return [{ key: 'yes', label: 'Yes' }, { key: 'no', label: 'No' }];
+  if (node.field === 'level') return Object.entries(LEVELS).map(([key, label]) => ({ key, label }));
+  if (node.field === 'call_type') return Object.entries(TRIP_TYPES).map(([key, label]) => ({ key, label }));
+  return [];
+}
+
+// Does the call match this port of a condition box? Nothing matches until the
+// call taker has made the choice (no payer yet means neither Yes nor No).
+export function matchCondition(node, key, ctx = {}) {
+  if (node.field === 'payer') {
+    const p = ctx.payer;
+    if (!p) return false;
+    const hit = (node.values || []).some((c) => c === p.code || (p.parent_code && c === p.parent_code));
+    return key === 'yes' ? hit : key === 'no' ? !hit : false;
+  }
+  if (node.field === 'level') return Boolean(ctx.level) && String(ctx.level).toUpperCase() === key;
+  if (node.field === 'call_type') return Boolean(ctx.callType) && ctx.callType === key;
+  return false;
+}
 const OP_LABELS = { '>=': '≥', '>': '>', '<=': '≤', '<': '<', '=': '=' };
 
 const isAnswered = (v) => v !== undefined && v !== null && String(v).trim() !== '';
@@ -115,7 +147,7 @@ export function hasCycle(graph) {
 }
 
 // Problems that would stop a flow from working, in plain language.
-export function validateGraph(graph, questionsByCode) {
+export function validateGraph(graph, questionsByCode, { payerCodes = null } = {}) {
   const errors = [];
   if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) return ['The flow is empty or damaged.'];
   if (graph.nodes.length > 300 || graph.edges.length > 1000) errors.push('The flow is too large (at most 300 boxes and 1,000 lines).');
@@ -124,6 +156,10 @@ export function validateGraph(graph, questionsByCode) {
   for (const n of graph.nodes) {
     if (n.type === 'question') {
       if (!questionsByCode.has(n.code)) errors.push(`A question box refers to a question that no longer exists (${n.code}).`);
+    } else if (n.type === 'condition') {
+      if (!(n.field in CONDITION_FIELDS)) errors.push('A condition box has no type.');
+      else if (n.field === 'payer' && !(n.values || []).length) errors.push('Pick at least one payer in each "Payer is…" box.');
+      else if (n.field === 'payer' && payerCodes && n.values.some((c) => !payerCodes.has(c))) errors.push('A "Payer is…" box refers to a payer that no longer exists.');
     } else if (n.type === 'outcome') {
       if (!(n.kind in OUTCOME_KINDS)) errors.push('An outcome box has no type.');
       else if (n.kind === 'status' && !(n.value in STATUS_OPTIONS)) errors.push('Choose a result in each "Medical-necessity result" box.');
@@ -137,17 +173,18 @@ export function validateGraph(graph, questionsByCode) {
     const from = nodes.get(e.from);
     const to = nodes.get(e.to);
     if (!from || !to) { errors.push('A line is connected to a box that was removed.'); continue; }
-    if (from.type !== 'question') errors.push('Lines must start from a question’s answer.');
-    if (e.from === e.to) errors.push('A question can’t be connected to itself.');
-    const ports = portsFor(from, questionsByCode.get(from.code)).map((p) => p.key);
-    if (from.type === 'question' && !ports.includes(e.port)) errors.push(`A line starts from an answer that "${questionsByCode.get(from.code)?.text || from.code}" no longer has.`);
+    if (from.type !== 'question' && from.type !== 'condition') errors.push('Lines must start from a question’s answer or a condition.');
+    if (e.from === e.to) errors.push('A box can’t be connected to itself.');
+    if (from.type === 'question' && !portsFor(from, questionsByCode.get(from.code)).some((p) => p.key === e.port)) errors.push(`A line starts from an answer that "${questionsByCode.get(from.code)?.text || from.code}" no longer has.`);
+    if (from.type === 'condition' && !conditionPorts(from).some((p) => p.key === e.port)) errors.push('A line starts from a condition option that doesn’t exist.');
   }
   if (hasCycle(graph)) errors.push('The lines form a loop. A question can’t depend on its own answer.');
   return [...new Set(errors)];
 }
 
-// Works out which boxes and lines are on for these answers.
-export function runFlow(flow, answers = {}) {
+// Works out which boxes and lines are on for these answers and this call
+// (ctx: { payer, level, callType }, used by condition boxes).
+export function runFlow(flow, answers = {}, ctx = {}) {
   const graph = flow.graph || flow;
   const { nodes, incoming } = indexGraph(graph);
   const memo = new Map();
@@ -160,11 +197,13 @@ export function runFlow(flow, answers = {}) {
     const inc = incoming.get(id) || [];
     let on;
     if (!inc.length) {
-      on = node.type === 'question'; // an outcome needs at least one line
+      on = node.type !== 'outcome'; // an outcome needs at least one line
     } else {
       const states = inc.map((e) => {
         const src = nodes.get(e.from);
-        const ok = Boolean(src && src.type === 'question' && nodeOn(e.from, seen) && matchPort(e.port, answers[src.code]));
+        const matches = src?.type === 'question' ? matchPort(e.port, answers[src.code])
+          : src?.type === 'condition' ? matchCondition(src, e.port, ctx) : false;
+        const ok = Boolean(matches && nodeOn(e.from, seen));
         if (ok) edgeOn.add(e);
         return ok;
       });
@@ -175,6 +214,23 @@ export function runFlow(flow, answers = {}) {
   };
   for (const id of nodes.keys()) nodeOn(id);
 
+  // The tree's questions in the order they're reached (breadth-first from
+  // the starting boxes), for showing a tree step by step.
+  const order = [];
+  const outgoing = new Map();
+  for (const e of graph?.edges || []) {
+    if (!outgoing.has(e.from)) outgoing.set(e.from, []);
+    outgoing.get(e.from).push(e.to);
+  }
+  const queue = [...nodes.keys()].filter((id) => !(incoming.get(id) || []).length);
+  const seenOrder = new Set(queue);
+  while (queue.length) {
+    const id = queue.shift();
+    order.push(id);
+    for (const next of outgoing.get(id) || []) if (!seenOrder.has(next)) { seenOrder.add(next); queue.push(next); }
+  }
+  const askedInOrder = order.map((id) => nodes.get(id)).filter((n) => n?.type === 'question' && memo.get(n.id)).map((n) => n.code);
+
   const gates = new Map(); // question code -> asked?
   const outcomes = [];
   for (const node of nodes.values()) {
@@ -182,20 +238,32 @@ export function runFlow(flow, answers = {}) {
     if (node.type === 'question' && gated) gates.set(node.code, (gates.get(node.code) || false) || memo.get(node.id));
     if (node.type === 'outcome' && memo.get(node.id)) outcomes.push(node);
   }
-  return { nodeOn: memo, edgeOn, gates, outcomes };
+  return { nodeOn: memo, edgeOn, gates, outcomes, askedInOrder };
 }
 
 // Runs every flow that applies to this call. A question placed under a line
 // in any flow is hidden until some flow switches it on.
-export function runFlows(flows, { answers = {}, callType, payer } = {}) {
+export function runFlows(flows, { answers = {}, callType, payer, level } = {}) {
   const gates = new Map();
   const outcomes = [];
+  const trees = [];
   for (const flow of flows || []) {
     if (!flowApplies(flow, { callType, payer })) continue;
-    const r = runFlow(flow, answers);
+    const r = runFlow(flow, answers, { payer, level, callType });
     for (const [code, on] of r.gates) gates.set(code, (gates.get(code) || false) || on);
     for (const node of r.outcomes) outcomes.push({ flow: { id: flow.id, name: flow.name }, node });
+    // A flow that starts from a condition box is a decision tree the console
+    // walks the call taker through once its condition matches.
+    const startsFromCondition = (flow.graph?.nodes || []).some((n) => n.type === 'condition');
+    if (startsFromCondition && r.askedInOrder.length) {
+      const fields = [...new Set(flow.graph.nodes.filter((n) => n.type === 'condition').map((n) => n.field))];
+      trees.push({
+        id: flow.id, name: flow.name, questions: r.askedInOrder, conditions: fields,
+        payerTree: fields.includes('payer') || Boolean(flow.payers?.length),
+        outcomes: r.outcomes.map((n) => ({ kind: n.kind, value: n.value || null, text: n.text || '' })),
+      });
+    }
   }
   const hidden = new Set([...gates].filter(([, on]) => !on).map(([code]) => code));
-  return { hidden, outcomes };
+  return { hidden, outcomes, trees };
 }

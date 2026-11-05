@@ -59,7 +59,7 @@ function applyPriorAuthPolicy(q, policy) {
   return policy === 'required' ? { ...q, required: true } : q;
 }
 
-export function evaluateCall({ callType = 'non_emergency', questions = [], answers = {}, transcript = '', payer = null, brokers = [], flows = [], allQuestions = false }) {
+export function evaluateCall({ callType = 'non_emergency', questions = [], answers = {}, transcript = '', payer = null, brokers = [], flows = [], allQuestions = false, level = '' }) {
   const policy = payer?.prior_auth?.[callType] || null;
   const skipNecessity = skipsNecessity(payer);
   const active = questions
@@ -74,7 +74,7 @@ export function evaluateCall({ callType = 'non_emergency', questions = [], answe
   // words were heard, or it was already answered. Follow-ups also require
   // their parent question to have the specified answer.
   // Logic Builder flows can hold a question back until earlier answers call for it.
-  const rules = runFlows(flows, { answers, callType, payer });
+  const rules = runFlows(flows, { answers, callType, payer, level });
   const visible = active.filter((q) => {
     if (rules.hidden.has(q.code)) return false;
     if (q.depends_on_code && !sameAnswer(answers[q.depends_on_code], q.depends_on_answer)) return false;
@@ -103,6 +103,8 @@ export function evaluateCall({ callType = 'non_emergency', questions = [], answe
     suggestions: openSuggestions,
     nextQuestion: queue[0]?.code || null,
     queue: queue.slice(0, 5).map((q) => q.code),
+    // Decision trees in play, with their questions in the order they're reached.
+    trees: rules.trees.map((t) => ({ ...t, questions: t.questions.filter((c) => visible.some((q) => q.code === c)) })),
     assessment: applyRuleOutcomes(assess({ callType, visible, answers, payer, policy, brokers }), rules.outcomes, callType),
   };
 }

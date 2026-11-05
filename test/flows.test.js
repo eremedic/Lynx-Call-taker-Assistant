@@ -119,3 +119,64 @@ test('the question form can list every applicable question, not only ones the co
   assert.ok(!evaluateCall({ callType: 'non_emergency', questions: BANK, answers: {} }).visibleCodes.includes(code));
   assert.ok(evaluateCall({ callType: 'non_emergency', questions: BANK, answers: {}, allQuestions: true }).visibleCodes.includes(code));
 });
+
+// "Payer is Medicare Advantage" → Yes → Q1; Q1 yes → Q2; Q1 no → outcome;
+// Q2 yes → meets; Q2 no → review.
+const tree = {
+  id: 9, name: 'MA tree', active: true, call_types: [], payers: [],
+  graph: {
+    nodes: [
+      { id: 'p', type: 'condition', field: 'payer', values: ['medicare_advantage'] },
+      { id: 'q1', type: 'question', code: 'BED_GET_UP' },
+      { id: 'q2', type: 'question', code: 'BED_SIT' },
+      { id: 'o1', type: 'outcome', kind: 'alert', value: 'info', text: 'Not bed-confined: check other conditions.' },
+      { id: 'o2', type: 'outcome', kind: 'status', value: 'meets', text: 'Tree says yes.' },
+      { id: 'o3', type: 'outcome', kind: 'status', value: 'review', text: 'Tree says review.' },
+    ],
+    edges: [
+      { from: 'p', port: 'yes', to: 'q1' },
+      { from: 'q1', port: 'yes', to: 'q2' }, { from: 'q1', port: 'no', to: 'o1' },
+      { from: 'q2', port: 'yes', to: 'o2' }, { from: 'q2', port: 'no', to: 'o3' },
+    ],
+  },
+};
+const MA = { code: 'medicare_advantage', kind: 'payer', requires_medical_necessity: true };
+const MEDICARE = { code: 'medicare', kind: 'payer', requires_medical_necessity: true };
+
+test('a payer decision tree: questions appear step by step, then the outcome', () => {
+  const run = (payer, answers) => evaluateCall({ callType: 'non_emergency', questions: BANK, payer, answers, flows: [tree], allQuestions: true });
+  // Another payer: the tree's questions stay hidden.
+  const other = run(MEDICARE, {});
+  assert.ok(!other.visibleCodes.includes('BED_GET_UP') && !other.visibleCodes.includes('BED_SIT'));
+  assert.deepEqual(other.trees, []);
+  // The payer matches: only the first question.
+  const start = run(MA, {});
+  assert.deepEqual(start.trees[0].questions, ['BED_GET_UP']);
+  assert.ok(!start.visibleCodes.includes('BED_SIT'));
+  // Yes → the next question.
+  const yes = run(MA, { BED_GET_UP: 'yes' });
+  assert.deepEqual(yes.trees[0].questions, ['BED_GET_UP', 'BED_SIT']);
+  // Yes, yes → meets. Yes, no → review. No → the alert, and no second question.
+  assert.equal(run(MA, { BED_GET_UP: 'yes', BED_SIT: 'yes' }).assessment.status, 'meets');
+  assert.equal(run(MA, { BED_GET_UP: 'yes', BED_SIT: 'no' }).assessment.status, 'review');
+  const no = run(MA, { BED_GET_UP: 'no' });
+  assert.deepEqual(no.trees[0].questions, ['BED_GET_UP']);
+  assert.ok(no.assessment.alerts.some((a) => a.text === 'Not bed-confined: check other conditions.'));
+  assert.deepEqual(no.trees[0].outcomes.map((o) => o.kind), ['alert']);
+});
+
+test('level and trip-type condition boxes', () => {
+  const lv = { id: 10, name: 'ALS tree', active: true, graph: {
+    nodes: [{ id: 'l', type: 'condition', field: 'level' }, { id: 'q', type: 'question', code: 'CLN_CARDIAC' }, { id: 't', type: 'condition', field: 'call_type' }, { id: 'o', type: 'outcome', kind: 'document', text: 'Repetitive: PCS within 60 days.' }],
+    edges: [{ from: 'l', port: 'ALS', to: 'q' }, { from: 't', port: 'repetitive', to: 'o' }],
+  } };
+  const ev = (level, callType = 'non_emergency') => evaluateCall({ callType, questions: BANK, answers: {}, flows: [lv], allQuestions: true, level });
+  assert.ok(!ev('BLS').visibleCodes.includes('CLN_CARDIAC'));
+  assert.ok(ev('ALS').visibleCodes.includes('CLN_CARDIAC'));
+  assert.ok(ev('ALS', 'repetitive').assessment.documentation.includes('Repetitive: PCS within 60 days.'));
+  assert.deepEqual(validateGraph(lv.graph, byCode), []);
+  const bad = { nodes: [{ id: 'p', type: 'condition', field: 'payer', values: [] }, { id: 'q', type: 'question', code: 'BED_SIT' }], edges: [{ from: 'p', port: 'maybe', to: 'q' }] };
+  const errors = validateGraph(bad, byCode, { payerCodes: new Set(['medicare']) });
+  assert.ok(errors.some((e) => /Pick at least one payer/.test(e)));
+  assert.ok(errors.some((e) => /condition option/.test(e)));
+});

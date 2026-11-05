@@ -82,7 +82,7 @@ function bindEvents() {
     const sync = () => {
       markActive();
       setDetail(input.dataset.detail, input.value, input);
-      if (input.dataset.detail === 'requested_level') renderPopouts();
+      if (input.dataset.detail === 'requested_level') { renderPopouts(); evaluate(); } // decision trees can start from the level
       renderTabs();
     };
     input.addEventListener('input', sync);
@@ -398,7 +398,7 @@ async function evaluate() {
     const result = await api('/api/evaluate', {
       method: 'POST',
       // The form lists every question that applies, not only those prompted by the conversation.
-      body: { callType: state.callType, payer: state.payer, answers: state.answers, allQuestions: true },
+      body: { callType: state.callType, payer: state.payer, answers: state.answers, allQuestions: true, level: state.details.requested_level || '' },
     });
     if (seq !== evalSeq) return; // a newer evaluation is in flight
     state.evaluation = result;
@@ -509,38 +509,78 @@ function renderPopout(id, { questions, title, intro, tone = '', key }) {
     box.classList.remove('pop-in');
     void box.offsetWidth;
     box.classList.add('pop-in');
-    if (!box.closest('[data-tabpanel]')?.hidden) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return box; // newly popped
   }
+  return null;
+}
+
+// Decision trees from the Logic Builder: the questions reached so far, in
+// order. Answering one reveals the next; the outcome shows once it's reached.
+const OUTCOME_TEXT = {
+  status: { meets: 'Meets criteria', likely: 'Likely meets: finish documentation', review: 'Needs supervisor review', not_met: 'Does not meet criteria' },
+  level: { sct: 'Level of service: SCT', als: 'Level of service: ALS', bls: 'Level of service: BLS', none: 'Ambulance not indicated' },
+};
+function renderTrees(containerId, trees) {
+  const fresh = trees.find((t) => !popped[`tree-${t.id}`]);
+  $(`#${containerId}`).innerHTML = trees.map((t) => {
+    const qs = t.questions.map((c) => state.byCode.get(c)).filter(Boolean);
+    const done = qs.filter((q) => state.answers[q.code] !== undefined).length;
+    const outcomes = t.outcomes.map((o) => {
+      const text = o.kind === 'alert' || o.kind === 'document' ? o.text : [OUTCOME_TEXT[o.kind]?.[o.value], o.text].filter(Boolean).join(': ');
+      return `<li class="tree-outcome kind-${esc(o.kind)}">${esc(text)}</li>`;
+    }).join('');
+    const waiting = qs.length && done === qs.length && !outcomes;
+    return `
+      <div class="card popout-questions tone-tree ${popped[`tree-${t.id}`] ? '' : 'pop-in'}" data-tree="${esc(t.id)}">
+        <div class="card-header"><h2 class="card-title">Decision tree: ${esc(t.name)}</h2><span class="muted small">${done} of ${qs.length} answered</span></div>
+        <p class="popout-intro">Answer each question. The next one appears based on the answer.</p>
+        <div id="tree-${esc(t.id)}-list" class="q-form">${qs.map(questionRow).join('')}</div>
+        ${outcomes ? `<div class="tree-result"><div class="tree-result-label">Outcome</div><ul>${outcomes}</ul></div>` : ''}
+        ${waiting ? '<div class="tree-result muted small">No outcome is set for this path yet.</div>' : ''}
+      </div>`;
+  }).join('');
+  for (const t of trees) popped[`tree-${t.id}`] = true;
+  return fresh ? document.querySelector(`#${containerId} [data-tree="${CSS.escape(String(fresh.id))}"]`) : null;
 }
 
 function renderPopouts() {
   if (!state.evaluation) return;
+  const trees = state.evaluation.trees || [];
+  const newlyShown = [
+    renderTrees('trip-trees', trees.filter((t) => !t.payerTree)),
+    renderTrees('payer-trees', trees.filter((t) => t.payerTree)),
+  ];
+  // A tree that goes away (e.g. the payer changed) pops out again next time.
+  const live = new Set(trees.map((t) => `tree-${t.id}`));
+  for (const key of Object.keys(popped)) if (key.startsWith('tree-') && !live.has(key)) delete popped[key];
+  const inTree = new Set(trees.flatMap((t) => t.questions));
   const visible = new Set(state.evaluation.visibleCodes);
-  const shown = (q) => visible.has(q.code);
+  // Tree questions are shown in their tree, not again in the boxes below.
+  const shown = (q) => visible.has(q.code) && !inTree.has(q.code);
   const payer = state.config.payers.find((p) => p.code === state.payer);
   const level = LEVEL_CRITERIA[state.details.requested_level];
 
   // Trip tab: the chosen level's questions (none for private / facility pay).
-  renderPopout('level-questions', {
+  newlyShown.splice(1, 0, renderPopout('level-questions', {
     questions: level ? state.questions.filter((q) => shown(q) && level.criteria.includes(q.criterion)) : [],
     title: level ? `${level.label} questions` : '',
     intro: level?.intro || '',
     tone: state.details.requested_level === 'BLS' ? 'qualify' : state.details.requested_level === 'SCT' ? 'sct' : 'als',
     key: state.details.requested_level || null,
-  });
+  }));
 
   // Payer tab: necessity and reasonableness, for every payer that needs it.
   const needsReview = payer && payer.requires_medical_necessity !== false;
-  renderPopout('necessity-questions', {
+  newlyShown.push(renderPopout('necessity-questions', {
     questions: needsReview ? state.questions.filter((q) => shown(q) && (NECESSITY_CRITERIA.includes(q.criterion) || REASONABLENESS_CODES.includes(q.code))) : [],
     title: 'Medical necessity & reasonableness',
     intro: `${payer?.name || 'This payer'} requires the medical-necessity and reasonableness questions. The patient qualifies if all three bed-confinement answers are Yes, or if a condition on the Trip tab applies. Either way, the trip must not be possible by other means.`,
     tone: 'qualify',
     key: needsReview ? payer.code : null,
-  });
+  }));
 
   // Payer tab: the payer's own questions (private pay, facility pay, Medicaid…).
-  renderPopout('payer-questions', {
+  newlyShown.push(renderPopout('payer-questions', {
     questions: payer ? state.questions.filter((q) => shown(q) && q.payers?.length && q.category !== 'Documentation') : [],
     title: payer ? `${payer.name}: questions` : '',
     intro: payer?.requires_medical_necessity === false
@@ -548,7 +588,11 @@ function renderPopouts() {
       : `Questions specific to ${payer?.name || 'this payer'}.`,
     tone: payer?.requires_medical_necessity === false ? 'no-necessity' : 'payer',
     key: payer?.code || null,
-  });
+  }));
+
+  // Bring the first new pop-out on the open tab into view.
+  const first = newlyShown.find((el) => el && !el.closest('[data-tabpanel]')?.hidden);
+  first?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderChecklist() {
