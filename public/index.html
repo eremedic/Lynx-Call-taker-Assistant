@@ -7,7 +7,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/app.css">
 </head>
-<body>
+<body class="console-page">
   <header class="topbar">
     <div class="brand">
       <div class="brand-mark">AI</div>
@@ -27,95 +27,132 @@
     <span>Possible emergency — transfer the caller to 911 / emergency dispatch per protocol.</span>
   </div>
 
-  <main class="console">
-    <!-- ======================================================= LEFT -->
-    <section class="col left">
-      <div class="card">
-        <div class="card-header"><h2 class="card-title">Call Details</h2></div>
-        <div class="card-body" id="details-form">
-          <div class="section-label">Patient</div>
-          <div class="field"><label for="d-patient_name">Patient name</label><input class="input" id="d-patient_name" data-detail="patient_name"></div>
-          <div class="row">
-            <div class="field"><label for="d-patient_dob">Date of birth</label><input class="input" id="d-patient_dob" type="date" data-detail="patient_dob"></div>
-            <div class="field"><label for="d-patient_weight">Weight (lbs)</label><input class="input" id="d-patient_weight" inputmode="numeric" data-detail="patient_weight"></div>
-          </div>
-          <div class="field"><label for="d-member_id">Primary member ID</label><input class="input" id="d-member_id" data-detail="member_id"></div>
-          <div class="field" id="secondary-member-field" hidden><label for="d-secondary_member_id">Secondary member ID</label><input class="input" id="d-secondary_member_id" data-detail="secondary_member_id"></div>
+  <main class="console console-tabs">
+    <!-- ======================================================= TABS -->
+    <section class="col main">
+      <nav class="tabbar" role="tablist" aria-label="Call sections">
+        <button type="button" role="tab" id="tab-trip" data-tab="trip" aria-controls="panel-trip"><span class="tab-num">1</span>Trip<span class="tab-state" data-tab-state="trip"></span></button>
+        <button type="button" role="tab" id="tab-patient" data-tab="patient" aria-controls="panel-patient"><span class="tab-num">2</span>Patient<span class="tab-state" data-tab-state="patient"></span></button>
+        <button type="button" role="tab" id="tab-locations" data-tab="locations" aria-controls="panel-locations"><span class="tab-num">3</span>Pickup / Drop-off<span class="tab-state" data-tab-state="locations"></span></button>
+        <button type="button" role="tab" id="tab-payer" data-tab="payer" aria-controls="panel-payer"><span class="tab-num">4</span>Payer Info<span class="tab-state" data-tab-state="payer"></span></button>
+        <button type="button" role="tab" id="tab-questions" data-tab="questions" aria-controls="panel-questions"><span class="tab-num">5</span>Questions<span class="tab-state" data-tab-state="questions"></span></button>
+        <button type="button" role="tab" id="tab-review" data-tab="review" aria-controls="panel-review"><span class="tab-num">6</span>Necessity &amp; Docs<span class="tab-state" data-tab-state="review"></span></button>
+      </nav>
 
-          <div class="section-label">Trip</div>
-          <div class="field"><label for="d-pickup_location">Pick-up address</label><input class="input" id="d-pickup_location" data-detail="pickup_location"></div>
-          <div class="field"><label for="d-destination">Destination</label><input class="input" id="d-destination" data-detail="destination"></div>
-          <div class="row">
-            <div class="field"><label for="d-appointment">Appointment</label><input class="input" id="d-appointment" type="datetime-local" data-detail="appointment"></div>
+      <div class="tabpanels">
+        <!-- 1. Trip -->
+        <div class="tabpanel" id="panel-trip" role="tabpanel" aria-labelledby="tab-trip" data-tabpanel="trip">
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Trip</h2><span class="muted small">Required to start the questions</span></div>
+            <div class="card-body setup-grid">
+              <div class="field">
+                <label for="call-type">Is this an emergency or non-emergency trip?</label>
+                <select id="call-type" class="select">
+                  <option value="">Select…</option>
+                  <option value="emergency">Emergency</option>
+                  <optgroup label="Non-emergency">
+                    <option value="non_emergency">Non-emergency (one-time)</option>
+                    <option value="repetitive">Non-emergency, repetitive (dialysis, wound care, chemo…)</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="field">
+                <label for="s-requested_level">Is this ALS or BLS?</label>
+                <select id="s-requested_level" class="select" data-detail="requested_level">
+                  <option value="">Select…</option>
+                  <option value="BLS">BLS: Basic Life Support</option>
+                  <option value="ALS">ALS: Advanced Life Support</option>
+                  <option value="SCT">SCT: Specialty Care Transport</option>
+                </select>
+              </div>
+              <div class="field"><label for="d-appointment">Appointment / pickup time</label><input class="input" id="d-appointment" type="datetime-local" data-detail="appointment"></div>
+            </div>
+            <div class="tab-footer"><span></span><button class="btn btn-primary" type="button" data-goto-tab="patient">Next: Patient →</button></div>
           </div>
+        </div>
+
+        <!-- 2. Patient -->
+        <div class="tabpanel" id="panel-patient" role="tabpanel" aria-labelledby="tab-patient" data-tabpanel="patient" hidden>
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Patient Information</h2></div>
+            <div class="card-body setup-grid">
+              <div class="field span-2"><label for="d-patient_name">Patient name</label><input class="input" id="d-patient_name" data-detail="patient_name" autocomplete="off"></div>
+              <div class="field"><label for="d-patient_dob">Date of birth</label><input class="input" id="d-patient_dob" type="date" data-detail="patient_dob"></div>
+              <div class="field"><label for="d-patient_weight">Weight (lbs)</label><input class="input" id="d-patient_weight" inputmode="numeric" data-detail="patient_weight" autocomplete="off"></div>
+            </div>
+            <div class="tab-footer"><button class="btn" type="button" data-goto-tab="trip">← Back</button><button class="btn btn-primary" type="button" data-goto-tab="locations">Next: Pickup / Drop-off →</button></div>
+          </div>
+        </div>
+
+        <!-- 3. Pickup / Drop-off -->
+        <div class="tabpanel" id="panel-locations" role="tabpanel" aria-labelledby="tab-locations" data-tabpanel="locations" hidden>
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Pickup Facility &amp; Caller</h2></div>
+            <div class="card-body setup-grid">
+              <div class="field span-2">
+                <label for="facility-name">Facility name (pickup)</label>
+                <button id="facility-name" type="button" class="select facility-picker" aria-haspopup="dialog">Choose or add a facility…</button>
+              </div>
+              <div class="field span-2"><label for="s-pickup_location">Pickup address</label><input class="input" id="s-pickup_location" data-detail="pickup_location" autocomplete="off"></div>
+              <div class="field"><label for="s-caller_phone">Phone (call back)</label><input class="input" id="s-caller_phone" data-detail="caller_phone" inputmode="tel" autocomplete="off"></div>
+              <div class="field"><label for="s-caller_name">Caller name</label><input class="input" id="s-caller_name" data-detail="caller_name" autocomplete="off"></div>
+              <div class="field span-2"><label for="s-caller_email">Caller email address</label><input class="input" id="s-caller_email" data-detail="caller_email" type="email" autocomplete="off"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Drop-off (Destination)</h2></div>
+            <div class="card-body setup-grid">
+              <div class="field span-2">
+                <label for="destination-name">Destination facility</label>
+                <button id="destination-name" type="button" class="select facility-picker" aria-haspopup="dialog">Choose or add a destination…</button>
+              </div>
+              <div class="field span-2"><label for="s-destination">Destination address</label><input class="input" id="s-destination" data-detail="destination" autocomplete="off"></div>
+            </div>
+            <div class="tab-footer"><button class="btn" type="button" data-goto-tab="patient">← Back</button><button class="btn btn-primary" type="button" data-goto-tab="payer">Next: Payer Info →</button></div>
+          </div>
+        </div>
+
+        <!-- 4. Payer -->
+        <div class="tabpanel" id="panel-payer" role="tabpanel" aria-labelledby="tab-payer" data-tabpanel="payer" hidden>
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Insurance</h2><span class="muted small">Primary insurance is required</span></div>
+            <div class="card-body setup-grid">
+              <div class="field">
+                <label for="payer">What type of insurance do they have?</label>
+                <select id="payer" class="select"><option value="">Select insurance…</option></select>
+              </div>
+              <div class="field"><label for="d-member_id">Primary member ID</label><input class="input" id="d-member_id" data-detail="member_id" autocomplete="off"></div>
+              <div class="field">
+                <label for="secondary-payer">Secondary insurance <span class="muted">(optional)</span></label>
+                <select id="secondary-payer" class="select"><option value="">None</option></select>
+              </div>
+              <div class="field" id="secondary-member-field" hidden><label for="d-secondary_member_id">Secondary member ID</label><input class="input" id="d-secondary_member_id" data-detail="secondary_member_id" autocomplete="off"></div>
+            </div>
+            <div class="tab-footer"><button class="btn" type="button" data-goto-tab="locations">← Back</button><button class="btn btn-primary" type="button" data-goto-tab="questions">Next: Questions →</button></div>
+          </div>
+      <div id="payer-card" class="card" hidden>
+        <div class="card-header"><h2 class="card-title">Payer Rules</h2><span id="payer-name" class="chip chip-blue"></span></div>
+        <div class="card-body">
+          <p id="payer-parent" class="small" style="margin: 0 0 8px" hidden></p>
+          <div class="los" id="payer-necessity-row" style="margin-bottom: 8px" hidden><span class="label">Medical necessity</span><span class="chip chip-blue">Not required</span></div>
+          <div class="los"><span class="label">Prior authorization</span><span id="payer-pa" class="chip"></span></div>
+          <p id="payer-pa-note" class="small muted" style="margin: 6px 0 0"></p>
+          <div id="payer-contact" class="small" style="margin-top: 10px"></div>
+          <div id="payer-brokers" class="small" style="margin-top: 10px" hidden></div>
         </div>
       </div>
-    </section>
-
-    <!-- ===================================================== CENTER -->
-    <section class="col center">
-      <div id="setup-card" class="card setup-card">
-        <div class="card-header">
-          <h2 class="card-title">Call Setup</h2>
-          <span id="setup-step" class="chip chip-blue">Step 1 of 2</span>
-          <button id="setup-edit" class="btn btn-sm" type="button" hidden>Edit</button>
         </div>
-        <div id="setup-summary" class="setup-summary" hidden></div>
-        <div id="setup-form" class="card-body setup-grid">
-          <div class="field">
-            <label for="call-type">Is this an emergency or non-emergency trip?</label>
-            <select id="call-type" class="select">
-              <option value="">Select…</option>
-              <option value="emergency">Emergency</option>
-              <optgroup label="Non-emergency">
-                <option value="non_emergency">Non-emergency (one-time)</option>
-                <option value="repetitive">Non-emergency, repetitive (dialysis, wound care, chemo…)</option>
-              </optgroup>
-            </select>
-          </div>
-          <div class="field">
-            <label for="s-requested_level">Is this ALS or BLS?</label>
-            <select id="s-requested_level" class="select" data-detail="requested_level">
-              <option value="">Select…</option>
-              <option value="BLS">BLS: Basic Life Support</option>
-              <option value="ALS">ALS: Advanced Life Support</option>
-              <option value="SCT">SCT: Specialty Care Transport</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="payer">What type of insurance do they have?</label>
-            <select id="payer" class="select"><option value="">Select insurance…</option></select>
-          </div>
-          <div class="field">
-            <label for="secondary-payer">Secondary insurance <span class="muted">(optional)</span></label>
-            <select id="secondary-payer" class="select"><option value="">None</option></select>
-          </div>
 
-          <div class="section-label span-2">Pickup facility &amp; caller</div>
-          <div class="field span-2">
-            <label for="facility-name">Facility name (pickup)</label>
-            <button id="facility-name" type="button" class="select facility-picker" aria-haspopup="dialog">Choose or add a facility…</button>
+        <!-- 5. Questions -->
+        <div class="tabpanel" id="panel-questions" role="tabpanel" aria-labelledby="tab-questions" data-tabpanel="questions" hidden>
+          <div id="questions-gate" class="card questions-gate">
+            <div class="card-body">
+              <h2>Finish the call setup first</h2>
+              <p>The questions depend on the trip type, level and insurance. Still needed:</p>
+              <div id="gate-missing" class="gate-missing"></div>
+            </div>
           </div>
-          <div class="field span-2"><label for="s-pickup_location">Address</label><input class="input" id="s-pickup_location" data-detail="pickup_location" autocomplete="off"></div>
-          <div class="field"><label for="s-caller_phone">Phone (call back)</label><input class="input" id="s-caller_phone" data-detail="caller_phone" inputmode="tel" autocomplete="off"></div>
-          <div class="field"><label for="s-caller_name">Caller name</label><input class="input" id="s-caller_name" data-detail="caller_name" autocomplete="off"></div>
-          <div class="field span-2"><label for="s-caller_email">Caller email address</label><input class="input" id="s-caller_email" data-detail="caller_email" type="email" autocomplete="off"></div>
-
-          <div class="section-label span-2">Destination</div>
-          <div class="field span-2">
-            <label for="destination-name">Destination facility</label>
-            <button id="destination-name" type="button" class="select facility-picker" aria-haspopup="dialog">Choose or add a destination…</button>
-          </div>
-          <div class="field span-2"><label for="s-destination">Destination address</label><input class="input" id="s-destination" data-detail="destination" autocomplete="off"></div>
-
-          <div class="setup-actions span-2">
-            <span id="setup-missing" class="small" role="alert"></span>
-            <button id="setup-start" class="btn btn-primary btn-lg" type="button">Start questions →</button>
-          </div>
-        </div>
-      </div>
-
-      <div id="intake-steps" class="intake-steps" hidden>
+          <div id="intake-steps" class="intake-steps" hidden>
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">Live Conversation</h2>
@@ -177,50 +214,11 @@
       </div>
         </div>
       </details>
-      </div>
-    </section>
-
-    <!-- ====================================================== RIGHT -->
-    <section class="col right">
-      <div id="status-banner" class="status-banner status-incomplete" aria-live="polite">
-        <div class="label" id="status-label">Medical Necessity</div>
-        <div class="status-head"><span id="status-icon" class="status-icon" aria-hidden="true">…</span><div class="value" id="status-value">Gathering Information</div></div>
-        <p id="status-summary"></p>
-        <div id="status-next" class="status-next" hidden>
-          <div class="status-next-title" id="status-next-title">What to do next</div>
-          <ol id="status-steps"></ol>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-body">
-          <div class="row" style="justify-content: space-between; margin-bottom: 6px;">
-            <span class="label">Interview progress</span>
-            <span id="progress-text" class="muted small"></span>
           </div>
-          <div class="progress"><span id="progress-bar" style="width: 0"></span></div>
-          <div class="section-label" style="margin-top: 14px;">Recommended level of service</div>
-          <div class="los"><span id="los-name" class="name">—</span><code id="los-code" hidden></code></div>
         </div>
-      </div>
 
-      <div id="payer-card" class="card" hidden>
-        <div class="card-header"><h2 class="card-title">Payer Rules</h2><span id="payer-name" class="chip chip-blue"></span></div>
-        <div class="card-body">
-          <p id="payer-parent" class="small" style="margin: 0 0 8px" hidden></p>
-          <div class="los" id="payer-necessity-row" style="margin-bottom: 8px" hidden><span class="label">Medical necessity</span><span class="chip chip-blue">Not required</span></div>
-          <div class="los"><span class="label">Prior authorization</span><span id="payer-pa" class="chip"></span></div>
-          <p id="payer-pa-note" class="small muted" style="margin: 6px 0 0"></p>
-          <div id="payer-contact" class="small" style="margin-top: 10px"></div>
-          <div id="payer-brokers" class="small" style="margin-top: 10px" hidden></div>
-        </div>
-      </div>
-
-      <div id="alerts-card" class="card" hidden>
-        <div class="card-header"><h2 class="card-title">Alerts</h2></div>
-        <div class="card-body" id="alerts"></div>
-      </div>
-
+        <!-- 6. Necessity & documentation -->
+        <div class="tabpanel" id="panel-review" role="tabpanel" aria-labelledby="tab-review" data-tabpanel="review" hidden>
       <div id="criteria-card" class="card">
         <div class="card-header"><h2 class="card-title">Necessity Criteria</h2></div>
         <div class="card-body">
@@ -244,8 +242,46 @@
         <div class="card-header"><h2 class="card-title">Documentation</h2></div>
         <div class="card-body"><ul id="doc-list" class="checklist"></ul></div>
       </div>
+          <p class="disclaimer review-disclaimer">Decision-support only. This tool does not make coverage determinations. Final medical-necessity decisions must be based on complete documentation, CMS regulations (42 CFR 410.40; Medicare Benefit Policy Manual Ch. 10) and your MAC's local coverage policies.</p>
+        </div>
+      </div>
+    </section>
 
-      <div class="card no-print">
+    <!-- ====================================================== RIGHT -->
+    <aside class="col right">
+      <div id="status-banner" class="status-banner status-incomplete" aria-live="polite">
+        <div class="label" id="status-label">Medical Necessity</div>
+        <div class="status-head"><span id="status-icon" class="status-icon" aria-hidden="true">…</span><div class="value" id="status-value">Gathering Information</div></div>
+        <p id="status-summary"></p>
+        <div id="status-next" class="status-next" hidden>
+          <div class="status-next-title" id="status-next-title">What to do next</div>
+          <ol id="status-steps"></ol>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="row" style="justify-content: space-between; margin-bottom: 6px;">
+            <span class="label">Interview progress</span>
+            <span id="progress-text" class="muted small"></span>
+          </div>
+          <div class="progress"><span id="progress-bar" style="width: 0"></span></div>
+          <div class="section-label" style="margin-top: 14px;">Recommended level of service</div>
+          <div class="los"><span id="los-name" class="name">—</span><code id="los-code" hidden></code></div>
+        </div>
+      </div>
+
+      <div id="alerts-card" class="card" hidden>
+        <div class="card-header"><h2 class="card-title">Alerts</h2></div>
+        <div class="card-body" id="alerts"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">This Call</h2><button class="btn btn-sm btn-ghost" type="button" data-goto-tab="trip">Edit</button></div>
+        <div id="call-summary" class="call-summary"></div>
+      </div>
+
+      <div class="card no-print actions-card">
         <div class="card-body" style="display: flex; flex-direction: column; gap: 8px;">
           <button id="save-call" class="btn btn-primary btn-lg" type="button">Save Call Record</button>
           <button id="generate-pcs" class="btn btn-lg" type="button" title="Saves the call and opens a prefilled Physician Certification Statement to print or save as PDF">Generate PCS form</button>
@@ -256,7 +292,7 @@
           <p class="disclaimer">Decision-support only. This tool does not make coverage determinations. Final medical-necessity decisions must be based on complete documentation, CMS regulations (42 CFR 410.40; Medicare Benefit Policy Manual Ch. 10) and your MAC's local coverage policies.</p>
         </div>
       </div>
-    </section>
+    </aside>
   </main>
 
   <!-- ================================================ FACILITY POP-OUT -->

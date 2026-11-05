@@ -10,6 +10,13 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 
 ## Features
 
+**Console layout: fits the screen, organized in tabs**
+- **No page scrolling.** The console fills the window at common sizes (1024×768 up to 1920×1080). Each tab scrolls on its own. The Medical Necessity panel stays at the top of the right column, and Save / PCS stay at the bottom.
+- **Clickable tabs:** **1 Trip** (emergency / non-emergency, ALS / BLS / SCT, appointment time), **2 Patient**, **3 Pickup / Drop-off** (pickup facility and caller, destination facility), **4 Payer Info** (insurance, member IDs, payer rules), **5 Questions** (live conversation, Intake Assistant, all questions), and **6 Necessity & Docs** (criteria, missing items, documentation).
+- **Tab status:** each tab shows ✓ when filled in, a red dot when required information is missing, the number of questions answered, or a colored dot for the necessity result. Each tab has Back / Next buttons. Arrow keys and **Alt+1…6** switch tabs.
+- **Questions unlock after setup.** The Questions tab opens once trip type, level and insurance are chosen. Until then it lists what's missing, with buttons that jump to it.
+- **This Call** (right column) summarizes the call, and clicking any line opens its tab.
+
 **Call Setup: the first step of every call**
 - **Drop-downs first.** The call taker answers these before the listening and questions start:
   - Emergency or non-emergency (one-time or repetitive)?

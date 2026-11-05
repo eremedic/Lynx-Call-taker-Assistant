@@ -65,7 +65,8 @@ async function init() {
     return;
   }
   bindEvents();
-  renderSetupMissing();
+  renderTabs();
+  showTab('trip');
   chatbot = createChatbot({ state, setAnswer, appendTranscript, currentSuggestions, answerControls, markActive, onAskedHeard: () => evaluateSoon() });
   setupSpeech();
   setInterval(tickTimer, 1000);
@@ -93,7 +94,7 @@ function bindEvents() {
   $('#call-type').addEventListener('change', (e) => {
     markActive();
     if (e.target.value) setCallType(e.target.value);
-    renderSetupMissing();
+    renderTabs();
   });
 
   // The same detail can appear twice (e.g. pickup address in Call Setup and
@@ -102,7 +103,7 @@ function bindEvents() {
     const sync = () => {
       markActive();
       setDetail(input.dataset.detail, input.value, input);
-      renderSetupMissing();
+      renderTabs();
     };
     input.addEventListener('input', sync);
     if (input.tagName === 'SELECT') input.addEventListener('change', sync);
@@ -115,8 +116,7 @@ function bindEvents() {
     state.payer = e.target.value;
     if (state.secondaryPayer === state.payer) setSecondaryPayer('');
     renderSecondaryOptions();
-    renderSetupMissing();
-    if (state.setupDone) renderSetupSummary();
+    renderTabs();
     evaluate();
   });
   $('#secondary-payer').addEventListener('change', (e) => {
@@ -219,31 +219,104 @@ function setDetail(key, value, except = null) {
 // The first step of every call: trip type, level, insurance, and the pickup
 // facility and caller. The listening and questions start after it.
 const SETUP_REQUIRED = [
-  ['call-type', 'trip type', () => $('#call-type').value],
-  ['s-requested_level', 'ALS or BLS', () => state.details.requested_level],
-  ['payer', 'insurance', () => state.payer],
+  ['call-type', 'trip type', () => $('#call-type').value, 'trip'],
+  ['s-requested_level', 'ALS or BLS', () => state.details.requested_level, 'trip'],
+  ['payer', 'insurance', () => state.payer, 'payer'],
 ];
 
-function renderSetupMissing() {
-  const missing = SETUP_REQUIRED.filter(([, , value]) => !value()).map(([, label]) => label);
-  $('#setup-missing').textContent = missing.length ? `Still needed: ${missing.join(', ')}` : '';
-  $('#setup-missing').style.color = 'var(--ink-500)';
+// ------------------------------------------------------------------- tabs
+const TABS = ['trip', 'patient', 'locations', 'payer', 'questions', 'review'];
+let currentTab = 'trip';
+
+function showTab(name, { focusId = null } = {}) {
+  if (!TABS.includes(name)) return;
+  currentTab = name;
+  document.querySelectorAll('[data-tab]').forEach((b) => {
+    const on = b.dataset.tab === name;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', String(on));
+    b.tabIndex = on ? 0 : -1;
+  });
+  document.querySelectorAll('[data-tabpanel]').forEach((panel) => { panel.hidden = panel.dataset.tabpanel !== name; });
+  document.querySelector(`[data-tabpanel="${name}"]`)?.scrollTo?.(0, 0);
+  if (focusId) $(`#${focusId}`)?.focus();
+  if (name === 'questions' && state.setupDone) {
+    chatbot?.render();
+    if (!focusId) $('#chat-input')?.focus();
+  }
+}
+
+// Tab markers (✓ done, • required info missing, counts) and the Questions gate.
+function renderTabs() {
+  const d = state.details;
+  const missing = SETUP_REQUIRED.filter(([, , value]) => !value());
+  const wasDone = state.setupDone;
+  state.setupDone = missing.length === 0;
+  $('#questions-gate').hidden = state.setupDone;
+  $('#intake-steps').hidden = !state.setupDone;
+  $('#gate-missing').innerHTML = missing.map(([id, label, , tab]) =>
+    `<button class="btn" type="button" data-goto-tab="${tab}" data-focus="${id}">Choose the ${esc(label)} →</button>`).join('');
+
+  const a = state.evaluation?.assessment;
+  const marks = {
+    trip: $('#call-type').value && d.requested_level ? ['done', '✓'] : ['todo', '•'],
+    patient: d.patient_name ? ['done', '✓'] : ['', ''],
+    locations: d.caller_facility || d.pickup_location ? ['done', '✓'] : ['', ''],
+    payer: state.payer ? ['done', '✓'] : ['todo', '•'],
+    questions: a ? ['count', `${a.progress.answered}/${a.progress.total}`] : ['', ''],
+    review: a ? [`status-dot status-dot-${a.status}`, ''] : ['', ''],
+  };
+  for (const [tab, [cls, text]] of Object.entries(marks)) {
+    const el = document.querySelector(`[data-tab-state="${tab}"]`);
+    el.className = `tab-state ${cls}`;
+    el.textContent = text;
+    el.title = cls === 'todo' ? 'Required information missing' : '';
+  }
+  renderCallSummary();
+  if (state.setupDone && !wasDone && currentTab === 'questions') chatbot?.render();
+}
+
+function renderCallSummary() {
+  const d = state.details;
+  const payer = state.config.payers.find((p) => p.code === state.payer)?.name;
+  const second = state.config.payers.find((p) => p.code === state.secondaryPayer)?.name;
+  const trip = { emergency: 'Emergency', non_emergency: 'Non-emergency', repetitive: 'Non-emergency, repetitive' }[$('#call-type').value];
+  const item = (label, value, tab) => (value ? `<button type="button" class="summary-item" data-goto-tab="${tab}"><span>${esc(label)}</span><strong>${esc(value)}</strong></button>` : '');
+  const html = [
+    item('Trip', [trip, d.requested_level].filter(Boolean).join(' · '), 'trip'),
+    item('Patient', [d.patient_name, d.patient_dob && `DOB ${d.patient_dob}`].filter(Boolean).join(' · '), 'patient'),
+    item('Pickup', [d.caller_facility, d.pickup_location].filter(Boolean).join(', '), 'locations'),
+    item('Caller', [d.caller_name, d.caller_phone, d.caller_email].filter(Boolean).join(' · '), 'locations'),
+    item('Drop-off', [d.destination_facility, d.destination].filter(Boolean).join(', '), 'locations'),
+    item('Insurance', [payer, second && `2nd: ${second}`].filter(Boolean).join(' · '), 'payer'),
+  ].join('');
+  $('#call-summary').innerHTML = html || '<p class="muted small" style="margin: 0">Nothing entered yet. Start with the Trip tab.</p>';
 }
 
 function bindSetup() {
-  $('#setup-start').addEventListener('click', () => {
-    const missing = SETUP_REQUIRED.filter(([, , value]) => !value());
-    if (missing.length) {
-      $('#setup-missing').textContent = `Choose the ${missing.map(([, label]) => label).join(', ')} first.`;
-      $('#setup-missing').style.color = 'var(--red-600)';
-      $(`#${missing[0][0]}`).focus();
-      return;
-    }
-    markActive();
-    setSetupDone(true);
-    $('#chat-input')?.focus();
+  // Tabs: click, arrow keys, Alt+1…6, and any [data-goto-tab] button.
+  $('.tabbar').addEventListener('click', (e) => {
+    const tab = e.target.closest('[data-tab]');
+    if (tab) showTab(tab.dataset.tab);
   });
-  $('#setup-edit').addEventListener('click', () => setSetupDone(false));
+  $('.tabbar').addEventListener('keydown', (e) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
+    const i = TABS.indexOf(currentTab);
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + TABS.length) % TABS.length;
+    showTab(TABS[next]);
+    $(`#tab-${TABS[next]}`).focus();
+  });
+  document.addEventListener('click', (e) => {
+    const go = e.target.closest('[data-goto-tab]');
+    if (go) showTab(go.dataset.gotoTab, { focusId: go.dataset.focus || null });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.altKey && !e.ctrlKey && !e.metaKey && /^[1-6]$/.test(e.key)) {
+      e.preventDefault();
+      showTab(TABS[Number(e.key) - 1]);
+    }
+  });
   $('#facility-name').addEventListener('click', () => openFacility('pickup'));
   $('#destination-name').addEventListener('click', () => openFacility('destination'));
   $('#facility-select').addEventListener('change', (e) => fillFacilityForm(state.facilities.find((f) => String(f.id) === e.target.value)));
@@ -252,32 +325,6 @@ function bindSetup() {
     if (e.target.closest('[data-close-facility]') || e.target === e.currentTarget) closeFacility();
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#facility-modal').hidden) closeFacility(); });
-}
-
-function setSetupDone(done) {
-  state.setupDone = done;
-  $('#setup-form').hidden = done;
-  $('#setup-summary').hidden = !done;
-  $('#setup-edit').hidden = !done;
-  $('#setup-step').textContent = done ? 'Done' : 'Step 1 of 2';
-  $('#setup-step').className = `chip ${done ? 'chip-green' : 'chip-blue'}`;
-  $('#intake-steps').hidden = !done;
-  if (done) renderSetupSummary();
-  chatbot?.render();
-}
-
-function renderSetupSummary() {
-  const d = state.details;
-  const payer = state.config.payers.find((p) => p.code === state.payer)?.name;
-  const second = state.config.payers.find((p) => p.code === state.secondaryPayer)?.name;
-  const trip = { emergency: 'Emergency', non_emergency: 'Non-emergency', repetitive: 'Non-emergency, repetitive' }[state.callType];
-  const item = (label, value) => (value ? `<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>` : '');
-  $('#setup-summary').innerHTML = [
-    item('Trip', trip), item('Level', d.requested_level), item('Insurance', payer), item('Secondary', second),
-    item('Facility', d.caller_facility), item('Address', d.pickup_location), item('Call back', d.caller_phone),
-    item('Caller', d.caller_name), item('Email', d.caller_email),
-    item('Destination', [d.destination_facility, d.destination].filter(Boolean).join(', ')),
-  ].join('');
 }
 
 // --------------------------------------------------------- facility pop-out
@@ -371,6 +418,7 @@ function applyFacility(f, target = 'pickup') {
     setDetail('caller_email', f.contact_email || '');
   }
   renderFacilityButton();
+  renderTabs();
 }
 
 function renderFacilityButton() {
@@ -434,6 +482,7 @@ function render() {
   renderAssessment();
   restoreFocus(focus);
   chatbot?.sync();
+  renderTabs();
 }
 
 function captureFocus() {
@@ -965,8 +1014,8 @@ async function newCall() {
   $('#payer').value = '';
   $('#call-type').value = '';
   renderFacilityButton();
-  setSetupDone(false);
-  renderSetupMissing();
+  renderTabs();
+  showTab('trip');
   renderSecondaryOptions();
   $('#secondary-member-field').hidden = true;
   renderAiQuestions();

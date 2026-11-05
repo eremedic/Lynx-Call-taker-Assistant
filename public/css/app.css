@@ -605,3 +605,77 @@ body.lb-fullscreen-open { overflow: hidden; }
 .setup-summary span { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-500); }
 .intake-steps { flex: none; display: flex; flex-direction: column; gap: 16px; }
 @media (max-width: 640px) { .setup-grid { grid-template-columns: 1fr; } }
+
+/* ------------------------------------------------- Console: tabs, full view */
+body.console-page { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+body.console-page .topbar { position: static; flex: none; }
+body.console-page .emergency-bar { flex: none; }
+.console.console-tabs { grid-template-columns: minmax(0, 1fr) 360px; height: auto; flex: 1; min-height: 0; padding: 12px 16px; gap: 14px; }
+.console-tabs > .col.main { display: flex; flex-direction: column; gap: 0; overflow: hidden; min-height: 0; padding-bottom: 0; }
+.tabbar { flex: none; display: flex; gap: 4px; overflow-x: auto; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 12px; scrollbar-width: thin; }
+.tabbar [role="tab"] { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 14px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-700); font-weight: 650; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+.tabbar [role="tab"]:hover { background: var(--surface-2); color: var(--ink-900); }
+.tabbar [role="tab"].active { background: var(--blue-600); color: #fff; box-shadow: 0 2px 6px rgba(31, 99, 224, .35); }
+.tabbar [role="tab"]:focus-visible { outline: 3px solid rgba(47, 116, 240, .4); outline-offset: 1px; }
+.tab-num { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 800; background: var(--surface-2); color: var(--ink-500); border: 1px solid var(--line); }
+.tabbar .active .tab-num { background: rgba(255, 255, 255, .2); color: #fff; border-color: transparent; }
+.tab-state:empty { display: none; }
+.tab-state.done { color: var(--green-600); font-weight: 800; }
+.tabbar .active .tab-state.done { color: #bbf7d0; }
+.tab-state.todo { color: var(--red-600); font-size: 18px; line-height: 1; }
+.tabbar .active .tab-state.todo { color: #fecaca; }
+.tab-state.count { font-size: 11px; font-weight: 700; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-700); border-radius: 999px; padding: 0 7px; }
+.tabbar .active .tab-state.count { background: rgba(255, 255, 255, .2); border-color: transparent; color: #fff; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.status-dot-meets { background: #16a34a; } .status-dot-likely { background: #14b8a6; } .status-dot-review { background: #f59e0b; }
+.status-dot-not_met { background: #ef4444; } .status-dot-incomplete { background: #94a3b8; } .status-dot-not_required { background: #3b82f6; }
+.tabpanels { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.tabpanel { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 2px 2px 8px; }
+.tabpanel > .card, .tabpanel > details, .tabpanel > div { flex: none; }
+.tab-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.questions-gate .card-body { text-align: center; padding: 28px 20px; }
+.questions-gate h2 { margin: 0 0 6px; font-size: 18px; }
+.questions-gate p { margin: 0 0 14px; color: var(--ink-700); }
+.gate-missing { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+#panel-questions .chat-scroll { max-height: none; min-height: 240px; height: clamp(240px, calc(100dvh - 430px), 760px); }
+#panel-questions .transcript-box { min-height: 70px; height: 70px; }
+.console-tabs > .col.right { gap: 12px; }
+.console-tabs .actions-card { position: sticky; bottom: 0; z-index: 4; box-shadow: 0 -6px 16px rgba(15, 23, 42, .08), var(--shadow); }
+.call-summary { display: flex; flex-direction: column; padding: 4px 0; }
+.summary-item { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; border: 0; background: transparent; padding: 7px 16px; cursor: pointer; font-size: 13px; }
+.summary-item:hover { background: var(--surface-2); }
+.summary-item span { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-500); }
+.summary-item strong { font-weight: 600; color: var(--ink-900); }
+/* Keep the two columns side by side down to tablet width (overrides the
+   older three-column console breakpoints). */
+@media (min-width: 861px) {
+  .console.console-tabs { height: auto; }
+  .console-tabs > .col.right { grid-column: auto; }
+}
+@media (max-width: 1360px) {
+  .console.console-tabs { grid-template-columns: minmax(0, 1fr) 320px; }
+  .tabbar [role="tab"] { padding: 8px 10px; font-size: 13px; gap: 6px; }
+}
+@media (max-width: 1150px) {
+  .console.console-tabs { grid-template-columns: minmax(0, 1fr) 290px; }
+  .tab-num { display: none; }
+  .tabbar [role="tab"] { padding: 8px 8px; font-size: 12.5px; }
+}
+@media (max-width: 860px) {
+  body.console-page { height: auto; overflow: visible; display: block; }
+  .console.console-tabs { grid-template-columns: 1fr; }
+  .console-tabs > .col.main, .tabpanel { overflow: visible; }
+  #panel-questions .chat-scroll { height: 60vh; }
+}
+@media print {
+  body.console-page { height: auto; overflow: visible; display: block; }
+  .tabbar, .tab-footer, .questions-gate { display: none !important; }
+  .tabpanel[hidden] { display: flex !important; }
+}
+
+/* Short screens: keep the call summary visible; the disclaimer moves to the Necessity & Docs tab. */
+.review-disclaimer { display: none; }
+@media (max-height: 860px) and (min-width: 861px) {
+  .console-tabs .actions-card .disclaimer { display: none; }
+  .review-disclaimer { display: block; margin: 0 4px; }
+}
