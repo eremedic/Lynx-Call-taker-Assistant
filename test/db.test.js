@@ -14,7 +14,7 @@ test('setup is idempotent, safe to run concurrently, and data persists', async (
     await Promise.all([migrate(db), migrate(db)]); // e.g. two function containers starting at once
     assert.equal((await questionRepo(db).list()).length, 41);
     assert.equal((await payerRepo(db).list()).length, 6);
-    assert.equal((await settingsRepo(db).all()).seed_version, '5');
+    assert.equal((await settingsRepo(db).all()).seed_version, '6');
     await settingsRepo(db).set('org_name', 'Metro EMS');
     await db.close();
 
@@ -39,7 +39,7 @@ test('an existing database gains the secondary-payer column without re-adding re
   const cols = await db.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'ambuintake' AND table_name = 'calls'`);
   assert.ok(cols.some((c) => c.column_name === 'secondary_payer'));
   assert.equal((await questionRepo(db).list()).length, 40, 'removed built-in questions stay removed');
-  assert.equal((await settingsRepo(db).all()).seed_version, '5');
+  assert.equal((await settingsRepo(db).all()).seed_version, '6');
   await db.close();
 });
 
@@ -47,7 +47,7 @@ test('tables live in their own schema with row-level security enabled', async ()
   const db = await openDb({ memory: true });
   const tables = await db.query(`SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'ambuintake' ORDER BY tablename`);
   assert.deepEqual(tables.map((t) => t.tablename),
-    ['audit_log', 'calls', 'logic_flows', 'login_attempts', 'payers', 'questions', 'sessions', 'settings', 'users']);
+    ['audit_log', 'calls', 'facilities', 'logic_flows', 'login_attempts', 'payers', 'questions', 'sessions', 'settings', 'users']);
   assert.ok(tables.every((t) => t.rowsecurity), 'RLS is on for every table');
   const leaked = await db.query(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`);
   assert.deepEqual(leaked, [], 'nothing is created in the public schema');

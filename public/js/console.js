@@ -11,6 +11,9 @@ const state = {
   callType: 'non_emergency',
   payer: '',
   secondaryPayer: '',
+  setupDone: false,
+  facilities: [],
+  facilityId: null,
   details: {},
   answers: {},
   transcript: '',
@@ -55,13 +58,14 @@ async function init() {
     setQuestions(questions);
     $('#org-name').textContent = config.orgName ? `${config.orgName} · Call-Taker Assistant` : 'Call-Taker Assistant';
     $('#ai-btn').hidden = !config.aiAvailable;
-    $('#payer').innerHTML = `<option value="">Select payer…</option>${payerOptions(config.payers)}`;
+    $('#payer').innerHTML = `<option value="">Select insurance…</option>${payerOptions(config.payers)}`;
     renderSecondaryOptions();
   } catch (err) {
     showLoadFailure(err);
     return;
   }
   bindEvents();
+  renderSetupMissing();
   chatbot = createChatbot({ state, setAnswer, appendTranscript, currentSuggestions, answerControls, markActive, onAskedHeard: () => evaluateSoon() });
   setupSpeech();
   setInterval(tickTimer, 1000);
@@ -86,20 +90,33 @@ function setQuestions(list) {
 }
 
 function bindEvents() {
-  document.querySelectorAll('#call-type button').forEach((b) =>
-    b.addEventListener('click', () => { markActive(); setCallType(b.dataset.type); }));
+  $('#call-type').addEventListener('change', (e) => {
+    markActive();
+    if (e.target.value) setCallType(e.target.value);
+    renderSetupMissing();
+  });
 
-  document.querySelectorAll('[data-detail]').forEach((input) =>
-    input.addEventListener('input', () => {
+  // The same detail can appear twice (e.g. pickup address in Call Setup and
+  // Call Details); keep every copy in step.
+  document.querySelectorAll('[data-detail]').forEach((input) => {
+    const sync = () => {
       markActive();
-      state.details[input.dataset.detail] = input.value;
-    }));
+      setDetail(input.dataset.detail, input.value, input);
+      renderSetupMissing();
+    };
+    input.addEventListener('input', sync);
+    if (input.tagName === 'SELECT') input.addEventListener('change', sync);
+  });
+
+  bindSetup();
 
   $('#payer').addEventListener('change', (e) => {
     markActive();
     state.payer = e.target.value;
     if (state.secondaryPayer === state.payer) setSecondaryPayer('');
     renderSecondaryOptions();
+    renderSetupMissing();
+    if (state.setupDone) renderSetupSummary();
     evaluate();
   });
   $('#secondary-payer').addEventListener('change', (e) => {
@@ -190,11 +207,149 @@ function tickTimer() {
 
 function setCallType(type) {
   state.callType = type;
-  document.querySelectorAll('#call-type button').forEach((b) => {
-    b.classList.toggle('active', b.dataset.type === type);
-    b.setAttribute('aria-checked', String(b.dataset.type === type));
-  });
   evaluate();
+}
+
+function setDetail(key, value, except = null) {
+  state.details[key] = value;
+  document.querySelectorAll(`[data-detail="${key}"]`).forEach((el) => { if (el !== except) el.value = value ?? ''; });
+}
+
+// ------------------------------------------------------------- call setup
+// The first step of every call: trip type, level, insurance, and the pickup
+// facility and caller. The listening and questions start after it.
+const SETUP_REQUIRED = [
+  ['call-type', 'trip type', () => $('#call-type').value],
+  ['s-requested_level', 'ALS or BLS', () => state.details.requested_level],
+  ['payer', 'insurance', () => state.payer],
+];
+
+function renderSetupMissing() {
+  const missing = SETUP_REQUIRED.filter(([, , value]) => !value()).map(([, label]) => label);
+  $('#setup-missing').textContent = missing.length ? `Still needed: ${missing.join(', ')}` : '';
+  $('#setup-missing').style.color = 'var(--ink-500)';
+}
+
+function bindSetup() {
+  $('#setup-start').addEventListener('click', () => {
+    const missing = SETUP_REQUIRED.filter(([, , value]) => !value());
+    if (missing.length) {
+      $('#setup-missing').textContent = `Choose the ${missing.map(([, label]) => label).join(', ')} first.`;
+      $('#setup-missing').style.color = 'var(--red-600)';
+      $(`#${missing[0][0]}`).focus();
+      return;
+    }
+    markActive();
+    setSetupDone(true);
+    $('#chat-input')?.focus();
+  });
+  $('#setup-edit').addEventListener('click', () => setSetupDone(false));
+  $('#facility-name').addEventListener('click', openFacility);
+  $('#facility-select').addEventListener('change', (e) => fillFacilityForm(state.facilities.find((f) => String(f.id) === e.target.value)));
+  $('#facility-form').addEventListener('submit', saveFacility);
+  $('#facility-modal').addEventListener('click', (e) => {
+    if (e.target.closest('[data-close-facility]') || e.target === e.currentTarget) closeFacility();
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#facility-modal').hidden) closeFacility(); });
+}
+
+function setSetupDone(done) {
+  state.setupDone = done;
+  $('#setup-form').hidden = done;
+  $('#setup-summary').hidden = !done;
+  $('#setup-edit').hidden = !done;
+  $('#setup-step').textContent = done ? 'Done' : 'Step 1 of 2';
+  $('#setup-step').className = `chip ${done ? 'chip-green' : 'chip-blue'}`;
+  $('#intake-steps').hidden = !done;
+  if (done) renderSetupSummary();
+  chatbot?.render();
+}
+
+function renderSetupSummary() {
+  const d = state.details;
+  const payer = state.config.payers.find((p) => p.code === state.payer)?.name;
+  const second = state.config.payers.find((p) => p.code === state.secondaryPayer)?.name;
+  const trip = { emergency: 'Emergency', non_emergency: 'Non-emergency', repetitive: 'Non-emergency, repetitive' }[state.callType];
+  const item = (label, value) => (value ? `<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>` : '');
+  $('#setup-summary').innerHTML = [
+    item('Trip', trip), item('Level', d.requested_level), item('Insurance', payer), item('Secondary', second),
+    item('Facility', d.caller_facility), item('Address', d.pickup_location), item('Call back', d.caller_phone),
+    item('Caller', d.caller_name), item('Email', d.caller_email),
+  ].join('');
+}
+
+// --------------------------------------------------------- facility pop-out
+async function openFacility() {
+  try {
+    state.facilities = await api('/api/facilities');
+  } catch (err) {
+    toast(`Could not load saved facilities: ${err.message}`, 'error');
+  }
+  $('#facility-select').innerHTML = '<option value="">+ New facility</option>'
+    + state.facilities.map((f) => `<option value="${f.id}" ${f.id === state.facilityId ? 'selected' : ''}>${esc(f.name)}${f.address ? ` — ${esc(f.address)}` : ''}</option>`).join('');
+  const current = state.facilities.find((f) => f.id === state.facilityId);
+  fillFacilityForm(current || (state.details.caller_facility ? {
+    name: state.details.caller_facility, address: state.details.pickup_location, phone: state.details.caller_phone,
+    contact_name: state.details.caller_name, contact_email: state.details.caller_email,
+  } : null), { keepSelect: !current });
+  $('#facility-error').hidden = true;
+  $('#facility-modal').hidden = false;
+  (state.facilities.length ? $('#facility-select') : $('#f-fac-name')).focus();
+}
+
+function fillFacilityForm(f, { keepSelect = false } = {}) {
+  const el = $('#facility-form').elements;
+  for (const [field, key] of [['name', 'name'], ['address', 'address'], ['phone', 'phone'], ['contact_name', 'contact_name'], ['contact_email', 'contact_email']]) el[field].value = f?.[key] || '';
+  if (!keepSelect) $('#facility-select').value = f?.id ? String(f.id) : '';
+  $('#facility-save').textContent = f?.id ? 'Use facility' : 'Save & use facility';
+}
+
+function closeFacility() {
+  $('#facility-modal').hidden = true;
+  $('#facility-name').focus();
+}
+
+async function saveFacility(e) {
+  e.preventDefault();
+  const el = e.target.elements;
+  const body = Object.fromEntries(['name', 'address', 'phone', 'contact_name', 'contact_email'].map((k) => [k, el[k].value.trim()]));
+  const chosen = state.facilities.find((f) => String(f.id) === $('#facility-select').value);
+  let facility;
+  try {
+    if (chosen) {
+      // Keep the saved facility up to date with anything the call taker changed.
+      const changed = Object.keys(body).some((k) => (chosen[k] || '') !== body[k]);
+      facility = changed ? await api(`/api/facilities/${chosen.id}`, { method: 'PUT', body }) : chosen;
+    } else {
+      facility = await api('/api/facilities', { method: 'POST', body });
+      toast(`Saved “${facility.name}” for future calls.`, 'success');
+    }
+  } catch (err) {
+    $('#facility-error').textContent = err.message;
+    $('#facility-error').hidden = false;
+    return;
+  }
+  applyFacility(facility);
+  closeFacility();
+}
+
+function applyFacility(f) {
+  markActive();
+  state.facilityId = f.id;
+  setDetail('facility_id', f.id);
+  setDetail('caller_facility', f.name);
+  setDetail('pickup_location', f.address || '');
+  setDetail('caller_phone', f.phone || '');
+  setDetail('caller_name', f.contact_name || '');
+  setDetail('caller_email', f.contact_email || '');
+  renderFacilityButton();
+}
+
+function renderFacilityButton() {
+  const name = state.details.caller_facility;
+  const btn = $('#facility-name');
+  btn.textContent = name || 'Choose or add a facility…';
+  btn.classList.toggle('chosen', Boolean(name));
 }
 
 function setAnswer(code, value) {
@@ -449,6 +604,11 @@ function nextSteps(a, callType) {
     for (const m of (a.missing || []).slice(0, 3)) steps.push(`Ask: ${m.text}`);
     for (const g of (a.documentationGaps || []).slice(0, 2)) steps.push(`Resolve: ${g}`);
     if (a.payer?.priorAuth === 'required') steps.push('Prior authorization is required: get or confirm the authorization number before scheduling.');
+    const asked = state.details.requested_level;
+    const rec = /Specialty/.test(level) ? 'SCT' : /ALS/.test(level) ? 'ALS' : /BLS/.test(level) ? 'BLS' : null;
+    const rank = { BLS: 1, ALS: 2, SCT: 3 };
+    if (asked && rec && rank[asked] > rank[rec]) steps.push(`${asked} was requested, but only ${rec}-level needs are documented so far. Ask about ${asked}-level needs (e.g. cardiac monitoring, IV medications${asked === 'SCT' ? ', drips or ventilator' : ''}), or schedule ${rec}.`);
+    if (asked && rec && rank[asked] < rank[rec]) steps.push(`${asked} was requested, but the answers point to ${rec}. Confirm the level with the caller before scheduling.`);
     if (callType !== 'emergency') steps.push('Get a signed Physician Certification Statement (PCS) before transport. Use “Generate PCS form”.');
     steps.push('Confirm the pick-up time, address and destination, then save the call record.');
   } else if (a.status === 'not_met') {
@@ -687,7 +847,8 @@ function buildNarrative() {
   if (secondary) lines.push(`Secondary payer: ${secondary.name}${d.secondary_member_id ? ` — member ID ${d.secondary_member_id}` : ''}`);
   lines.push(`Call taker: ${state.user.display_name}`);
   if (d.patient_name) lines.push(`Patient: ${d.patient_name}${d.patient_dob ? ` (DOB ${d.patient_dob})` : ''}`);
-  if (d.caller_name || d.caller_facility) lines.push(`Caller: ${[d.caller_name, d.caller_facility].filter(Boolean).join(', ')}${d.caller_phone ? ` — ${d.caller_phone}` : ''}`);
+  if (d.requested_level) lines.push(`Level requested: ${d.requested_level}`);
+  if (d.caller_name || d.caller_facility) lines.push(`Caller: ${[d.caller_name, d.caller_facility].filter(Boolean).join(', ')}${d.caller_phone ? ` — ${d.caller_phone}` : ''}${d.caller_email ? ` — ${d.caller_email}` : ''}`);
   if (d.pickup_location || d.destination) lines.push(`Trip: ${d.pickup_location || '?'} → ${d.destination || '?'}${d.appointment ? ` (appt ${d.appointment.replace('T', ' ')})` : ''}`);
   if (a) {
     lines.push(`Assessment: ${STATUS_LABELS[a.status]} — ${a.levelOfService.label}${a.levelOfService.hcpcs ? ` (${a.levelOfService.hcpcs})` : ''}`);
@@ -763,13 +924,17 @@ async function newCall() {
   if (state.dirty && !confirm('Discard the current call? It has unsaved changes.')) return;
   if (listening) stopListening();
   Object.assign(state, {
-    callType: 'non_emergency', payer: '', secondaryPayer: '', details: {}, answers: {}, transcript: '', evaluation: null,
+    callType: 'non_emergency', payer: '', secondaryPayer: '', facilityId: null, details: {}, answers: {}, transcript: '', evaluation: null,
     rejected: new Set(), skipped: new Set(), aiSuggestions: {}, aiQuestions: [], aiSummary: '', aiAnalyzedLength: 0,
     startedAt: null, dirty: false, savedId: null,
   });
   document.querySelectorAll('[data-detail]').forEach((i) => { i.value = ''; });
   $('#transcript').value = '';
   $('#payer').value = '';
+  $('#call-type').value = '';
+  renderFacilityButton();
+  setSetupDone(false);
+  renderSetupMissing();
   renderSecondaryOptions();
   $('#secondary-member-field').hidden = true;
   renderAiQuestions();

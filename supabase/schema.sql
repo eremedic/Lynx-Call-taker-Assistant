@@ -138,6 +138,20 @@ CREATE TABLE IF NOT EXISTS ambuintake.logic_flows (
   updated_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')
 );
 
+CREATE TABLE IF NOT EXISTS ambuintake.facilities (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  address TEXT NOT NULL DEFAULT '',
+  phone TEXT NOT NULL DEFAULT '',
+  contact_name TEXT NOT NULL DEFAULT '',
+  contact_email TEXT NOT NULL DEFAULT '',
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_by INTEGER,
+  created_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS'),
+  updated_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')
+);
+CREATE UNIQUE INDEX IF NOT EXISTS facilities_name ON ambuintake.facilities (lower(name));
+
 -- The audit trail is append-only.
 CREATE OR REPLACE FUNCTION ambuintake.audit_log_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
   BEGIN RAISE EXCEPTION 'audit_log is append-only'; END $$;
@@ -155,6 +169,7 @@ ALTER TABLE ambuintake.payers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ambuintake.calls ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ambuintake.audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ambuintake.logic_flows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ambuintake.facilities ENABLE ROW LEVEL SECURITY;
 DO $$
 DECLARE r TEXT;
 BEGIN

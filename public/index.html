@@ -31,36 +31,8 @@
     <!-- ======================================================= LEFT -->
     <section class="col left">
       <div class="card">
-        <div class="card-header"><h2 class="card-title">Call Type &amp; Payer</h2></div>
-        <div class="card-body">
-          <div id="call-type" class="segmented" role="radiogroup" aria-label="Call type">
-            <button type="button" data-type="non_emergency" role="radio">Non-emergency<small>Scheduled or unscheduled, one-time</small></button>
-            <button type="button" data-type="repetitive" role="radio">Repetitive scheduled<small>Dialysis, wound care, chemo…</small></button>
-            <button type="button" data-type="emergency" role="radio">Emergency<small>Emergency response</small></button>
-          </div>
-          <div class="field" style="margin: 14px 0 0">
-            <label for="payer">Primary payer</label>
-            <select id="payer" class="select"><option value="">Select payer…</option></select>
-            <span class="hint">Sets the prior-authorization and documentation rules for this call.</span>
-          </div>
-          <div class="field" style="margin: 12px 0 0">
-            <label for="secondary-payer">Secondary payer</label>
-            <select id="secondary-payer" class="select"><option value="">None</option></select>
-            <span class="hint">Optional. Recorded on the call and the PCS for billing; the primary payer's rules apply.</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
         <div class="card-header"><h2 class="card-title">Call Details</h2></div>
         <div class="card-body" id="details-form">
-          <div class="section-label">Caller</div>
-          <div class="field"><label for="d-caller_name">Caller name</label><input class="input" id="d-caller_name" data-detail="caller_name"></div>
-          <div class="row">
-            <div class="field"><label for="d-caller_phone">Callback #</label><input class="input" id="d-caller_phone" data-detail="caller_phone" inputmode="tel"></div>
-            <div class="field"><label for="d-caller_facility">Facility</label><input class="input" id="d-caller_facility" data-detail="caller_facility"></div>
-          </div>
-
           <div class="section-label">Patient</div>
           <div class="field"><label for="d-patient_name">Patient name</label><input class="input" id="d-patient_name" data-detail="patient_name"></div>
           <div class="row">
@@ -71,7 +43,7 @@
           <div class="field" id="secondary-member-field" hidden><label for="d-secondary_member_id">Secondary member ID</label><input class="input" id="d-secondary_member_id" data-detail="secondary_member_id"></div>
 
           <div class="section-label">Trip</div>
-          <div class="field"><label for="d-pickup_location">Pick-up location</label><input class="input" id="d-pickup_location" data-detail="pickup_location"></div>
+          <div class="field"><label for="d-pickup_location">Pick-up address</label><input class="input" id="d-pickup_location" data-detail="pickup_location"></div>
           <div class="field"><label for="d-destination">Destination</label><input class="input" id="d-destination" data-detail="destination"></div>
           <div class="row">
             <div class="field"><label for="d-appointment">Appointment</label><input class="input" id="d-appointment" type="datetime-local" data-detail="appointment"></div>
@@ -82,6 +54,61 @@
 
     <!-- ===================================================== CENTER -->
     <section class="col center">
+      <div id="setup-card" class="card setup-card">
+        <div class="card-header">
+          <h2 class="card-title">Call Setup</h2>
+          <span id="setup-step" class="chip chip-blue">Step 1 of 2</span>
+          <button id="setup-edit" class="btn btn-sm" type="button" hidden>Edit</button>
+        </div>
+        <div id="setup-summary" class="setup-summary" hidden></div>
+        <div id="setup-form" class="card-body setup-grid">
+          <div class="field">
+            <label for="call-type">Is this an emergency or non-emergency trip?</label>
+            <select id="call-type" class="select">
+              <option value="">Select…</option>
+              <option value="emergency">Emergency</option>
+              <optgroup label="Non-emergency">
+                <option value="non_emergency">Non-emergency (one-time)</option>
+                <option value="repetitive">Non-emergency, repetitive (dialysis, wound care, chemo…)</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-requested_level">Is this ALS or BLS?</label>
+            <select id="s-requested_level" class="select" data-detail="requested_level">
+              <option value="">Select…</option>
+              <option value="BLS">BLS: Basic Life Support</option>
+              <option value="ALS">ALS: Advanced Life Support</option>
+              <option value="SCT">SCT: Specialty Care Transport</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="payer">What type of insurance do they have?</label>
+            <select id="payer" class="select"><option value="">Select insurance…</option></select>
+          </div>
+          <div class="field">
+            <label for="secondary-payer">Secondary insurance <span class="muted">(optional)</span></label>
+            <select id="secondary-payer" class="select"><option value="">None</option></select>
+          </div>
+
+          <div class="section-label span-2">Pickup facility &amp; caller</div>
+          <div class="field span-2">
+            <label for="facility-name">Facility name (pickup)</label>
+            <button id="facility-name" type="button" class="select facility-picker" aria-haspopup="dialog">Choose or add a facility…</button>
+          </div>
+          <div class="field span-2"><label for="s-pickup_location">Address</label><input class="input" id="s-pickup_location" data-detail="pickup_location" autocomplete="off"></div>
+          <div class="field"><label for="s-caller_phone">Phone (call back)</label><input class="input" id="s-caller_phone" data-detail="caller_phone" inputmode="tel" autocomplete="off"></div>
+          <div class="field"><label for="s-caller_name">Caller name</label><input class="input" id="s-caller_name" data-detail="caller_name" autocomplete="off"></div>
+          <div class="field span-2"><label for="s-caller_email">Caller email address</label><input class="input" id="s-caller_email" data-detail="caller_email" type="email" autocomplete="off"></div>
+
+          <div class="setup-actions span-2">
+            <span id="setup-missing" class="small" role="alert"></span>
+            <button id="setup-start" class="btn btn-primary btn-lg" type="button">Start questions →</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="intake-steps" class="intake-steps" hidden>
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">Live Conversation</h2>
@@ -143,6 +170,7 @@
       </div>
         </div>
       </details>
+      </div>
     </section>
 
     <!-- ====================================================== RIGHT -->
@@ -223,6 +251,35 @@
       </div>
     </section>
   </main>
+
+  <!-- ================================================ FACILITY POP-OUT -->
+  <div id="facility-modal" class="modal-backdrop" hidden>
+    <form id="facility-form" class="modal" role="dialog" aria-modal="true" aria-labelledby="facility-modal-title" style="max-width: 560px" novalidate>
+      <div class="modal-head">
+        <h2 id="facility-modal-title">Pickup facility</h2>
+        <button type="button" class="btn btn-ghost btn-sm" data-close-facility aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="facility-select">Choose a saved facility</label>
+          <select id="facility-select" class="select"><option value="">+ New facility</option></select>
+          <span class="hint">Facilities are saved as they’re entered, so they can be picked next time.</span>
+        </div>
+        <div class="setup-grid">
+          <div class="field span-2"><label for="f-fac-name">Facility name</label><input id="f-fac-name" name="name" class="input" required maxlength="120" autocomplete="off"></div>
+          <div class="field span-2"><label for="f-fac-address">Address</label><input id="f-fac-address" name="address" class="input" maxlength="300" autocomplete="off"></div>
+          <div class="field"><label for="f-fac-phone">Phone (call back)</label><input id="f-fac-phone" name="phone" class="input" inputmode="tel" maxlength="40" autocomplete="off"></div>
+          <div class="field"><label for="f-fac-contact">Caller name</label><input id="f-fac-contact" name="contact_name" class="input" maxlength="120" autocomplete="off"></div>
+          <div class="field span-2"><label for="f-fac-email">Caller email address</label><input id="f-fac-email" name="contact_email" class="input" type="email" maxlength="200" autocomplete="off"></div>
+        </div>
+        <p id="facility-error" class="small" style="color: var(--red-600)" role="alert" hidden></p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close-facility>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="facility-save">Save &amp; use facility</button>
+      </div>
+    </form>
+  </div>
 
   <script type="module" src="js/console.js"></script>
 </body>

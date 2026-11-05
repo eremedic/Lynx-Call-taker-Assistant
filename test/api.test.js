@@ -430,3 +430,26 @@ test('admins build logic flows that change how calls are evaluated', async () =>
   const actions = await auditActions();
   for (const a of ['flow.created', 'flow.updated', 'flow.deleted']) assert.ok(actions.includes(a), a);
 });
+
+test('call takers save pickup facilities and reuse them', async () => {
+  const bad = await taker('/api/facilities', { method: 'POST', body: { name: '', contact_email: 'nope' } });
+  assert.equal(bad.status, 400);
+  assert.match(bad.data.error, /facility name/);
+  assert.match(bad.data.error, /valid email/);
+
+  const created = await taker('/api/facilities', { method: 'POST', body: { name: 'Sunrise SNF', address: '12 Oak St, Springfield', phone: '555-0100', contact_name: 'Nurse Joy', contact_email: 'joy@sunrise.example' } });
+  assert.equal(created.status, 201);
+  const dup = await taker('/api/facilities', { method: 'POST', body: { name: 'sunrise snf' } });
+  assert.equal(dup.status, 409, 'names are unique regardless of case');
+  assert.equal(dup.data.facility.id, created.data.id);
+
+  const list = (await admin('/api/facilities')).data;
+  assert.ok(list.some((f) => f.name === 'Sunrise SNF' && f.address === '12 Oak St, Springfield'), 'saved facilities are shared');
+
+  const upd = await taker(`/api/facilities/${created.data.id}`, { method: 'PUT', body: { phone: '555-0199', active: false } });
+  assert.equal(upd.status, 200);
+  assert.equal(upd.data.phone, '555-0199');
+  assert.equal(upd.data.active, true, 'only administrators can remove a facility');
+  const actions = await auditActions();
+  assert.ok(actions.includes('facility.created') && actions.includes('facility.updated'));
+});

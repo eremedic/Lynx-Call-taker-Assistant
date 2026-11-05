@@ -1,6 +1,6 @@
 import express from 'express';
 import {
-  questionRepo, callRepo, settingsRepo, userRepo, sessionRepo, auditRepo, payerRepo, lockoutRepo, flowRepo, PAYER_FIELDS,
+  questionRepo, callRepo, settingsRepo, userRepo, sessionRepo, auditRepo, payerRepo, lockoutRepo, flowRepo, facilityRepo, FACILITY_FIELDS, PAYER_FIELDS,
 } from './db.js';
 import { validateGraph } from '../public/js/flow-logic.js';
 import { PRIOR_AUTH_POLICIES } from './seed-payers.js';
@@ -160,6 +160,7 @@ export function createApp({ db, staticDir = null }) {
   const audit = auditRepo(db);
   const payers = payerRepo(db);
   const flows = flowRepo(db);
+  const facilities = facilityRepo(db);
   const lockout = lockoutRepo(db);
 
   const activePayer = async (code) => {
@@ -319,6 +320,47 @@ export function createApp({ db, staticDir = null }) {
     if (!(callType in CALL_TYPES)) return res.status(400).json({ error: 'Invalid call type.' });
     const [context, bank, rules] = await Promise.all([payerContext(payer), questions.list({ activeOnly: true }), flows.list({ activeOnly: true })]);
     res.json(evaluateCall({ callType, answers, transcript, ...context, questions: bank, flows: rules }));
+  });
+
+  // ---------------------------------------------- saved pickup facilities
+  // Call takers save facilities as they enter them; everyone can reuse them.
+  const facilityInput = (body = {}, { partial = false } = {}) => {
+    const input = {};
+    const errors = [];
+    const text = (k, max) => { if (k in body) input[k] = String(body[k] ?? '').trim().slice(0, max); };
+    text('name', 120); text('address', 300); text('phone', 40); text('contact_name', 120); text('contact_email', 200);
+    if ('active' in body) input.active = Boolean(body.active);
+    if ((!partial || 'name' in body) && !input.name) errors.push('Enter the facility name.');
+    if (input.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.contact_email)) errors.push('Enter a valid email address, or leave it blank.');
+    return { input, errors };
+  };
+
+  app.get('/api/facilities', requireAuth, async (req, res) => res.json(await facilities.list({ activeOnly: true })));
+
+  app.post('/api/facilities', requireAuth, async (req, res) => {
+    const { input, errors } = facilityInput(req.body);
+    if (errors.length) return res.status(400).json({ error: errors.join(' ') });
+    const existing = await facilities.getByName(input.name);
+    if (existing) return res.status(409).json({ error: `"${existing.name}" is already saved. Choose it from the list.`, facility: existing });
+    const created = await facilities.create(input, req.user.id);
+    await log(req, 'facility.created', { entityType: 'facility', entityId: created.id, details: { name: created.name } });
+    res.status(201).json(created);
+  });
+
+  app.put('/api/facilities/:id', requireAuth, async (req, res) => {
+    const existing = await facilities.get(Number(req.params.id) || 0);
+    if (!existing) return res.status(404).json({ error: 'Facility not found.' });
+    const { input, errors } = facilityInput(req.body, { partial: true });
+    if ('active' in input && req.user.role !== 'admin') delete input.active; // only admins remove facilities
+    if (errors.length) return res.status(400).json({ error: errors.join(' ') });
+    if (input.name) {
+      const clash = await facilities.getByName(input.name);
+      if (clash && clash.id !== existing.id) return res.status(409).json({ error: `"${clash.name}" is already saved.` });
+    }
+    const updated = await facilities.update(existing.id, input);
+    const changes = diff(existing, updated, FACILITY_FIELDS);
+    if (Object.keys(changes).length) await log(req, 'facility.updated', { entityType: 'facility', entityId: existing.id, details: { name: updated.name, changes } });
+    res.json(updated);
   });
 
   app.post('/api/ai/analyze', requireAuth, async (req, res) => {

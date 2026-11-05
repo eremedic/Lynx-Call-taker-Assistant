@@ -41,7 +41,8 @@ const DEFAULT_SETTINGS = {
 //   3 - CMS question bank, payer profiles, private/facility pay, brokers
 //   4 - secondary payer on calls (schema only)
 //   5 - Logic Builder flows (schema only)
-const SEED_VERSION = 5;
+//   6 - saved pickup facilities (schema only)
+const SEED_VERSION = 6;
 const CONTENT_VERSION = 3; // last version that added built-in questions/payers
 const MIGRATION_LOCK = 724_310_001;
 
@@ -177,6 +178,20 @@ export const SCHEMA_SQL = `
     updated_at TEXT NOT NULL DEFAULT ${NOW}
   );
 
+  CREATE TABLE IF NOT EXISTS ${S}.facilities (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    address TEXT NOT NULL DEFAULT '',
+    phone TEXT NOT NULL DEFAULT '',
+    contact_name TEXT NOT NULL DEFAULT '',
+    contact_email TEXT NOT NULL DEFAULT '',
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT ${NOW},
+    updated_at TEXT NOT NULL DEFAULT ${NOW}
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS facilities_name ON ${S}.facilities (lower(name));
+
   -- The audit trail is append-only.
   CREATE OR REPLACE FUNCTION ${S}.audit_log_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
     BEGIN RAISE EXCEPTION 'audit_log is append-only'; END $$;
@@ -194,6 +209,7 @@ export const SCHEMA_SQL = `
   ALTER TABLE ${S}.calls ENABLE ROW LEVEL SECURITY;
   ALTER TABLE ${S}.audit_log ENABLE ROW LEVEL SECURITY;
   ALTER TABLE ${S}.logic_flows ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE ${S}.facilities ENABLE ROW LEVEL SECURITY;
   DO $$
   DECLARE r TEXT;
   BEGIN
@@ -555,6 +571,38 @@ function payerRow(input) {
     row[f] = v;
   }
   return row;
+}
+
+// ------------------------------------------------------------- facilities
+export const FACILITY_FIELDS = ['name', 'address', 'phone', 'contact_name', 'contact_email', 'active'];
+const toFacility = (row) => row && { ...row, active: Boolean(row.active) };
+
+export function facilityRepo(db) {
+  return {
+    async list({ activeOnly = false } = {}) {
+      return (await db.query(`SELECT * FROM ${S}.facilities ${activeOnly ? 'WHERE active' : ''} ORDER BY lower(name)`)).map(toFacility);
+    },
+    async get(id) {
+      return toFacility((await db.query(`SELECT * FROM ${S}.facilities WHERE id = $1`, [id]))[0]);
+    },
+    async getByName(name) {
+      return toFacility((await db.query(`SELECT * FROM ${S}.facilities WHERE lower(name) = lower($1)`, [String(name || '')]))[0]);
+    },
+    async create(input, userId = null) {
+      const row = Object.fromEntries(Object.entries(input).filter(([k]) => FACILITY_FIELDS.includes(k)));
+      row.created_by = userId;
+      const p = insertParts(row);
+      return toFacility((await db.query(`INSERT INTO ${S}.facilities (${p.cols}) VALUES (${p.marks}) RETURNING *`, p.values))[0]);
+    },
+    async update(id, input) {
+      const row = Object.fromEntries(Object.entries(input).filter(([k]) => FACILITY_FIELDS.includes(k)));
+      if (Object.keys(row).length) {
+        const a = assignments(row);
+        await db.query(`UPDATE ${S}.facilities SET ${a.sql}, updated_at = ${NOW} WHERE id = $${a.values.length + 1}`, [...a.values, id]);
+      }
+      return this.get(id);
+    },
+  };
 }
 
 // ------------------------------------------------------------ logic flows

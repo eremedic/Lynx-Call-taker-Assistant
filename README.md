@@ -10,6 +10,15 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 
 ## Features
 
+**Call Setup: the first step of every call**
+- **Drop-downs first.** The call taker answers these before the listening and questions start:
+  - Emergency or non-emergency (one-time or repetitive)?
+  - ALS, BLS or SCT?
+  - Which insurance? The list is your payers and brokers, plus an optional secondary insurance.
+- **Pickup facility.** Clicking **Facility name** opens a pop-out. Choose a saved facility from the drop-down, or enter a new one: name, address, callback phone, caller name, caller email. New facilities are saved for everyone's next call, and edits to a saved facility update it. Choosing a facility fills the address, callback number, caller and email on the call, and the call taker can still change them.
+- **Start questions.** Trip type, level and insurance are required. Setup then collapses to a one-line summary with an **Edit** button, and the live conversation and Intake Assistant appear.
+- **Level check.** If the requested level is higher than what has been documented (for example ALS requested, but only BLS-level needs so far), the Medical Necessity panel says what to ask. It also flags the opposite case.
+
 **Call-taker console: one question at a time**
 - **One question at a time.** The Intake Assistant is the only place questions appear. The full list and checklist are folded under **All questions & checklist** for when you need them.
 - **Key questions pop out.** Qualifying questions (bed confinement, clinical conditions, ALS, SCT) pop out in a green box that shows the answer that qualifies. Questions that can rule ambulance transport out pop out in amber, and the emergency screen in red.
