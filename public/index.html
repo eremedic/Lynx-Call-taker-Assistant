@@ -69,6 +69,14 @@
             </div>
             <div class="tab-footer"><span></span><button class="btn btn-primary" type="button" data-goto-tab="patient">Next: Patient →</button></div>
           </div>
+      <div id="level-questions" class="card popout-questions" hidden aria-live="polite">
+        <div class="card-header">
+          <h2 class="card-title" id="level-questions-title"></h2>
+          <span id="level-questions-count" class="muted small"></span>
+        </div>
+        <p id="level-questions-intro" class="popout-intro"></p>
+        <div id="level-questions-list" class="q-form"></div>
+      </div>
         </div>
 
         <!-- 2. Patient -->
@@ -130,12 +138,21 @@
             </div>
             <div class="tab-footer"><button class="btn" type="button" data-goto-tab="locations">← Back</button><button class="btn btn-primary" type="button" data-goto-tab="questions">Next: Questions →</button></div>
           </div>
-      <div id="payer-questions" class="card payer-questions" hidden aria-live="polite">
+      <div id="necessity-questions" class="card popout-questions" hidden aria-live="polite">
         <div class="card-header">
-          <h2 class="card-title" id="payer-questions-title">Payer questions</h2>
+          <h2 class="card-title" id="necessity-questions-title"></h2>
+          <span id="necessity-questions-count" class="muted small"></span>
+        </div>
+        <p id="necessity-questions-intro" class="popout-intro"></p>
+        <div id="necessity-questions-list" class="q-form"></div>
+      </div>
+
+      <div id="payer-questions" class="card popout-questions" hidden aria-live="polite">
+        <div class="card-header">
+          <h2 class="card-title" id="payer-questions-title"></h2>
           <span id="payer-questions-count" class="muted small"></span>
         </div>
-        <p id="payer-questions-intro" class="payer-questions-intro"></p>
+        <p id="payer-questions-intro" class="popout-intro"></p>
         <div id="payer-questions-list" class="q-form"></div>
       </div>
 

@@ -82,6 +82,7 @@ function bindEvents() {
     const sync = () => {
       markActive();
       setDetail(input.dataset.detail, input.value, input);
+      if (input.dataset.detail === 'requested_level') renderPopouts();
       renderTabs();
     };
     input.addEventListener('input', sync);
@@ -412,7 +413,7 @@ function render() {
   if (!state.evaluation) return;
   const focus = captureFocus();
   renderChecklist();
-  renderPayerQuestions();
+  renderPopouts();
   renderAssessment();
   restoreFocus(focus);
   renderTabs();
@@ -474,33 +475,80 @@ function questionRow(q) {
     </div>`;
 }
 
-// When the chosen payer has its own questions (private pay, facility pay,
-// Medicaid, Medicare Advantage, brokers…), they pop out on the Payer Info tab.
-// Documentation questions stay on the Questions tab.
-let poppedFor = null;
-function renderPayerQuestions() {
-  const box = $('#payer-questions');
-  const payer = state.config.payers.find((p) => p.code === state.payer);
-  const visible = new Set(state.evaluation.visibleCodes);
-  const qs = payer ? state.questions.filter((q) => visible.has(q.code) && q.payers?.length && q.category !== 'Documentation') : [];
-  box.hidden = qs.length === 0;
-  if (!qs.length) { poppedFor = null; return; }
-  const done = qs.filter((q) => state.answers[q.code] !== undefined).length;
-  $('#payer-questions-title').textContent = `${payer.name}: questions`;
-  $('#payer-questions-count').textContent = `${done} of ${qs.length} answered`;
-  $('#payer-questions-intro').textContent = payer.requires_medical_necessity === false
-    ? `${payer.name} doesn’t need a medical-necessity review. Ask these payment questions instead.`
-    : `Ask these for ${payer.name}. They also appear on the Questions tab.`;
-  $('#payer-questions-list').innerHTML = qs.map(questionRow).join('');
-  box.classList.toggle('kind-no-necessity', payer.requires_medical_necessity === false);
-  // Pop out once each time a payer with its own questions is chosen.
-  if (poppedFor !== payer.code) {
-    poppedFor = payer.code;
+// ------------------------------------------------------------- pop-outs
+// Questions pop out on the tab where the choice that calls for them is made:
+//   Trip tab:   the requested level's questions (BLS / ALS / SCT)
+//   Payer tab:  the medical-necessity and reasonableness questions, for every
+//               payer that needs them, and the payer's own questions
+// They are grouped by each question's criterion (set in the Question Bank),
+// so new questions land in the right place. All of them also stay on the
+// Questions tab, and answers stay in sync.
+const LEVEL_CRITERIA = {
+  BLS: { criteria: ['condition'], label: 'BLS', intro: 'A Yes to any of these conditions supports a BLS ambulance. Bed confinement, the other way to qualify, is asked on the Payer Info tab.' },
+  ALS: { criteria: ['als'], label: 'ALS', intro: 'ALS requires a need for advanced life support during transport. A Yes here supports ALS. Without one, the trip qualifies at most as BLS.' },
+  SCT: { criteria: ['sct'], label: 'Specialty Care Transport', intro: 'SCT requires care beyond the scope of a paramedic, such as titrated drips or ventilator management.' },
+};
+const NECESSITY_CRITERIA = ['bed_confined', 'disqualifier'];
+const REASONABLENESS_CODES = ['TX_REASON', 'TX_NEAREST'];
+
+const popped = {};
+function renderPopout(id, { questions, title, intro, tone = '', key }) {
+  const box = $(`#${id}`);
+  box.hidden = questions.length === 0;
+  if (!questions.length) { popped[id] = null; return; }
+  const done = questions.filter((q) => state.answers[q.code] !== undefined).length;
+  $(`#${id}-title`).textContent = title;
+  $(`#${id}-count`).textContent = `${done} of ${questions.length} answered`;
+  $(`#${id}-intro`).textContent = intro;
+  $(`#${id}-list`).innerHTML = questions.map(questionRow).join('');
+  box.classList.remove('tone-qualify', 'tone-payer', 'tone-no-necessity', 'tone-als', 'tone-sct');
+  if (tone) box.classList.add(`tone-${tone}`);
+  // Pop out once each time the choice behind it changes.
+  if (popped[id] !== key) {
+    popped[id] = key;
     box.classList.remove('pop-in');
     void box.offsetWidth;
     box.classList.add('pop-in');
-    if (currentTab === 'payer') box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (!box.closest('[data-tabpanel]')?.hidden) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
+}
+
+function renderPopouts() {
+  if (!state.evaluation) return;
+  const visible = new Set(state.evaluation.visibleCodes);
+  const shown = (q) => visible.has(q.code);
+  const payer = state.config.payers.find((p) => p.code === state.payer);
+  const level = LEVEL_CRITERIA[state.details.requested_level];
+
+  // Trip tab: the chosen level's questions (none for private / facility pay).
+  renderPopout('level-questions', {
+    questions: level ? state.questions.filter((q) => shown(q) && level.criteria.includes(q.criterion)) : [],
+    title: level ? `${level.label} questions` : '',
+    intro: level?.intro || '',
+    tone: state.details.requested_level === 'BLS' ? 'qualify' : state.details.requested_level === 'SCT' ? 'sct' : 'als',
+    key: state.details.requested_level || null,
+  });
+
+  // Payer tab: necessity and reasonableness, for every payer that needs it.
+  const needsReview = payer && payer.requires_medical_necessity !== false;
+  renderPopout('necessity-questions', {
+    questions: needsReview ? state.questions.filter((q) => shown(q) && (NECESSITY_CRITERIA.includes(q.criterion) || REASONABLENESS_CODES.includes(q.code))) : [],
+    title: 'Medical necessity & reasonableness',
+    intro: `${payer?.name || 'This payer'} requires the medical-necessity and reasonableness questions. The patient qualifies if all three bed-confinement answers are Yes, or if a condition on the Trip tab applies. Either way, the trip must not be possible by other means.`,
+    tone: 'qualify',
+    key: needsReview ? payer.code : null,
+  });
+
+  // Payer tab: the payer's own questions (private pay, facility pay, Medicaid…).
+  renderPopout('payer-questions', {
+    questions: payer ? state.questions.filter((q) => shown(q) && q.payers?.length && q.category !== 'Documentation') : [],
+    title: payer ? `${payer.name}: questions` : '',
+    intro: payer?.requires_medical_necessity === false
+      ? `${payer.name} doesn’t need a medical-necessity review. Ask these payment questions instead.`
+      : `Questions specific to ${payer?.name || 'this payer'}.`,
+    tone: payer?.requires_medical_necessity === false ? 'no-necessity' : 'payer',
+    key: payer?.code || null,
+  });
 }
 
 function renderChecklist() {
