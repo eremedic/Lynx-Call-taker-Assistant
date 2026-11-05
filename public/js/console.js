@@ -127,6 +127,8 @@ function bindEvents() {
     const text = note.value;
     if (text.trim()) state.notes[note.dataset.note] = text;
     else delete state.notes[note.dataset.note];
+    // A payer question appears on two tabs; keep both note boxes in step.
+    document.querySelectorAll(`[data-note="${CSS.escape(note.dataset.note)}"]`).forEach((other) => { if (other !== note) other.value = text; });
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.matches('input[data-answer-input]')) e.target.blur();
@@ -410,6 +412,7 @@ function render() {
   if (!state.evaluation) return;
   const focus = captureFocus();
   renderChecklist();
+  renderPayerQuestions();
   renderAssessment();
   restoreFocus(focus);
   renderTabs();
@@ -419,12 +422,13 @@ function render() {
 function captureFocus() {
   const el = document.activeElement;
   const key = el?.dataset?.answerInput ? 'answer-input' : el?.dataset?.note ? 'note' : null;
-  if (!key || !el.closest('#checklist')) return null;
-  return { key, code: el.dataset.answerInput || el.dataset.note, value: el.value, start: el.selectionStart, end: el.selectionEnd };
+  const form = el?.closest('.q-form');
+  if (!key || !form?.id) return null;
+  return { key, form: form.id, code: el.dataset.answerInput || el.dataset.note, value: el.value, start: el.selectionStart, end: el.selectionEnd };
 }
 function restoreFocus(f) {
   if (!f) return;
-  const el = document.querySelector(`#checklist [data-${f.key}="${CSS.escape(f.code)}"]`);
+  const el = document.querySelector(`#${f.form} [data-${f.key}="${CSS.escape(f.code)}"]`);
   if (!el) return;
   if (el.tagName !== 'SELECT') el.value = f.value;
   el.focus();
@@ -447,6 +451,57 @@ function answerControls(q) {
 }
 
 const KEY_ROWS = { bed_confined: 'qualify', condition: 'qualify', als: 'qualify', sct: 'qualify', disqualifier: 'disqualify', emergency: 'emergency' };
+
+// One question: text and hints, an answer drop-down, and a notes box.
+function questionRow(q) {
+  const key = KEY_ROWS[q.criterion];
+  const qualifying = q.qualifying_answer ? formatAnswer(q.qualifying_answer.split('|')[0]) : '';
+  return `
+    <div class="q-row ${state.answers[q.code] !== undefined ? 'answered' : ''} ${key ? `key-row key-${key}` : ''}">
+      <div class="q-main">
+        <div class="q-text">${esc(q.text)}</div>
+        <div class="q-meta">
+          <span class="chip ${CRITERION_CHIPS[q.criterion] || ''}">${esc(CRITERION_LABELS[q.criterion] || q.criterion)}</span>
+          ${q.required ? '<span class="chip chip-amber">Required</span>' : ''}
+          ${key === 'qualify' && qualifying ? `<span class="chip chip-green">Qualifies if ${esc(qualifying)}</span>` : ''}
+          ${key === 'disqualify' && qualifying ? `<span class="chip chip-amber">Rules out if ${esc(qualifying)}</span>` : ''}
+          ${key === 'emergency' ? '<span class="chip chip-red">Ask first</span>' : ''}
+        </div>
+        ${q.guidance ? `<div class="q-guidance">${esc(q.guidance)}</div>` : ''}
+      </div>
+      <div class="q-answer">${answerControls(q)}</div>
+      <div class="q-note"><input class="input" data-note="${esc(q.code)}" value="${esc(state.notes[q.code] || '')}" placeholder="Notes" aria-label="Notes: ${esc(q.text)}" maxlength="500"></div>
+    </div>`;
+}
+
+// When the chosen payer has its own questions (private pay, facility pay,
+// Medicaid, Medicare Advantage, brokers…), they pop out on the Payer Info tab.
+// Documentation questions stay on the Questions tab.
+let poppedFor = null;
+function renderPayerQuestions() {
+  const box = $('#payer-questions');
+  const payer = state.config.payers.find((p) => p.code === state.payer);
+  const visible = new Set(state.evaluation.visibleCodes);
+  const qs = payer ? state.questions.filter((q) => visible.has(q.code) && q.payers?.length && q.category !== 'Documentation') : [];
+  box.hidden = qs.length === 0;
+  if (!qs.length) { poppedFor = null; return; }
+  const done = qs.filter((q) => state.answers[q.code] !== undefined).length;
+  $('#payer-questions-title').textContent = `${payer.name}: questions`;
+  $('#payer-questions-count').textContent = `${done} of ${qs.length} answered`;
+  $('#payer-questions-intro').textContent = payer.requires_medical_necessity === false
+    ? `${payer.name} doesn’t need a medical-necessity review. Ask these payment questions instead.`
+    : `Ask these for ${payer.name}. They also appear on the Questions tab.`;
+  $('#payer-questions-list').innerHTML = qs.map(questionRow).join('');
+  box.classList.toggle('kind-no-necessity', payer.requires_medical_necessity === false);
+  // Pop out once each time a payer with its own questions is chosen.
+  if (poppedFor !== payer.code) {
+    poppedFor = payer.code;
+    box.classList.remove('pop-in');
+    void box.offsetWidth;
+    box.classList.add('pop-in');
+    if (currentTab === 'payer') box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
 
 function renderChecklist() {
   const ev = state.evaluation;
@@ -472,26 +527,7 @@ function renderChecklist() {
           <span>${esc(cat)}</span><span class="count">${done}/${qs.length} answered</span>
         </button>
         <div class="cat-body" ${collapsed.has(cat) ? 'hidden' : ''}>
-          ${qs.map((q) => {
-            const key = KEY_ROWS[q.criterion];
-            const qualifying = q.qualifying_answer ? formatAnswer(q.qualifying_answer.split('|')[0]) : '';
-            return `
-              <div class="q-row ${state.answers[q.code] !== undefined ? 'answered' : ''} ${key ? `key-row key-${key}` : ''}">
-                <div class="q-main">
-                  <div class="q-text">${esc(q.text)}</div>
-                  <div class="q-meta">
-                    <span class="chip ${CRITERION_CHIPS[q.criterion] || ''}">${esc(CRITERION_LABELS[q.criterion] || q.criterion)}</span>
-                    ${q.required ? '<span class="chip chip-amber">Required</span>' : ''}
-                    ${key === 'qualify' && qualifying ? `<span class="chip chip-green">Qualifies if ${esc(qualifying)}</span>` : ''}
-                    ${key === 'disqualify' && qualifying ? `<span class="chip chip-amber">Rules out if ${esc(qualifying)}</span>` : ''}
-                    ${key === 'emergency' ? '<span class="chip chip-red">Ask first</span>' : ''}
-                  </div>
-                  ${q.guidance ? `<div class="q-guidance">${esc(q.guidance)}</div>` : ''}
-                </div>
-                <div class="q-answer">${answerControls(q)}</div>
-                <div class="q-note"><input class="input" data-note="${esc(q.code)}" value="${esc(state.notes[q.code] || '')}" placeholder="Notes" aria-label="Notes: ${esc(q.text)}" maxlength="500"></div>
-              </div>`;
-          }).join('')}
+          ${qs.map(questionRow).join('')}
         </div>
       </div>`;
   }

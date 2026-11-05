@@ -305,7 +305,7 @@ export function createApp({ db, staticDir = null }) {
     res.json({
       ...(await publicSettings()), callTypes: CALL_TYPES, categories: CATEGORIES, answerTypes: ANSWER_TYPES,
       criteria: CRITERIA, alertLevels: ALERT_LEVELS, roles: ROLES, priorAuthPolicies: PRIOR_AUTH_POLICIES,
-      payers: (await payers.list({ activeOnly: true })).map((p) => ({ code: p.code, name: p.name, kind: p.kind })),
+      payers: (await payers.list({ activeOnly: true })).map((p) => ({ code: p.code, name: p.name, kind: p.kind, requires_medical_necessity: p.requires_medical_necessity })),
     });
   });
 
