@@ -49,6 +49,44 @@ export function showLoadFailure(err) {
   document.body.prepend(box);
 }
 
+// ----------------------------------------------------------- versioning
+// Each Netlify deploy writes version.json. Pages show it in the user menu and,
+// when a newer deploy appears while a page is open, offer to reload.
+async function fetchVersion() {
+  try {
+    const res = await fetch('version.json', { cache: 'no-store' });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function versionLabel(v) {
+  if (!v || v.commit === 'local') return 'Version: local copy';
+  return `Version ${v.commit}${v.builtAt ? ` · deployed ${new Date(v.builtAt).toLocaleString()}` : ''}`;
+}
+
+export async function watchForUpdates({ isBusy = () => false, everyMs = 5 * 60 * 1000 } = {}) {
+  const loaded = await fetchVersion();
+  document.querySelectorAll('[data-version]').forEach((el) => { el.textContent = versionLabel(loaded); });
+  if (!loaded || loaded.commit === 'local') return;
+  const check = async () => {
+    const now = await fetchVersion();
+    if (!now || now.commit === loaded.commit || document.getElementById('update-bar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'update-bar';
+    bar.className = 'update-bar';
+    bar.setAttribute('role', 'status');
+    bar.innerHTML = '<span>A new version of AmbuIntake is available.</span><button type="button" class="btn btn-sm">Reload now</button>';
+    bar.querySelector('button').addEventListener('click', () => {
+      if (!isBusy() || confirm('Reload now? Unsaved changes to this call will be lost. Save the call first to keep them.')) location.reload();
+    });
+    document.body.prepend(bar);
+  };
+  setInterval(check, everyMs);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+}
+
 export function redirectToLogin({ change = false } = {}) {
   const next = encodeURIComponent(location.pathname + location.hash);
   location.href = `login.html?next=${next}${change ? '&change=1' : ''}`;
@@ -81,6 +119,7 @@ export function mountUserMenu(container, user) {
       <div class="menu" role="menu" hidden>
         <a role="menuitem" href="login.html?change=1&next=${encodeURIComponent(location.pathname)}">Change password</a>
         <button role="menuitem" type="button" data-signout>Sign out</button>
+        <div class="menu-version" data-version>Version …</div>
       </div>
     </div>`;
   const chip = container.querySelector('.user-chip');

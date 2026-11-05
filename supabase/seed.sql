@@ -9,14 +9,6 @@ BEGIN;
 
 -- Settings (seed_version last, so the app knows setup is complete)
 INSERT INTO ambuintake.settings (key, value)
-VALUES ('ai_auto_analyze', 'true')
-ON CONFLICT (key) DO NOTHING;
-
-INSERT INTO ambuintake.settings (key, value)
-VALUES ('ai_enabled', 'true')
-ON CONFLICT (key) DO NOTHING;
-
-INSERT INTO ambuintake.settings (key, value)
 VALUES ('org_name', 'Your Ambulance Service')
 ON CONFLICT (key) DO NOTHING;
 

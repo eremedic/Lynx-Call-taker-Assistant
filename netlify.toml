@@ -7,7 +7,8 @@
 
 [build]
   publish = "public"
-  command = "echo 'No build step needed'"
+  # Records the deployed commit in public/version.json (shown on /status.html).
+  command = "node scripts/write-version.mjs"
 
 [build.environment]
   NODE_VERSION = "22"
@@ -20,6 +21,29 @@
   # The embedded database is only for local runs and tests; leave it out of
   # the function so it stays small (about 3 MB) and starts quickly.
   included_files = ["!node_modules/@electric-sql/**"]
+
+# Pages, scripts and styles are always revalidated, so a new deploy shows up
+# on the next load instead of an old copy from the browser cache.
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/version.json"
+  [headers.values]
+    Cache-Control = "no-store"
 
 [[headers]]
   for = "/*"

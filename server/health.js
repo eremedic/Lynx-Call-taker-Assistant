@@ -152,7 +152,6 @@ export async function diagnose({ env = process.env, db = null, connect = null, r
       ? `On: the "${env.ADMIN_USERNAME || 'admin'}" account uses ADMIN_PASSWORD (applied once). After you sign in and choose a new password, delete ADMIN_RESET in Netlify.`
       : 'On, but ADMIN_PASSWORD is not set. Add ADMIN_PASSWORD and redeploy.', { warn: Boolean(env.ADMIN_PASSWORD) });
   }
-  add('AI analysis', true, env.ANTHROPIC_API_KEY ? 'ANTHROPIC_API_KEY is set.' : 'Off (ANTHROPIC_API_KEY not set). Optional.', { info: true });
 
   const ok = checks.every((c) => c.ok || c.warn || c.info);
   return { ok, checks, checkedAt: new Date().toISOString() };

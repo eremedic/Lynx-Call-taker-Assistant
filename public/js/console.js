@@ -1,4 +1,4 @@
-import { api, esc, toast, showLoadFailure, requireUser, mountUserMenu, payerOptions, STATUS_LABELS, CRITERION_LABELS, CRITERION_CHIPS, formatAnswer } from './common.js';
+import { api, esc, toast, showLoadFailure, watchForUpdates, requireUser, mountUserMenu, payerOptions, STATUS_LABELS, CRITERION_LABELS, CRITERION_CHIPS, formatAnswer } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -27,6 +27,7 @@ const state = {
 async function init() {
   state.user = await requireUser();
   mountUserMenu($('#user-menu'), state.user);
+  watchForUpdates({ isBusy: () => state.dirty });
   $('#admin-link').hidden = state.user.role !== 'admin';
   if (new URLSearchParams(location.search).has('denied')) {
     toast('That page requires administrator access.', 'error');

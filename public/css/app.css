@@ -696,3 +696,9 @@ body.console-page .emergency-bar { flex: none; }
   .q-form .q-row { grid-template-columns: minmax(0, 1fr) 180px; }
   .q-form .q-note { grid-column: 1 / -1; }
 }
+
+/* Deployed version and "new version available" bar */
+.menu-version { border-top: 1px solid var(--line); margin-top: 6px; padding: 8px 10px 4px; font-size: 11px; color: var(--ink-500); white-space: nowrap; }
+.status-version { font-size: 13px; color: var(--ink-700); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 0 0 4px; }
+.update-bar { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 12px; background: var(--navy-900); color: #fff; padding: 10px 14px; border-radius: 10px; box-shadow: var(--shadow-lg); font-size: 13.5px; }
+.update-bar .btn { background: #fff; color: var(--navy-900); border-color: #fff; }

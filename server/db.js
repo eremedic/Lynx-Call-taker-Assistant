@@ -33,8 +33,6 @@ export function defaultNecessity(q) {
 
 const DEFAULT_SETTINGS = {
   org_name: 'Your Ambulance Service',
-  ai_enabled: 'true',
-  ai_auto_analyze: 'true',
 };
 
 // Seed version history:

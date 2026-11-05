@@ -3,3 +3,4 @@ data/
 .env
 .netlify/
 .bundle-test-*/
+public/version.json

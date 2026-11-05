@@ -1,5 +1,5 @@
 import { initLogicBuilder, showLogicBuilder, logicHasUnsavedChanges, isFullscreen as logicIsFullscreen } from './logic-builder.js';
-import { api, esc, toast, showLoadFailure, requireUser, mountUserMenu, ROLE_LABELS, STATUS_LABELS, STATUS_CHIPS, CRITERION_LABELS, CRITERION_CHIPS, PRIORITY_LABELS, formatAnswer, formatDate } from './common.js';
+import { api, esc, toast, showLoadFailure, watchForUpdates, requireUser, mountUserMenu, ROLE_LABELS, STATUS_LABELS, STATUS_CHIPS, CRITERION_LABELS, CRITERION_CHIPS, PRIORITY_LABELS, formatAnswer, formatDate } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -15,6 +15,7 @@ async function init() {
   state.config = await api('/api/config');
   state.payers = await api('/api/admin/payers');
   mountUserMenu($('#user-menu'), state.user);
+  watchForUpdates({ isBusy: () => logicHasUnsavedChanges() });
   $('#org-name').textContent = `${state.config.orgName || ''} · Admin Dashboard`;
   $('#app').hidden = false;
   bindEvents();
@@ -880,13 +881,6 @@ async function loadSettings() {
 function renderSettings(s) {
   const form = $('#settings-form').elements;
   form.org_name.value = s.org_name || '';
-  form.ai_enabled.checked = s.ai_enabled === 'true';
-  form.ai_auto_analyze.checked = s.ai_auto_analyze === 'true';
-  const status = $('#ai-status');
-  status.className = `alert ${s.ai_configured ? 'alert-info' : 'alert-warning'}`;
-  status.innerHTML = s.ai_configured
-    ? '<span class="icon">✓</span><span>An Anthropic API key is configured on the server. AI analysis is available to call takers when enabled below.</span>'
-    : '<span class="icon">!</span><span>No AI key configured. Set <code>ANTHROPIC_API_KEY</code> in the server environment and restart to enable AI analysis. Keyword detection works without it.</span>';
 }
 
 async function saveSettings(e) {
@@ -894,7 +888,7 @@ async function saveSettings(e) {
   const form = e.target.elements;
   const s = await guarded(() => api('/api/admin/settings', {
     method: 'PUT',
-    body: { org_name: form.org_name.value.trim(), ai_enabled: form.ai_enabled.checked, ai_auto_analyze: form.ai_auto_analyze.checked },
+    body: { org_name: form.org_name.value.trim() },
   }));
   if (!s) return;
   state.config.orgName = s.org_name;

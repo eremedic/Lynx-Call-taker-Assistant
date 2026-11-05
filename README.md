@@ -139,7 +139,6 @@ AmbuIntake creates its own tables the first time it starts. They go in a separat
 | `ADMIN_USERNAME` | Username for the first administrator | No (default `admin`) |
 | `COOKIE_SECURE` | `true` | **Yes** |
 | `TRUST_PROXY` | `true`, so the audit log records real IP addresses | **Yes** |
-| `ANTHROPIC_API_KEY` | Your Anthropic API key, for AI transcript analysis | Only for the AI features (mark as secret) |
 | `CLAUDE_MODEL` | `claude-opus-5-5` | No (that's the default) |
 | `DATABASE_CA_CERT` | Supabase's SSL certificate (Project Settings → Database → SSL → download), pasted in full | No. Connections are always encrypted; with this set, the server's identity is also verified |
 | `DATABASE_POOL_SIZE` | Database connections per function instance | No (default `3`) |
@@ -151,6 +150,12 @@ AmbuIntake creates its own tables the first time it starts. They go in a separat
 2. Open your site, sign in with `ADMIN_USERNAME` / `ADMIN_PASSWORD`, and choose a new password.
 3. Go to **Admin → Settings** and enter your ambulance service's name (it's printed on PCS forms). Then add call takers under **Admin → Users**.
 4. Optional: add your domain under **Domain management**. Netlify sets up HTTPS automatically.
+
+### Checking which version is live
+
+Each Netlify deploy records its version (the short commit ID). The **status page** (`/status.html`) shows "Deployed version: abc1234 from main", and so does the user menu (click your name). Compare it with the latest commit on GitHub. If it's older, Netlify hasn't published the new code: open **Netlify → Deploys** and check that the newest deploy says **Published**, not Failed, Canceled or "Locked".
+
+Pages, scripts and styles are served with `Cache-Control: no-cache`, so a reload always picks up a new deploy. Pages left open during a deploy show **"A new version of AmbuIntake is available. Reload now"**.
 
 ### 5. If something isn't working: open `/status.html`
 
@@ -191,7 +196,6 @@ Then open http://localhost:3000.
 | `PGLITE_DIR` | `data/pglite` | Folder for the embedded database |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` / generated | First administrator (first run only) |
 | `COOKIE_SECURE` / `TRUST_PROXY` | — | Set both to `true` behind HTTPS / a reverse proxy |
-| `ANTHROPIC_API_KEY` / `CLAUDE_MODEL` | — / `claude-opus-5-5` | AI transcript analysis |
 
 ### Account recovery
 
@@ -247,7 +251,6 @@ server/
   db/client.js        Supabase (node-postgres) and embedded (PGlite) connections
   seed-questions.js   default question bank (CMS criteria + payer-specific questions)
   seed-payers.js      default payer profiles
-  ai.js               optional Claude transcript analysis
   pcs.js              builds the prefilled PCS from a saved call
   engine/detect.js    phrase detection with negation handling
   engine/evaluate.js  medical-necessity evaluation and question prioritization

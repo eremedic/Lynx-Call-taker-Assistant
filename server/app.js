@@ -6,7 +6,6 @@ import { validateGraph } from '../public/js/flow-logic.js';
 import { PRIOR_AUTH_POLICIES } from './seed-payers.js';
 import { evaluateCall, appliesToPayer, skipsNecessity, CALL_TYPES } from './engine/evaluate.js';
 import { CATEGORIES } from './seed-questions.js';
-import { analyzeTranscript, aiConfigured, AiError } from './ai.js';
 import { buildPcs } from './pcs.js';
 import { diagnose } from './health.js';
 import {
@@ -297,8 +296,6 @@ export function createApp({ db, staticDir = null }) {
     const s = await settings.all();
     return {
       orgName: s.org_name,
-      aiAvailable: aiConfigured() && s.ai_enabled === 'true',
-      aiAutoAnalyze: s.ai_auto_analyze === 'true',
     };
   };
   // Self-check for /status.html (no secrets are returned).
@@ -377,28 +374,6 @@ export function createApp({ db, staticDir = null }) {
     await facilities.remove(existing.id);
     await log(req, 'facility.deleted', { entityType: 'facility', entityId: existing.id, details: { name: existing.name, address: existing.address } });
     res.status(204).end();
-  });
-
-  app.post('/api/ai/analyze', requireAuth, async (req, res) => {
-    const { callType = 'non_emergency', answers = {}, transcript = '', payer: payerCode = '' } = req.body || {};
-    if (!(await publicSettings()).aiAvailable) return res.status(503).json({ error: 'AI analysis is not enabled.' });
-    if (!String(transcript).trim()) return res.status(400).json({ error: 'Transcript is empty.' });
-    // PHI leaves the system here, so every request is recorded.
-    await log(req, 'ai.analyze', { details: { transcript_chars: String(transcript).length, call_type: callType } });
-    try {
-      const payer = await activePayer(payerCode);
-      const bank = await questions.list({ activeOnly: true });
-      res.json(await analyzeTranscript({
-        transcript,
-        callType: payer ? `${callType} — payer: ${payer.name}` : callType,
-        answers,
-        questions: bank.filter((q) => appliesToPayer(q, payer) && !(skipsNecessity(payer) && q.necessity)),
-      }));
-    } catch (err) {
-      if (err instanceof AiError) return res.status(err.status).json({ error: err.message });
-      console.error('AI analysis failed:', err);
-      res.status(500).json({ error: 'AI analysis failed.' });
-    }
   });
 
   // Validates a call from the console and re-evaluates it server-side so the
@@ -720,17 +695,19 @@ export function createApp({ db, staticDir = null }) {
   });
 
   // --------------------------------------------------- admin: settings
-  const visibleSettings = async () => Object.fromEntries(Object.entries(await settings.all()).filter(([k]) => !k.startsWith('_')));
-  app.get('/api/admin/settings', requireAdmin, async (req, res) => res.json({ ...(await visibleSettings()), ai_configured: aiConfigured() }));
+  // Internal keys (leading underscore) and retired AI settings are not shown.
+  const RETIRED_SETTINGS = new Set(['ai_enabled', 'ai_auto_analyze', 'seed_version']);
+  const visibleSettings = async () => Object.fromEntries(Object.entries(await settings.all()).filter(([k]) => !k.startsWith('_') && !RETIRED_SETTINGS.has(k)));
+  app.get('/api/admin/settings', requireAdmin, async (req, res) => res.json(await visibleSettings()));
   app.put('/api/admin/settings', requireAdmin, async (req, res) => {
     const before = await settings.all();
-    for (const key of ['org_name', 'ai_enabled', 'ai_auto_analyze']) {
+    for (const key of ['org_name']) {
       if (key in (req.body || {})) await settings.set(key, req.body[key]);
     }
     const after = await visibleSettings();
-    const changes = diff(before, after, ['org_name', 'ai_enabled', 'ai_auto_analyze']);
+    const changes = diff(before, after, ['org_name']);
     if (Object.keys(changes).length) await log(req, 'settings.updated', { details: { changes } });
-    res.json({ ...after, ai_configured: aiConfigured() });
+    res.json(after);
   });
 
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }));

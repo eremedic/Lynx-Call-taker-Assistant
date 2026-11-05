@@ -52,5 +52,20 @@ async function check() {
   render(data);
 }
 
-$('#recheck').addEventListener('click', check);
+// Which deploy is live: compare the commit with the latest change in GitHub.
+async function showVersion() {
+  let v = null;
+  try {
+    const res = await fetch('version.json', { cache: 'no-store' });
+    if (res.ok) v = await res.json();
+  } catch { /* shown as unknown */ }
+  $('#status-version').innerHTML = !v
+    ? 'Deployed version: <strong>unknown</strong>. This deploy was built before version tracking was added, or without the build command in netlify.toml.'
+    : v.commit === 'local'
+      ? 'Deployed version: <strong>local copy</strong> (not a Netlify deploy).'
+      : `Deployed version: <strong>${esc(v.commit)}</strong>${v.branch ? ` from <strong>${esc(v.branch)}</strong>` : ''}, built ${esc(new Date(v.builtAt).toLocaleString())}.`;
+}
+
+$('#recheck').addEventListener('click', () => { check(); showVersion(); });
 check();
+showVersion();
