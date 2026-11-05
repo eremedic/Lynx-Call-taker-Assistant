@@ -4,7 +4,7 @@ import {
 } from './db.js';
 import { validateGraph } from '../public/js/flow-logic.js';
 import { PRIOR_AUTH_POLICIES } from './seed-payers.js';
-import { evaluateCall, appliesToPayer, skipsNecessity, CALL_TYPES } from './engine/evaluate.js';
+import { evaluateCall, appliesToPayer, skipsNecessity, CALL_TYPES, NO_NECESSITY_PAYERS } from './engine/evaluate.js';
 import { CATEGORIES } from './seed-questions.js';
 import { buildPcs } from './pcs.js';
 import { diagnose } from './health.js';
@@ -18,8 +18,11 @@ const CRITERIA = ['emergency', 'bed_confined', 'condition', 'als', 'sct', 'disqu
 const ALERT_LEVELS = ['info', 'warning', 'critical'];
 const USERNAME_RE = /^[a-zA-Z0-9._-]{3,32}$/;
 
-function validatePayer(input, { partial = false } = {}) {
+function validatePayer(input, { partial = false, code = input.code } = {}) {
   const errors = [];
+  if (input.requires_medical_necessity === false && !NO_NECESSITY_PAYERS.has(code)) {
+    errors.push('Only private pay and facility pay can skip the medical-necessity review. Every other payer needs the medical-necessity and reasonableness questions.');
+  }
   const need = (f) => !partial || f in input;
   if (need('code') && !/^[a-z][a-z0-9_]{1,40}$/.test(input.code || '')) errors.push('Code must be 2–40 characters: lowercase letters, digits, underscores.');
   if (need('name') && !String(input.name || '').trim()) errors.push('Payer name is required.');
@@ -502,7 +505,7 @@ export function createApp({ db, staticDir = null }) {
     if (!existing) return res.status(404).json({ error: 'Payer not found.' });
     const input = { ...req.body };
     delete input.code; // questions reference payers by code
-    const errors = validatePayer(input, { partial: true });
+    const errors = validatePayer(input, { partial: true, code: existing.code });
     errors.push(...(await parentProblems(input, existing.code)));
     if (errors.length) return res.status(400).json({ error: errors.join(' ') });
     const updated = await payers.update(existing.id, input);

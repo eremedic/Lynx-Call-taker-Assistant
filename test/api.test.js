@@ -247,11 +247,27 @@ test('private pay and facility pay skip every medical-necessity question', async
   const fp = (await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'facility_pay' } })).data;
   assert.ok(fp.visibleCodes.includes('FP_AUTHORIZED_BY') && !fp.visibleCodes.includes('PP_RESPONSIBLE'));
 
-  // Any payer can be switched to "no necessity review" by an administrator.
+  // Only private pay and facility pay may skip the review.
   const commercial = (await admin('/api/admin/payers')).data.find((p) => p.code === 'commercial');
-  await admin(`/api/admin/payers/${commercial.id}`, { method: 'PUT', body: { requires_medical_necessity: false } });
-  assert.equal((await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'commercial' } })).data.assessment.status, 'not_required');
-  await admin(`/api/admin/payers/${commercial.id}`, { method: 'PUT', body: { requires_medical_necessity: true } });
+  const refused = await admin(`/api/admin/payers/${commercial.id}`, { method: 'PUT', body: { requires_medical_necessity: false } });
+  assert.equal(refused.status, 400);
+  assert.match(refused.data.error, /Only private pay and facility pay/);
+  assert.notEqual((await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'commercial' } })).data.assessment.status, 'not_required');
+});
+
+test('every payer except private pay and facility pay gets the necessity and reasonableness questions', async () => {
+  const necessity = ['BED_GET_UP', 'BED_AMBULATE', 'BED_SIT', 'CLN_OXYGEN', 'TX_OTHER_MEANS', 'TX_NEAREST'];
+  const list = (await admin('/api/admin/payers')).data.filter((p) => p.active);
+  assert.ok(list.length >= 6);
+  for (const p of list) {
+    const r = (await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: p.code, allQuestions: true } })).data;
+    const exempt = ['private_pay', 'facility_pay'].includes(p.code);
+    for (const code of necessity) assert.equal(r.visibleCodes.includes(code), !exempt, `${p.code} ${exempt ? 'skips' : 'asks'} ${code}`);
+    assert.equal(r.assessment.payer.requiresMedicalNecessity, !exempt, p.code);
+  }
+  // A new payer can't be created without the review either.
+  const bad = await admin('/api/admin/payers', { method: 'POST', body: { code: 'cash_only', name: 'Cash only', requires_medical_necessity: false, prior_auth: { emergency: 'not_required', non_emergency: 'not_required', repetitive: 'not_required' } } });
+  assert.equal(bad.status, 400);
 });
 
 test('transport brokers are added as payers, linked to a payer program', async () => {

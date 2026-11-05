@@ -551,7 +551,8 @@ function renderPayer(p) {
   $('#payer-parent').innerHTML = p.kind === 'broker'
     ? `<strong>${esc(p.name)}</strong>${p.parentName ? ` — books trips for <strong>${esc(p.parentName)}</strong>` : ''}`
     : '';
-  $('#payer-necessity-row').hidden = p.requiresMedicalNecessity;
+  $('#payer-necessity').textContent = p.requiresMedicalNecessity ? 'Required: questions asked' : 'Not required';
+  $('#payer-necessity').className = `chip ${p.requiresMedicalNecessity ? 'chip-amber' : 'chip-blue'}`;
   const pa = $('#payer-pa');
   pa.className = `chip ${PA_CHIPS[p.priorAuth] || ''}`;
   pa.textContent = p.priorAuthLabel;

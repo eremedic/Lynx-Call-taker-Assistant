@@ -423,6 +423,10 @@ function fillPayerRules(el, v) {
   for (const f of ['prior_auth_note', 'certification', 'alternate_transport']) el[f].value = v[f] || '';
   el.documentation.value = (v.documentation || []).join('\n');
   el.requires_medical_necessity.checked = v.requires_medical_necessity !== false;
+  // Only private pay and facility pay may skip the review.
+  const exempt = ['private_pay', 'facility_pay'].includes(state.editingPayer?.code);
+  el.requires_medical_necessity.disabled = !exempt;
+  if (!exempt) el.requires_medical_necessity.checked = true;
   $$('[data-pa]').forEach((sel) => { sel.value = v.prior_auth?.[sel.dataset.pa] || 'varies'; });
 }
 

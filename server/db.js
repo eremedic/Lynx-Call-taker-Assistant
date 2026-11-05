@@ -40,7 +40,8 @@ const DEFAULT_SETTINGS = {
 //   4 - secondary payer on calls (schema only)
 //   5 - Logic Builder flows (schema only)
 //   6 - saved pickup facilities (schema only)
-const SEED_VERSION = 6;
+//   7 - only private pay and facility pay may skip the necessity review
+const SEED_VERSION = 7;
 const CONTENT_VERSION = 3; // last version that added built-in questions/payers
 const MIGRATION_LOCK = 724_310_001;
 
@@ -254,6 +255,11 @@ export async function migrate(db) {
     }
     const [row] = await t.query(`SELECT value FROM ${S}.settings WHERE key = 'seed_version'`);
     if (Number(row?.value) >= SEED_VERSION) return; // another instance finished first
+
+    if (Number(row?.value || 0) < 7) {
+      await t.query(`UPDATE ${S}.payers SET requires_medical_necessity = true
+        WHERE NOT requires_medical_necessity AND code NOT IN ('private_pay', 'facility_pay')`);
+    }
 
     // Built-in content is added once; later versions only change the schema.
     if (Number(row?.value || 0) < CONTENT_VERSION) {

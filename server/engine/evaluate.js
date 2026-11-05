@@ -46,7 +46,10 @@ export function appliesToPayer(q, payer) {
     || (payer.kind === 'broker' && q.payers.includes('@broker'));
 }
 
-export const skipsNecessity = (payer) => Boolean(payer) && payer.requires_medical_necessity === false;
+// Every payer needs the medical-necessity and reasonableness questions except
+// private pay and facility pay, which are billed to a person or facility.
+export const NO_NECESSITY_PAYERS = new Set(['private_pay', 'facility_pay']);
+export const skipsNecessity = (payer) => Boolean(payer) && NO_NECESSITY_PAYERS.has(payer.code) && payer.requires_medical_necessity !== true;
 
 // Prior-authorization questions are asked only when the payer's policy for
 // this call type calls for it, and are required when the policy is "required".

@@ -474,9 +474,9 @@
           <div class="field span-2">
             <label class="switch">
               <input type="checkbox" name="requires_medical_necessity"><span class="track"></span>
-              <span>Requires medical-necessity review</span>
+              <span>Requires medical-necessity and reasonableness review</span>
             </label>
-            <span class="hint">Turn off for private pay, facility pay, or any payer that doesn't require it. All medical-necessity questions are then skipped for this payer; the emergency screen is still asked.</span>
+            <span class="hint" id="p-necessity-hint">Every payer needs the medical-necessity and reasonableness questions except private pay and facility pay. For those two, the questions are skipped and only the emergency screen and payment questions are asked.</span>
           </div>
         </div>
         <fieldset class="group">
