@@ -56,6 +56,24 @@ function bindEvents() {
     if (!state.editing) $('#q-form').elements.necessity.checked = !['emergency', 'info'].includes(e.target.value);
   });
   $('#refresh-calls').addEventListener('click', loadCalls);
+  $('#add-facility').addEventListener('click', () => openFacility(null));
+  $('#fac-search').addEventListener('input', renderFacilities);
+  $('#fac-status').addEventListener('change', renderFacilities);
+  $('#facility-form').addEventListener('submit', saveFacility);
+  $('#facility-rows').addEventListener('click', (e) => {
+    const edit = e.target.closest('[data-edit-facility]');
+    if (edit) return openFacility(state.facilities.find((f) => f.id === Number(edit.dataset.editFacility)));
+    const del = e.target.closest('[data-delete-facility]');
+    if (del) deleteFacility(state.facilities.find((f) => f.id === Number(del.dataset.deleteFacility)));
+  });
+  $('#facility-rows').addEventListener('change', async (e) => {
+    const toggle = e.target.closest('[data-facility-active]');
+    if (!toggle) return;
+    const updated = await guarded(() => api(`/api/facilities/${toggle.dataset.facilityActive}`, { method: 'PUT', body: { active: toggle.checked } }));
+    if (!updated) { toggle.checked = !toggle.checked; return; }
+    toast(updated.active ? `${updated.name} is back on the call-taker list.` : `${updated.name} was removed from the call-taker list.`, 'success');
+    loadFacilities();
+  });
   $('#settings-form').addEventListener('submit', saveSettings);
   $('#add-user').addEventListener('click', () => openUser(null));
   $('#add-payer').addEventListener('click', () => openPayer(null, 'payer'));
@@ -136,7 +154,7 @@ function bindEvents() {
 }
 
 function showView(view) {
-  if (!['overview', 'questions', 'payers', 'logic', 'calls', 'users', 'audit', 'settings'].includes(view)) view = 'overview';
+  if (!['overview', 'questions', 'payers', 'facilities', 'logic', 'calls', 'users', 'audit', 'settings'].includes(view)) view = 'overview';
   const current = $('[data-panel]:not([hidden])')?.dataset.panel;
   if (current === 'logic' && view !== 'logic' && logicIsFullscreen()) $('#lb-fullscreen').click();
   if (current === 'logic' && view !== 'logic' && logicHasUnsavedChanges() && !confirm('Leave the Logic Builder? Your unsaved changes to this flow will stay here until you come back, but are not saved yet.')) return;
@@ -149,6 +167,7 @@ function showView(view) {
   if (view === 'settings') loadSettings();
   if (view === 'users') loadUsers();
   if (view === 'payers') loadPayers();
+  if (view === 'facilities') loadFacilities();
   if (view === 'logic') loadQuestions().then(showLogicBuilder);
   if (view === 'audit') { state.auditOffset = 0; loadAuditUsers().then(loadAudit); }
 }
@@ -493,6 +512,84 @@ async function deletePayer(p) {
   }
 }
 
+// -------------------------------------------------------------- facilities
+async function loadFacilities() {
+  const list = await guarded(() => api('/api/admin/facilities'));
+  if (!list) return;
+  state.facilities = list;
+  renderFacilities();
+}
+
+function renderFacilities() {
+  const term = $('#fac-search').value.trim().toLowerCase();
+  const status = $('#fac-status').value;
+  const all = state.facilities || [];
+  const list = all.filter((f) => (!status || (status === 'active') === f.active)
+    && (!term || [f.name, f.address, f.phone, f.contact_name, f.contact_email].join(' ').toLowerCase().includes(term)));
+  $('#fac-count').textContent = `${list.length} of ${all.length}`;
+  $('#facility-rows').innerHTML = list.map((f) => `
+    <tr class="${f.active ? '' : 'inactive'}">
+      <td><strong>${esc(f.name)}</strong><div class="small muted">${esc(f.address) || '<span class="muted">No address</span>'}</div></td>
+      <td class="nowrap">${f.phone ? `<a href="tel:${esc(f.phone.replace(/[^0-9+]/g, ''))}">${esc(f.phone)}</a>` : '<span class="muted">—</span>'}</td>
+      <td>${esc(f.contact_name) || '<span class="muted">—</span>'}${f.contact_email ? `<div class="small"><a href="mailto:${esc(f.contact_email)}">${esc(f.contact_email)}</a></div>` : ''}</td>
+      <td class="nowrap">${f.calls ? `${f.calls}<div class="small muted">last ${esc(formatDate(f.last_used))}</div>` : '<span class="muted">0</span>'}</td>
+      <td class="nowrap small">${esc(formatDate(f.created_at))}</td>
+      <td><label class="switch"><input type="checkbox" data-facility-active="${f.id}" ${f.active ? 'checked' : ''} aria-label="On the call-taker list"><span class="track"></span></label></td>
+      <td class="nowrap" style="text-align: right">
+        <button type="button" class="btn btn-sm" data-edit-facility="${f.id}">Edit</button>
+        <button type="button" class="btn btn-sm btn-danger" data-delete-facility="${f.id}">Delete</button>
+      </td>
+    </tr>`).join('') || `<tr><td colspan="7" class="empty">${all.length ? 'No facilities match.' : 'No facilities yet. Call takers add them from Call Setup, or use + Add Facility.'}</td></tr>`;
+}
+
+function openFacility(f) {
+  state.editingFacility = f;
+  const form = $('#facility-form');
+  form.reset();
+  const el = form.elements;
+  for (const k of ['name', 'address', 'phone', 'contact_name', 'contact_email']) el[k].value = f?.[k] || '';
+  el.active.checked = f ? f.active : true;
+  $('#facility-modal-title').textContent = f ? `Edit ${f.name}` : 'Add Facility';
+  $('#facility-meta').textContent = f ? `Added ${formatDate(f.created_at)} · used on ${f.calls} saved call${f.calls === 1 ? '' : 's'}. Changes apply to future calls; saved calls keep the details they were taken with.` : '';
+  $('#facility-error').hidden = true;
+  $('#facility-modal').hidden = false;
+  el.name.focus();
+}
+
+async function saveFacility(e) {
+  e.preventDefault();
+  const el = e.target.elements;
+  const body = Object.fromEntries(['name', 'address', 'phone', 'contact_name', 'contact_email'].map((k) => [k, el[k].value.trim()]));
+  body.active = el.active.checked;
+  try {
+    const f = state.editingFacility;
+    if (f) {
+      await api(`/api/facilities/${f.id}`, { method: 'PUT', body });
+    } else {
+      const created = await api('/api/facilities', { method: 'POST', body });
+      if (!body.active) await api(`/api/facilities/${created.id}`, { method: 'PUT', body: { active: false } });
+    }
+  } catch (err) {
+    $('#facility-error').textContent = err.message;
+    $('#facility-error').hidden = false;
+    return;
+  }
+  closeModals();
+  toast(state.editingFacility ? 'Facility updated.' : 'Facility added. Call takers can choose it now.', 'success');
+  loadFacilities();
+}
+
+async function deleteFacility(f) {
+  if (!f) return;
+  const note = f.calls ? `\n\nIt was used on ${f.calls} saved call${f.calls === 1 ? '' : 's'}. Those records keep their details.` : '';
+  if (!confirm(`Delete "${f.name}"? Call takers will no longer see it.${note}\n\nTip: switch "On list" off instead to hide it but keep it.`)) return;
+  const ok = await guarded(() => api(`/api/admin/facilities/${f.id}`, { method: 'DELETE' }).then(() => true));
+  if (ok) {
+    toast('Facility deleted.', 'success');
+    loadFacilities();
+  }
+}
+
 // ------------------------------------------------------------------ calls
 function callsTable(calls) {
   if (!calls.length) return '<div class="empty">No calls saved yet. Calls appear here after the call taker clicks “Save Call Record”.</div>';
@@ -698,6 +795,12 @@ const ACTION_LABELS = {
   'user.activated': 'Activated user',
   'user.deactivated': 'Deactivated user',
   'user.password_reset': 'Reset password',
+  'facility.created': 'Added facility',
+  'facility.updated': 'Edited facility',
+  'facility.deleted': 'Deleted facility',
+  'flow.created': 'Created logic flow',
+  'flow.updated': 'Edited logic flow',
+  'flow.deleted': 'Deleted logic flow',
   'settings.updated': 'Changed settings',
   'payer.created': 'Created payer',
   'payer.updated': 'Edited payer',

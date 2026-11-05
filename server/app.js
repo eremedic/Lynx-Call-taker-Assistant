@@ -363,6 +363,22 @@ export function createApp({ db, staticDir = null }) {
     res.json(updated);
   });
 
+  // Admin → Facilities: every facility (including removed ones) with usage.
+  app.get('/api/admin/facilities', requireAdmin, async (req, res) => {
+    const [list, usage] = await Promise.all([facilities.list(), facilities.usage()]);
+    res.json(list.map((f) => ({ ...f, calls: usage.get(f.id)?.calls || 0, last_used: usage.get(f.id)?.last_used || null })));
+  });
+
+  // Saved calls keep their own copy of the facility's details, so deleting
+  // a facility never changes a call record.
+  app.delete('/api/admin/facilities/:id', requireAdmin, async (req, res) => {
+    const existing = await facilities.get(Number(req.params.id) || 0);
+    if (!existing) return res.status(404).json({ error: 'Facility not found.' });
+    await facilities.remove(existing.id);
+    await log(req, 'facility.deleted', { entityType: 'facility', entityId: existing.id, details: { name: existing.name, address: existing.address } });
+    res.status(204).end();
+  });
+
   app.post('/api/ai/analyze', requireAuth, async (req, res) => {
     const { callType = 'non_emergency', answers = {}, transcript = '', payer: payerCode = '' } = req.body || {};
     if (!(await publicSettings()).aiAvailable) return res.status(503).json({ error: 'AI analysis is not enabled.' });

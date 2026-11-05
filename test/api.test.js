@@ -453,3 +453,22 @@ test('call takers save pickup facilities and reuse them', async () => {
   const actions = await auditActions();
   assert.ok(actions.includes('facility.created') && actions.includes('facility.updated'));
 });
+
+test('admins see every facility with usage, and can hide or delete them', async () => {
+  const f = (await admin('/api/facilities', { method: 'POST', body: { name: 'Riverside Dialysis', address: '9 River Rd' } })).data;
+  await taker('/api/calls', { method: 'POST', body: { callType: 'non_emergency', details: { facility_id: f.id, caller_facility: f.name }, answers: {} } });
+  await taker('/api/calls', { method: 'POST', body: { callType: 'non_emergency', details: { facility_id: f.id, caller_facility: f.name }, answers: {} } });
+  assert.equal((await taker('/api/admin/facilities')).status, 403);
+  const row = (await admin('/api/admin/facilities')).data.find((x) => x.id === f.id);
+  assert.equal(row.calls, 2);
+  assert.ok(row.last_used);
+
+  await admin(`/api/facilities/${f.id}`, { method: 'PUT', body: { active: false } });
+  assert.ok(!(await taker('/api/facilities')).data.some((x) => x.id === f.id), 'hidden from call takers');
+  assert.ok((await admin('/api/admin/facilities')).data.some((x) => x.id === f.id && !x.active), 'still listed for admins');
+
+  assert.equal((await taker(`/api/admin/facilities/${f.id}`, { method: 'DELETE' })).status, 403);
+  assert.equal((await admin(`/api/admin/facilities/${f.id}`, { method: 'DELETE' })).status, 204);
+  assert.ok(!(await admin('/api/admin/facilities')).data.some((x) => x.id === f.id));
+  assert.ok((await auditActions()).includes('facility.deleted'));
+});

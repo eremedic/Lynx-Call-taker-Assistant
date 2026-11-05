@@ -588,6 +588,15 @@ export function facilityRepo(db) {
     async getByName(name) {
       return toFacility((await db.query(`SELECT * FROM ${S}.facilities WHERE lower(name) = lower($1)`, [String(name || '')]))[0]);
     },
+    // How many saved calls picked each facility, and when it was last used.
+    async usage() {
+      const rows = await db.query(`SELECT details::jsonb ->> 'facility_id' AS id, COUNT(*)::int AS calls, MAX(created_at) AS last_used
+        FROM ${S}.calls WHERE details::jsonb ? 'facility_id' GROUP BY 1`);
+      return new Map(rows.map((r) => [Number(r.id), { calls: r.calls, last_used: r.last_used }]));
+    },
+    async remove(id) {
+      return (await db.query(`DELETE FROM ${S}.facilities WHERE id = $1 RETURNING id`, [id])).length > 0;
+    },
     async create(input, userId = null) {
       const row = Object.fromEntries(Object.entries(input).filter(([k]) => FACILITY_FIELDS.includes(k)));
       row.created_by = userId;
