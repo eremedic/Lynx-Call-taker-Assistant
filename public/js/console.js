@@ -1,5 +1,4 @@
-import { createChatbot } from './chat.js';
-import { api, esc, toast, showLoadFailure, debounce, requireUser, mountUserMenu, payerOptions, STATUS_LABELS, CRITERION_LABELS, CRITERION_CHIPS, formatAnswer } from './common.js';
+import { api, esc, toast, showLoadFailure, requireUser, mountUserMenu, payerOptions, STATUS_LABELS, CRITERION_LABELS, CRITERION_CHIPS, formatAnswer } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -16,31 +15,13 @@ const state = {
   facilityId: null,
   details: {},
   answers: {},
-  transcript: '',
+  notes: {}, // question code -> the call taker's note
+  transcript: '', // general call notes
   evaluation: null,
-  rejected: new Set(), // `${code}|${answer}` suggestions the call taker dismissed
-  skipped: new Set(),
-  aiSuggestions: {},
-  aiQuestions: [],
-  aiSummary: '',
-  aiBusy: false,
-  aiAnalyzedLength: 0,
   startedAt: null,
   dirty: false,
   savedId: null,
 };
-
-let chatbot = null;
-
-// Adds the caller's words (typed into the Intake Assistant) to the transcript.
-function appendTranscript(text) {
-  markActive();
-  const box = $('#transcript');
-  box.value = box.value.trim() ? `${box.value.replace(/\s+$/, '')}\n${text}` : text;
-  state.transcript = box.value;
-  evaluateSoon();
-  maybeAutoAnalyze();
-}
 
 // ------------------------------------------------------------------ setup
 async function init() {
@@ -57,7 +38,6 @@ async function init() {
     state.config = config;
     setQuestions(questions);
     $('#org-name').textContent = config.orgName ? `${config.orgName} · Call-Taker Assistant` : 'Call-Taker Assistant';
-    $('#ai-btn').hidden = !config.aiAvailable;
     $('#payer').innerHTML = `<option value="">Select insurance…</option>${payerOptions(config.payers)}`;
     renderSecondaryOptions();
   } catch (err) {
@@ -67,8 +47,6 @@ async function init() {
   bindEvents();
   renderTabs();
   showTab('trip');
-  chatbot = createChatbot({ state, setAnswer, appendTranscript, currentSuggestions, answerControls, markActive, onAskedHeard: () => evaluateSoon() });
-  setupSpeech();
   setInterval(tickTimer, 1000);
   setCallType('non_emergency');
 }
@@ -124,67 +102,40 @@ function bindEvents() {
     setSecondaryPayer(e.target.value);
   });
 
-  const transcript = $('#transcript');
-  transcript.addEventListener('input', () => {
+  const notes = $('#transcript');
+  notes.addEventListener('input', () => {
     markActive();
-    state.transcript = transcript.value;
-    evaluateSoon();
-    maybeAutoAnalyze();
+    state.transcript = notes.value;
   });
 
-  $('#accept-all').addEventListener('click', () => {
-    for (const s of currentSuggestions()) state.answers[s.code] = s.answer;
-    evaluate();
-  });
-  $('#ai-btn').addEventListener('click', () => runAi());
   $('#save-call').addEventListener('click', () => saveCall());
   $('#generate-pcs').addEventListener('click', generatePcs);
   $('#copy-summary').addEventListener('click', copyNarrative);
   $('#print').addEventListener('click', () => window.print());
   $('#new-call').addEventListener('click', newCall);
 
-  // Delegated handlers for dynamically rendered answer controls.
-  document.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-answer]');
-    if (btn) {
-      const { code, answer } = btn.dataset;
-      setAnswer(code, state.answers[code] === answer ? '' : answer);
-      return;
-    }
-    const accept = e.target.closest('[data-accept]');
-    if (accept) return setAnswer(accept.dataset.accept, accept.dataset.value);
-    const reject = e.target.closest('[data-reject]');
-    if (reject) {
-      state.rejected.add(`${reject.dataset.reject}|${reject.dataset.value}`);
-      return render();
-    }
-    const skip = e.target.closest('[data-skip]');
-    if (skip) {
-      state.skipped.add(skip.dataset.skip);
-      return render();
-    }
-    const toggle = e.target.closest('[data-toggle-cat]');
-    if (toggle) {
-      const body = toggle.nextElementSibling;
-      body.hidden = !body.hidden;
-      toggle.setAttribute('aria-expanded', String(!body.hidden));
-      return;
-    }
-    const asked = e.target.closest('[data-ai-asked]');
-    if (asked) {
-      const q = state.aiQuestions[Number(asked.dataset.aiAsked)];
-      q.asked = !q.asked;
-      renderAiQuestions();
-    }
-  });
+  // Answers (drop-downs and inputs) and per-question notes in the form.
   document.addEventListener('change', (e) => {
     const el = e.target.closest('[data-answer-input]');
     if (el) setAnswer(el.dataset.answerInput, el.value);
-    const note = e.target.closest('[data-ai-note]');
-    if (note) state.aiQuestions[Number(note.dataset.aiNote)].note = note.value;
+  });
+  document.addEventListener('input', (e) => {
+    const note = e.target.closest('[data-note]');
+    if (!note) return;
+    markActive();
+    const text = note.value;
+    if (text.trim()) state.notes[note.dataset.note] = text;
+    else delete state.notes[note.dataset.note];
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && e.target.matches('[data-answer-input]') && e.target.tagName === 'INPUT') e.target.blur();
+    if (e.key === 'Enter' && e.target.matches('input[data-answer-input]')) e.target.blur();
+  });
+  document.addEventListener('click', (e) => {
+    const toggle = e.target.closest('[data-toggle-cat]');
+    if (!toggle) return;
+    const body = toggle.nextElementSibling;
+    body.hidden = !body.hidden;
+    toggle.setAttribute('aria-expanded', String(!body.hidden));
   });
 
   window.addEventListener('beforeunload', (e) => {
@@ -240,9 +191,9 @@ function showTab(name, { focusId = null } = {}) {
   document.querySelectorAll('[data-tabpanel]').forEach((panel) => { panel.hidden = panel.dataset.tabpanel !== name; });
   document.querySelector(`[data-tabpanel="${name}"]`)?.scrollTo?.(0, 0);
   if (focusId) $(`#${focusId}`)?.focus();
-  if (name === 'questions' && state.setupDone) {
-    chatbot?.render();
-    if (!focusId) $('#chat-input')?.focus();
+  if (name === 'questions' && state.setupDone && !focusId) {
+    // Start at the first unanswered question.
+    document.querySelector('#checklist .q-row:not(.answered) [data-answer-input]')?.focus();
   }
 }
 
@@ -250,7 +201,6 @@ function showTab(name, { focusId = null } = {}) {
 function renderTabs() {
   const d = state.details;
   const missing = SETUP_REQUIRED.filter(([, , value]) => !value());
-  const wasDone = state.setupDone;
   state.setupDone = missing.length === 0;
   $('#questions-gate').hidden = state.setupDone;
   $('#intake-steps').hidden = !state.setupDone;
@@ -273,7 +223,6 @@ function renderTabs() {
     el.title = cls === 'todo' ? 'Required information missing' : '';
   }
   renderCallSummary();
-  if (state.setupDone && !wasDone && currentTab === 'questions') chatbot?.render();
 }
 
 function renderCallSummary() {
@@ -444,7 +393,8 @@ async function evaluate() {
   try {
     const result = await api('/api/evaluate', {
       method: 'POST',
-      body: { callType: state.callType, payer: state.payer, answers: state.answers, transcript: chatbot ? chatbot.forDetection(state.transcript) : state.transcript },
+      // The form lists every question that applies, not only those prompted by the conversation.
+      body: { callType: state.callType, payer: state.payer, answers: state.answers, allQuestions: true },
     });
     if (seq !== evalSeq) return; // a newer evaluation is in flight
     state.evaluation = result;
@@ -453,139 +403,60 @@ async function evaluate() {
     toast(`Evaluation failed: ${err.message}`, 'error');
   }
 }
-const evaluateSoon = debounce(evaluate, 250);
-
-function currentSuggestions() {
-  const ev = state.evaluation;
-  if (!ev) return [];
-  const out = new Map();
-  for (const [code, s] of Object.entries(ev.suggestions)) {
-    out.set(code, { code, answer: s.answer, evidence: s.evidence, source: 'Heard' });
-  }
-  for (const [code, s] of Object.entries(state.aiSuggestions)) {
-    // Only questions that apply to this call type and payer right now.
-    if (out.has(code) || !ev.visibleCodes.includes(code)) continue;
-    out.set(code, { code, answer: s.answer, evidence: s.evidence, source: 'AI' });
-  }
-  return [...out.values()].filter((s) =>
-    String(state.answers[s.code] ?? '').toLowerCase() !== String(s.answer).toLowerCase()
-    && !state.rejected.has(`${s.code}|${s.answer}`));
-}
 
 // ----------------------------------------------------------------- render
 function render() {
   if (!state.evaluation) return;
   const focus = captureFocus();
-  renderAskNext();
-  renderSuggestions();
   renderChecklist();
   renderAssessment();
   restoreFocus(focus);
-  chatbot?.sync();
   renderTabs();
 }
 
+// The form is redrawn after each answer; keep the call taker's place.
 function captureFocus() {
   const el = document.activeElement;
-  if (!el?.dataset?.answerInput) return null;
-  return { code: el.dataset.answerInput, value: el.value, start: el.selectionStart, end: el.selectionEnd, where: el.closest('#ask-next') ? 'ask' : 'list' };
+  const key = el?.dataset?.answerInput ? 'answer-input' : el?.dataset?.note ? 'note' : null;
+  if (!key || !el.closest('#checklist')) return null;
+  return { key, code: el.dataset.answerInput || el.dataset.note, value: el.value, start: el.selectionStart, end: el.selectionEnd };
 }
 function restoreFocus(f) {
   if (!f) return;
-  const scope = f.where === 'ask' ? '#ask-next' : '#checklist';
-  const el = document.querySelector(`${scope} [data-answer-input="${CSS.escape(f.code)}"]`);
+  const el = document.querySelector(`#checklist [data-${f.key}="${CSS.escape(f.code)}"]`);
   if (!el) return;
-  el.value = f.value;
+  if (el.tagName !== 'SELECT') el.value = f.value;
   el.focus();
   try { el.setSelectionRange(f.start, f.end); } catch { /* not a text input */ }
 }
 
-function answerControls(q, { large = false } = {}) {
-  const current = state.answers[q.code];
-  const size = large ? '' : 'btn-sm';
-  if (q.answer_type === 'yes_no') {
-    return `
-      <button type="button" class="btn ${size} btn-yes ${current === 'yes' ? 'active' : ''}" data-code="${esc(q.code)}" data-answer="yes">Yes</button>
-      <button type="button" class="btn ${size} btn-no ${current === 'no' ? 'active' : ''}" data-code="${esc(q.code)}" data-answer="no">No</button>`;
-  }
-  if (q.answer_type === 'choice') {
-    if (large) {
-      return q.options.map((o) => `<button type="button" class="btn btn-choice ${current === o ? 'active' : ''}" data-code="${esc(q.code)}" data-answer="${esc(o)}">${esc(o)}</button>`).join('');
-    }
-    return `<select class="select" data-answer-input="${esc(q.code)}" aria-label="${esc(q.text)}">
+// A drop-down for yes/no and multiple-choice questions; a box for numbers and text.
+function answerControls(q) {
+  const current = state.answers[q.code] ?? '';
+  const label = `aria-label="Answer: ${esc(q.text)}"`;
+  if (q.answer_type === 'yes_no' || q.answer_type === 'choice') {
+    const options = q.answer_type === 'yes_no' ? [['yes', 'Yes'], ['no', 'No']] : (q.options || []).map((o) => [o, o]);
+    return `<select class="select ${current ? 'has-value' : ''}" data-answer-input="${esc(q.code)}" ${label}>
       <option value="">Select…</option>
-      ${q.options.map((o) => `<option ${current === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+      ${options.map(([value, text]) => `<option value="${esc(value)}" ${String(current).toLowerCase() === String(value).toLowerCase() ? 'selected' : ''}>${esc(text)}</option>`).join('')}
     </select>`;
   }
   const type = q.answer_type === 'number' ? 'number' : 'text';
-  return `<input class="input" type="${type}" data-answer-input="${esc(q.code)}" value="${esc(current ?? '')}" placeholder="Type answer, press Enter" aria-label="${esc(q.text)}" ${large ? 'style="max-width: 460px"' : ''}>`;
+  return `<input class="input ${current ? 'has-value' : ''}" type="${type}" data-answer-input="${esc(q.code)}" value="${esc(current)}" placeholder="${type === 'number' ? 'Number' : 'Answer'}" ${label}>`;
 }
 
-function renderAskNext() {
-  const ev = state.evaluation;
-  const box = $('#ask-next');
-  const queue = ev.queue.filter((c) => !state.skipped.has(c));
-  const code = queue[0] || (ev.nextQuestion && !state.skipped.has(ev.nextQuestion) ? ev.nextQuestion : null);
-  const pending = currentSuggestions().length;
-
-  if (!code) {
-    box.classList.add('done');
-    box.innerHTML = `
-      <div class="eyebrow" style="color: var(--green-600)">✓ Interview complete</div>
-      <div class="question">${pending ? `Confirm the ${pending} detected answer${pending > 1 ? 's' : ''} below.` : 'All prompted questions have been addressed.'}</div>
-      <div class="guidance">${state.skipped.size ? `${state.skipped.size} question(s) were skipped — they are still listed in the checklist.` : 'Review the assessment and save the call record.'}</div>`;
-    return;
-  }
-  const q = state.byCode.get(code);
-  box.classList.remove('done');
-  const heard = ev.triggeredCodes.includes(code);
-  const upNext = queue.slice(1, 4).map((c) => `<li>${esc(state.byCode.get(c)?.text)}</li>`).join('');
-  box.innerHTML = `
-    <div class="eyebrow">Ask next
-      ${q.criterion !== 'info' ? `<span class="chip ${CRITERION_CHIPS[q.criterion] || ''}">${esc(CRITERION_LABELS[q.criterion] || q.criterion)}</span>` : ''}
-      ${q.required ? '<span class="chip chip-amber">Required</span>' : ''}
-      ${heard ? '<span class="chip chip-violet">Based on conversation</span>' : ''}
-    </div>
-    <div class="question">${esc(q.text)}</div>
-    ${q.guidance ? `<div class="guidance">${esc(q.guidance)}</div>` : ''}
-    <div class="controls">
-      ${answerControls(q, { large: true })}
-      <button type="button" class="btn btn-ghost" data-skip="${esc(code)}">Skip</button>
-    </div>
-    ${upNext ? `<div class="up-next">Up next<ol>${upNext}</ol></div>` : ''}`;
-}
-
-function renderSuggestions() {
-  const list = currentSuggestions();
-  $('#suggestions-card').hidden = list.length === 0;
-  $('#suggestions').innerHTML = list.map((s) => {
-    const q = state.byCode.get(s.code);
-    return `
-      <div class="suggestion">
-        <div class="body">
-          <div class="q">${esc(q?.text || s.code)}</div>
-          <div class="evidence">“${esc(s.evidence)}”</div>
-        </div>
-        <div class="actions">
-          <span class="chip ${s.source === 'AI' ? 'chip-violet' : 'chip-blue'}">${esc(s.source)}: ${esc(formatAnswer(s.answer))}</span>
-          <button type="button" class="btn btn-sm btn-primary" data-accept="${esc(s.code)}" data-value="${esc(s.answer)}">Accept</button>
-          <button type="button" class="btn btn-sm btn-ghost" data-reject="${esc(s.code)}" data-value="${esc(s.answer)}" aria-label="Dismiss">✕</button>
-        </div>
-      </div>`;
-  }).join('');
-}
+const KEY_ROWS = { bed_confined: 'qualify', condition: 'qualify', als: 'qualify', sct: 'qualify', disqualifier: 'disqualify', emergency: 'emergency' };
 
 function renderChecklist() {
   const ev = state.evaluation;
   const visible = new Set(ev.visibleCodes);
-  const sugg = new Map(currentSuggestions().map((s) => [s.code, s]));
   const groups = new Map();
   for (const q of state.questions) {
     if (!visible.has(q.code)) continue;
     if (!groups.has(q.category)) groups.set(q.category, []);
     groups.get(q.category).push(q);
   }
-  // Preserve collapsed state between renders.
+  // Keep collapsed sections collapsed between redraws.
   const collapsed = new Set([...document.querySelectorAll('#checklist .cat-group')]
     .filter((g) => g.querySelector('.cat-body')?.hidden).map((g) => g.dataset.cat));
 
@@ -601,28 +472,30 @@ function renderChecklist() {
         </button>
         <div class="cat-body" ${collapsed.has(cat) ? 'hidden' : ''}>
           ${qs.map((q) => {
-            const s = sugg.get(q.code);
-            const isAnswered = state.answers[q.code] !== undefined;
+            const key = KEY_ROWS[q.criterion];
+            const qualifying = q.qualifying_answer ? formatAnswer(q.qualifying_answer.split('|')[0]) : '';
             return `
-              <div class="q-row ${isAnswered ? 'answered' : ''} ${ev.nextQuestion === q.code ? 'next' : ''}">
-                <div>
+              <div class="q-row ${state.answers[q.code] !== undefined ? 'answered' : ''} ${key ? `key-row key-${key}` : ''}">
+                <div class="q-main">
                   <div class="q-text">${esc(q.text)}</div>
                   <div class="q-meta">
                     <span class="chip ${CRITERION_CHIPS[q.criterion] || ''}">${esc(CRITERION_LABELS[q.criterion] || q.criterion)}</span>
                     ${q.required ? '<span class="chip chip-amber">Required</span>' : ''}
-                    ${!q.is_system ? '<span class="chip">Custom</span>' : ''}
-                    ${s ? `<span class="chip ${s.source === 'AI' ? 'chip-violet' : 'chip-blue'}">${esc(s.source)}: ${esc(formatAnswer(s.answer))}</span>` : ''}
+                    ${key === 'qualify' && qualifying ? `<span class="chip chip-green">Qualifies if ${esc(qualifying)}</span>` : ''}
+                    ${key === 'disqualify' && qualifying ? `<span class="chip chip-amber">Rules out if ${esc(qualifying)}</span>` : ''}
+                    ${key === 'emergency' ? '<span class="chip chip-red">Ask first</span>' : ''}
                   </div>
+                  ${q.guidance ? `<div class="q-guidance">${esc(q.guidance)}</div>` : ''}
                 </div>
-                <div class="q-controls">${answerControls(q)}</div>
+                <div class="q-answer">${answerControls(q)}</div>
+                <div class="q-note"><input class="input" data-note="${esc(q.code)}" value="${esc(state.notes[q.code] || '')}" placeholder="Notes" aria-label="Notes: ${esc(q.text)}" maxlength="500"></div>
               </div>`;
           }).join('')}
         </div>
       </div>`;
   }
-  $('#checklist').innerHTML = html || '<div class="empty">No questions configured.</div>';
+  $('#checklist').innerHTML = html || '<div class="empty">No questions apply yet.</div>';
   $('#checklist-count').textContent = `${answered} of ${ev.visibleCodes.length} answered`;
-  $('#all-questions-count').textContent = `${answered} of ${ev.visibleCodes.length} answered`;
 }
 
 function checkItem(mark, text) {
@@ -774,147 +647,6 @@ function renderAssessment() {
   ].join('');
 }
 
-// --------------------------------------------------------------------- AI
-const maybeAutoAnalyze = debounce(() => {
-  if (!state.config?.aiAvailable || !state.config.aiAutoAnalyze) return;
-  if (state.transcript.length - state.aiAnalyzedLength < 60) return;
-  runAi({ quiet: true });
-}, 5000);
-
-async function runAi({ quiet = false } = {}) {
-  if (state.aiBusy || !state.transcript.trim()) {
-    if (!quiet && !state.transcript.trim()) toast('The transcript is empty.');
-    return;
-  }
-  state.aiBusy = true;
-  const btn = $('#ai-btn');
-  btn.disabled = true;
-  btn.textContent = '✦ Analyzing…';
-  const analyzedLength = state.transcript.length;
-  try {
-    const r = await api('/api/ai/analyze', {
-      method: 'POST',
-      body: { callType: state.callType, payer: state.payer, answers: state.answers, transcript: state.transcript },
-    });
-    state.aiAnalyzedLength = analyzedLength;
-    state.aiSuggestions = Object.fromEntries(r.suggested_answers.map((s) => [s.code, s]));
-    const existing = new Set(state.aiQuestions.map((q) => q.question.toLowerCase()));
-    for (const q of r.additional_questions) {
-      if (!existing.has(q.question.toLowerCase())) state.aiQuestions.push({ ...q, asked: false, note: '' });
-    }
-    state.aiSummary = r.summary || state.aiSummary;
-    fillDetailsFromAi(r.call_details || {});
-    renderAiQuestions();
-    render();
-    if (!quiet) toast('AI analysis updated.', 'success');
-  } catch (err) {
-    if (!quiet) toast(err.message, 'error');
-  } finally {
-    state.aiBusy = false;
-    btn.disabled = false;
-    btn.textContent = '✦ Analyze with AI';
-  }
-}
-
-function fillDetailsFromAi(details) {
-  for (const [key, value] of Object.entries({ patient_name: details.patient_name, pickup_location: details.pickup_location, destination: details.destination })) {
-    const input = document.querySelector(`[data-detail="${key}"]`);
-    if (input && value && !input.value.trim()) {
-      input.value = value;
-      state.details[key] = value;
-    }
-  }
-}
-
-function renderAiQuestions() {
-  $('#ai-questions-card').hidden = state.aiQuestions.length === 0 && !state.aiSummary;
-  const summary = state.aiSummary ? `<div class="alert alert-info"><span class="icon">✦</span><span>${esc(state.aiSummary)}</span></div>` : '';
-  $('#ai-questions').innerHTML = summary + state.aiQuestions.map((q, i) => `
-    <div class="suggestion">
-      <div class="body">
-        <div class="q" style="${q.asked ? 'text-decoration: line-through; color: var(--ink-500)' : ''}">${esc(q.question)}</div>
-        <div class="evidence">${esc(q.rationale)}</div>
-        <input class="input" style="margin-top: 6px" placeholder="Caller's answer (optional)" data-ai-note="${i}" value="${esc(q.note)}">
-      </div>
-      <div class="actions"><button type="button" class="btn btn-sm ${q.asked ? 'btn-yes active' : ''}" data-ai-asked="${i}">${q.asked ? '✓ Asked' : 'Mark asked'}</button></div>
-    </div>`).join('');
-}
-
-// ----------------------------------------------------------------- speech
-let recognition = null;
-let listening = false;
-
-function setupSpeech() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const btn = $('#mic-btn');
-  if (!SR) {
-    btn.disabled = true;
-    btn.title = 'Speech recognition is not supported in this browser. Use Chrome or Edge, or type notes.';
-    $('#mic-status').textContent = 'Speech not supported — type notes';
-    return;
-  }
-  recognition = new SR();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'en-US';
-
-  recognition.onresult = (e) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const text = e.results[i][0].transcript.trim();
-      if (e.results[i].isFinal) {
-        const box = $('#transcript');
-        const sep = box.value && !/\s$/.test(box.value) ? ' ' : '';
-        box.value += `${sep}${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
-        box.scrollTop = box.scrollHeight;
-        state.transcript = box.value;
-        markActive();
-        evaluateSoon();
-        maybeAutoAnalyze();
-      } else {
-        interim += `${text} `;
-      }
-    }
-    $('#interim').textContent = interim;
-  };
-  recognition.onerror = (e) => {
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      toast('Microphone access was denied.', 'error');
-      stopListening();
-    }
-  };
-  // Chrome ends recognition after silence; restart while the call taker wants it on.
-  recognition.onend = () => {
-    if (listening) {
-      try { recognition.start(); } catch { /* already started */ }
-    }
-  };
-
-  btn.addEventListener('click', () => (listening ? stopListening() : startListening()));
-}
-
-function startListening() {
-  try {
-    recognition.start();
-  } catch { /* already started */ }
-  listening = true;
-  markActive();
-  const btn = $('#mic-btn');
-  btn.classList.add('listening');
-  btn.textContent = '■ Stop listening';
-  $('#mic-status').textContent = 'Listening…';
-}
-
-function stopListening() {
-  listening = false;
-  recognition?.stop();
-  const btn = $('#mic-btn');
-  btn.classList.remove('listening');
-  btn.textContent = '🎙 Start listening';
-  $('#mic-status').textContent = '';
-  $('#interim').textContent = '';
-}
-
 // ----------------------------------------------------------- save / reset
 function buildNarrative() {
   const a = state.evaluation?.assessment;
@@ -936,16 +668,14 @@ function buildNarrative() {
     lines.push(`Bed-confined (CMS 3-part test): ${a.bedConfinement.met ? 'Yes' : 'No / not established'}`);
     if (a.supporting.length) lines.push(`Supporting conditions: ${a.supporting.map((s) => s.text.replace(/\?$/, '')).join('; ')}`);
   }
-  if (state.aiSummary) lines.push(`Summary: ${state.aiSummary}`);
   lines.push('', 'Documented responses:');
   for (const q of state.questions) {
-    if (state.answers[q.code] !== undefined) lines.push(`- ${q.text} ${formatAnswer(state.answers[q.code])}`);
+    const answer = state.answers[q.code];
+    const note = state.notes[q.code];
+    if (answer === undefined && !note) continue;
+    lines.push(`- ${q.text} ${answer !== undefined ? formatAnswer(answer) : '(no answer)'}${note ? ` (note: ${note.trim()})` : ''}`);
   }
-  const followUps = state.aiQuestions.filter((q) => q.asked || q.note);
-  if (followUps.length) {
-    lines.push('', 'Additional questions:');
-    for (const q of followUps) lines.push(`- ${q.question} ${q.note || '(asked)'}`);
-  }
+  if (state.transcript.trim()) lines.push('', 'Call notes:', state.transcript.trim());
   return lines.join('\n');
 }
 
@@ -968,9 +698,10 @@ async function saveCall({ quiet = false } = {}) {
       callType: state.callType,
       payer: state.payer,
       secondaryPayer: state.secondaryPayer,
-      details: { ...state.details, ai_summary: state.aiSummary, ai_questions: state.aiQuestions, duration_seconds: state.startedAt ? Math.round((Date.now() - state.startedAt) / 1000) : 0 },
+      details: { ...state.details, question_notes: state.notes, duration_seconds: state.startedAt ? Math.round((Date.now() - state.startedAt) / 1000) : 0 },
       answers: state.answers,
       transcript: state.transcript,
+      allQuestions: true,
     };
     const r = state.savedId
       ? await api(`/api/calls/${state.savedId}`, { method: 'PUT', body })
@@ -1003,10 +734,8 @@ async function generatePcs() {
 
 async function newCall() {
   if (state.dirty && !confirm('Discard the current call? It has unsaved changes.')) return;
-  if (listening) stopListening();
   Object.assign(state, {
-    callType: 'non_emergency', payer: '', secondaryPayer: '', facilityId: null, details: {}, answers: {}, transcript: '', evaluation: null,
-    rejected: new Set(), skipped: new Set(), aiSuggestions: {}, aiQuestions: [], aiSummary: '', aiAnalyzedLength: 0,
+    callType: 'non_emergency', payer: '', secondaryPayer: '', facilityId: null, details: {}, answers: {}, notes: {}, transcript: '', evaluation: null,
     startedAt: null, dirty: false, savedId: null,
   });
   document.querySelectorAll('[data-detail]').forEach((i) => { i.value = ''; });
@@ -1018,8 +747,6 @@ async function newCall() {
   showTab('trip');
   renderSecondaryOptions();
   $('#secondary-member-field').hidden = true;
-  renderAiQuestions();
-  chatbot?.reset();
   lastStatus = null;
   try {
     setQuestions(await api('/api/questions')); // pick up any admin changes

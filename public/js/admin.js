@@ -653,11 +653,11 @@ async function openCall(id) {
     ${d.ai_summary ? `<div class="section-label">AI summary</div><p>${esc(d.ai_summary)}</p>` : ''}
     <div class="section-label">Responses</div>
     <table class="table"><tbody>${Object.entries(c.answers).map(([code, v]) =>
-      `<tr><td>${esc(qByCode.get(code)?.text || code)}</td><td style="white-space:nowrap; font-weight:600">${esc(formatAnswer(v))}</td></tr>`).join('') || '<tr><td class="muted">No responses recorded.</td></tr>'}</tbody></table>
+      `<tr><td>${esc(qByCode.get(code)?.text || code)}${d.question_notes?.[code] ? `<div class="small muted">Note: ${esc(d.question_notes[code])}</div>` : ''}</td><td style="white-space:nowrap; font-weight:600">${esc(formatAnswer(v))}</td></tr>`).join('') || '<tr><td class="muted">No responses recorded.</td></tr>'}</tbody></table>
     ${(d.ai_questions || []).filter((q) => q.asked || q.note).length ? `<div class="section-label">AI follow-up questions</div>
       <ul>${d.ai_questions.filter((q) => q.asked || q.note).map((q) => `<li>${esc(q.question)} <strong>${esc(q.note || '(asked)')}</strong></li>`).join('')}</ul>` : ''}
-    <div class="section-label">Transcript</div>
-    <div class="card-body" style="background: var(--surface-2); border-radius: var(--radius-sm); white-space: pre-wrap; max-height: 260px; overflow-y: auto">${esc(c.transcript) || '<span class="muted">No transcript.</span>'}</div>`;
+    <div class="section-label">Call notes</div>
+    <div class="card-body" style="background: var(--surface-2); border-radius: var(--radius-sm); white-space: pre-wrap; max-height: 260px; overflow-y: auto">${esc(c.transcript) || '<span class="muted">No call notes.</span>'}</div>`;
   $('#call-modal').hidden = false;
 }
 

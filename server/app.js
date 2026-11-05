@@ -316,10 +316,10 @@ export function createApp({ db, staticDir = null }) {
   app.get('/api/questions', requireAuth, async (req, res) => res.json(await questions.list({ activeOnly: true })));
 
   app.post('/api/evaluate', requireAuth, async (req, res) => {
-    const { callType = 'non_emergency', answers = {}, transcript = '', payer = '' } = req.body || {};
+    const { callType = 'non_emergency', answers = {}, transcript = '', payer = '', allQuestions = false } = req.body || {};
     if (!(callType in CALL_TYPES)) return res.status(400).json({ error: 'Invalid call type.' });
     const [context, bank, rules] = await Promise.all([payerContext(payer), questions.list({ activeOnly: true }), flows.list({ activeOnly: true })]);
-    res.json(evaluateCall({ callType, answers, transcript, ...context, questions: bank, flows: rules }));
+    res.json(evaluateCall({ callType, answers, transcript, ...context, questions: bank, flows: rules, allQuestions: Boolean(allQuestions) }));
   });
 
   // ---------------------------------------------- saved pickup facilities
@@ -404,14 +404,14 @@ export function createApp({ db, staticDir = null }) {
   // Validates a call from the console and re-evaluates it server-side so the
   // stored assessment can't be tampered with.
   const callFromBody = async (body = {}) => {
-    const { callType, details = {}, answers = {}, transcript = '', payer: payerCode = '', secondaryPayer: secondaryCode = '' } = body;
+    const { callType, details = {}, answers = {}, transcript = '', payer: payerCode = '', secondaryPayer: secondaryCode = '', allQuestions = false } = body;
     if (!(callType in CALL_TYPES)) return { error: 'Invalid call type.' };
     if (secondaryCode && secondaryCode === payerCode) return { error: 'The secondary payer must be different from the primary payer.' };
     const secondary = secondaryCode ? await activePayer(secondaryCode) : null;
     if (secondaryCode && !secondary) return { error: 'Unknown secondary payer.' };
     // The primary payer's rules drive the medical-necessity review.
     const { payer, brokers } = await payerContext(payerCode);
-    const { assessment } = evaluateCall({ callType, answers, transcript, payer, brokers, questions: await questions.list({ activeOnly: true }), flows: await flows.list({ activeOnly: true }) });
+    const { assessment } = evaluateCall({ callType, answers, transcript, payer, brokers, questions: await questions.list({ activeOnly: true }), flows: await flows.list({ activeOnly: true }), allQuestions: Boolean(allQuestions) });
     return { callType, payer: payer?.code, secondaryPayer: secondary?.code, details, answers, transcript, assessment };
   };
   // Call takers can reach their own calls; administrators can reach any call.

@@ -56,7 +56,7 @@ function applyPriorAuthPolicy(q, policy) {
   return policy === 'required' ? { ...q, required: true } : q;
 }
 
-export function evaluateCall({ callType = 'non_emergency', questions = [], answers = {}, transcript = '', payer = null, brokers = [], flows = [] }) {
+export function evaluateCall({ callType = 'non_emergency', questions = [], answers = {}, transcript = '', payer = null, brokers = [], flows = [], allQuestions = false }) {
   const policy = payer?.prior_auth?.[callType] || null;
   const skipNecessity = skipsNecessity(payer);
   const active = questions
@@ -76,7 +76,8 @@ export function evaluateCall({ callType = 'non_emergency', questions = [], answe
     if (rules.hidden.has(q.code)) return false;
     if (q.depends_on_code && !sameAnswer(answers[q.depends_on_code], q.depends_on_answer)) return false;
     const hasTriggers = (q.triggers || []).length > 0;
-    return !hasTriggers || triggered.has(q.code) || isAnswered(answers[q.code]) || Boolean(suggestions[q.code]);
+    // allQuestions: a form that lists every question, not only those the conversation prompted.
+    return allQuestions || !hasTriggers || triggered.has(q.code) || isAnswered(answers[q.code]) || Boolean(suggestions[q.code]);
   });
 
   // Drop suggestions that already match the confirmed answer.

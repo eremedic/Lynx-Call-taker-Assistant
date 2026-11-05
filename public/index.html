@@ -153,67 +153,18 @@
             </div>
           </div>
           <div id="intake-steps" class="intake-steps" hidden>
-      <div class="card">
-        <div class="card-header">
-          <h2 class="card-title">Live Conversation</h2>
-          <div class="header-actions">
-            <span id="mic-status" class="mic-status"></span>
-            <button id="mic-btn" class="btn btn-sm mic-btn" type="button">🎙 Start listening</button>
-            <button id="ai-btn" class="btn btn-sm" type="button" hidden>✦ Analyze with AI</button>
-          </div>
-        </div>
-        <div class="card-body">
-          <textarea id="transcript" class="textarea transcript-box" placeholder="Speech is transcribed here as the caller talks. You can also type or paste notes — e.g. &quot;Patient is bedbound with contractures, on 2 liters oxygen, going to dialysis Monday, Wednesday, Friday.&quot;"></textarea>
-          <div id="interim" class="interim" aria-live="polite"></div>
-        </div>
-      </div>
-
-      <div id="chat-card" class="card chat-card">
-        <div class="card-header">
-          <h2 class="card-title">Intake Assistant</h2>
-          <span class="chip chip-violet">One question at a time</span>
-        </div>
-        <div id="chat-scroll" class="chat-scroll">
-          <div id="chat-history"></div>
-          <div id="chat-active" aria-live="polite"></div>
-        </div>
-        <form id="chat-form" class="chat-compose" autocomplete="off">
-          <input id="chat-input" class="input" placeholder="Type what the caller said, then press Enter" aria-label="What the caller said">
-          <button type="submit" class="btn btn-primary">Send</button>
-        </form>
-      </div>
-
-      <!-- Replaced by the Intake Assistant; kept for the shared rendering code. -->
-      <div id="ask-next" class="ask-next" hidden></div>
-
-      <details id="all-questions" class="all-questions">
-        <summary><span>All questions &amp; checklist</span><span id="all-questions-count" class="muted small"></span></summary>
-        <div class="all-questions-body">
-      <div id="suggestions-card" class="card" hidden>
-        <div class="card-header">
-          <h2 class="card-title">Detected From Conversation</h2>
-          <button id="accept-all" class="btn btn-sm" type="button">Accept all</button>
-        </div>
-        <div class="card-body" id="suggestions" style="padding-top: 4px; padding-bottom: 4px;"></div>
-      </div>
-
-      <div id="ai-questions-card" class="card" hidden>
-        <div class="card-header">
-          <h2 class="card-title">AI-Suggested Follow-ups</h2>
-          <span class="chip chip-violet">AI</span>
-        </div>
-        <div class="card-body" id="ai-questions"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <h2 class="card-title">Question Checklist</h2>
-          <span id="checklist-count" class="muted small"></span>
-        </div>
-        <div id="checklist"></div>
-      </div>
-        </div>
-      </details>
+            <div class="card questions-card">
+              <div class="card-header">
+                <h2 class="card-title">Questions</h2>
+                <span id="checklist-count" class="muted small"></span>
+              </div>
+              <div class="q-form-head" aria-hidden="true"><span>Question</span><span>Answer</span><span>Notes</span></div>
+              <div id="checklist" class="q-form"></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h2 class="card-title">General Call Notes</h2></div>
+              <div class="card-body"><textarea id="transcript" class="textarea" rows="4" placeholder="Anything else from the call that doesn’t fit a question…"></textarea></div>
+            </div>
           </div>
         </div>
 

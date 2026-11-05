@@ -12,33 +12,26 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 
 **Console layout: fits the screen, organized in tabs**
 - **No page scrolling.** The console fills the window at common sizes (1024×768 up to 1920×1080). Each tab scrolls on its own. The Medical Necessity panel stays at the top of the right column, and Save / PCS stay at the bottom.
-- **Clickable tabs:** **1 Trip** (emergency / non-emergency, ALS / BLS / SCT, appointment time), **2 Patient**, **3 Pickup / Drop-off** (pickup facility and caller, destination facility), **4 Payer Info** (insurance, member IDs, payer rules), **5 Questions** (live conversation, Intake Assistant, all questions), and **6 Necessity & Docs** (criteria, missing items, documentation).
+- **Clickable tabs:** **1 Trip** (emergency / non-emergency, ALS / BLS / SCT, appointment time), **2 Patient**, **3 Pickup / Drop-off** (pickup facility and caller, destination facility), **4 Payer Info** (insurance, member IDs, payer rules), **5 Questions** (every question with an answer drop-down and notes), and **6 Necessity & Docs** (criteria, missing items, documentation).
 - **Tab status:** each tab shows ✓ when filled in, a red dot when required information is missing, the number of questions answered, or a colored dot for the necessity result. Each tab has Back / Next buttons. Arrow keys and **Alt+1…6** switch tabs.
 - **Questions unlock after setup.** The Questions tab opens once trip type, level and insurance are chosen. Until then it lists what's missing, with buttons that jump to it.
 - **This Call** (right column) summarizes the call, and clicking any line opens its tab.
 
 **Call Setup: the first step of every call**
-- **Drop-downs first.** The call taker answers these before the listening and questions start:
+- **Drop-downs first.** The call taker answers these before the questions start:
   - Emergency or non-emergency (one-time or repetitive)?
   - ALS, BLS or SCT?
   - Which insurance? The list is your payers and brokers, plus an optional secondary insurance.
 - **Pickup facility.** Clicking **Facility name** opens a pop-out. Choose a saved facility from the drop-down, or enter a new one: name, address, callback phone, caller name, caller email. New facilities are saved for everyone's next call, and edits to a saved facility update it. Choosing a facility fills the address, callback number, caller and email on the call, and the call taker can still change them.
 - **Destination facility.** A second picker uses the same saved list, so a hospital or dialysis center can be a pickup on one call and a destination on another. Choosing it fills the destination address. New destinations are saved the same way. The PCS, narrative and call record show the facility name with the address.
 - **Admin → Facilities.** Search every saved facility and see how many calls used it and when. Add or edit a facility, switch **On list** off to hide it from call takers while keeping it, or delete one (for example a duplicate). Saved calls keep the facility details they were taken with. Every change is in the audit log.
-- **Start questions.** Trip type, level and insurance are required. Setup then collapses to a one-line summary with an **Edit** button, and the live conversation and Intake Assistant appear.
 - **Level check.** If the requested level is higher than what has been documented (for example ALS requested, but only BLS-level needs so far), the Medical Necessity panel says what to ask. It also flags the opposite case.
 
-**Call-taker console: one question at a time**
-- **One question at a time.** The Intake Assistant is the only place questions appear. The full list and checklist are folded under **All questions & checklist** for when you need them.
-- **Key questions pop out.** Qualifying questions (bed confinement, clinical conditions, ALS, SCT) pop out in a green box that shows the answer that qualifies. Questions that can rule ambulance transport out pop out in amber, and the emergency screen in red.
-- **Medical Necessity panel** (top right, always in view). It turns **green** with next steps when necessity is met: level of service, PCS, prior authorization, and confirming the trip. It turns **red** with what to do next when it isn't met: don't schedule under this payer, offer the alternative, private pay and ABN, update the answers if the condition changes, and escalate if needed. It turns **amber** when answers conflict. A pop-up message also announces each change.
-
-**Intake Assistant (guided chat)** on the call-taker console
-- **One question at a time.** The assistant posts the next question to ask, using the same ranking as *Ask next*. Questions prompted by what it heard come first.
-- **Listens for the answer.** With the microphone on, it notices when the call taker reads the question aloud, then listens to the caller's reply. Without the microphone, click **I asked it** and type the caller's reply into the chat.
-- **The call taker confirms.** It shows what it heard and the answer it would record (yes/no, a number, one of the choices, or the caller's own words, which can be edited). **Accept** records it and the next question appears. The call taker can also pick a different answer or **Skip**.
-- **Picks up other answers.** Answers to other questions heard along the way are listed for one-click acceptance. The call taker's spoken questions are ignored when looking for answers, so a question's own words aren't mistaken for the caller's reply.
-- **Stays in sync with the rest of the console.** Answers recorded in the chat, the checklist or *Ask next* all update the same call.
+**Questions form** (Questions tab)
+- **Every applicable question on one page**, grouped by category. Each question has an **answer drop-down** (Yes / No, or the question's choices; numbers and free-text answers get a box) and a **Notes** field for anything the caller adds. **General Call Notes** at the bottom captures the rest.
+- **Key questions stand out.** Qualifying questions (bed confinement, conditions, ALS, SCT) are marked in green with the answer that qualifies. Questions that can rule ambulance transport out are marked in amber, and the emergency screen in red, marked "Ask first".
+- **Medical Necessity panel** (top right, always in view). It turns **green** with next steps when necessity is met: level of service, PCS, prior authorization, and confirming the trip. It turns **red** with what to do next when it isn't met: don't schedule under this payer, offer the alternative, private pay and ABN, update the answers if the condition changes, and escalate if needed. It turns **amber** when answers conflict.
+- **Notes are kept** with the call record. They appear in the admin call view and in the copied narrative.
 
 **Logic Builder** (Admin → Logic Builder)
 - **Resizable boxes.** Drag the grip in a box's bottom-right corner to make it wider or taller (extra height goes to its text). Double-click the grip for the default size. Sizes are saved with the flow.
@@ -46,7 +39,7 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 - **Drag and drop.** Drag questions from the question bank and outcome boxes onto a canvas. Move boxes by their header. Drag the background to move around, and scroll or use + / − / Fit to zoom. **+ New question** adds a question to the bank without leaving the screen.
 - **Connect answers with lines.** Every answer has a dot: Yes (green), No (red), each choice, "any answer", and number ranges such as "≥ 300". Drag from a dot to another box. One answer can feed several boxes, and several lines can come into one box. A box with several lines in it fires when **all** of them match or when **any** one matches, whichever you choose. Click a line and press Delete, or use its ×, to remove it.
 - **Outcomes:** a medical-necessity result (meets / likely / review / does not meet, with an optional explanation), a level of service (BLS / ALS / SCT / not indicated), an alert shown to the call taker, or a documentation reminder.
-- **Follow-up questions.** A line into a *question* box means that question is only asked once the lines coming in match. The console's checklist and the Intake Assistant follow this.
+- **Follow-up questions.** A line into a *question* box means that question is only asked once the lines coming in match. The console's Questions tab follows this.
 - **Test mode.** Pick answers in the boxes and watch which lines and outcomes switch on before saving.
 - **How rules combine with the built-in CMS logic.** Alerts and documentation reminders are added. A rule's result and level of service replace the built-in ones. If several rules fire, the most cautious result and the highest level of care win. Payers that need no necessity review, such as private pay or facility pay, keep "not required".
 - **Scope and safety.** Each flow can be limited to call types and payers, and switched on or off. Flows are checked before saving: no loops, no missing questions, no empty outcomes. A question used in a flow can't be deleted. Every change is recorded in the audit log.
@@ -78,10 +71,7 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 - **State and plan differences.** Medicaid and Medicare Advantage rules vary by state and plan. Administrators can edit the built-in profiles or add one per state program or plan (for example "Texas Medicaid — Superior"), and scope custom questions to it.
 
 **Call-taker console** (`/`)
-- **Live conversation capture.** Uses the browser's speech recognition (Chrome or Edge) to transcribe as the caller talks. Call takers can also type or paste notes.
-- **Detection from the conversation.** Phrases like "bedbound", "on 2 liters nasal cannula", "stage 4 sacral wound", or "no chest pain" become suggested answers, each with the quoted evidence. Negations ("not on oxygen") and corrections ("he can walk… actually he cannot walk") are handled. The call taker accepts each suggestion with one click.
-- **"Ask next" prompt.** Shows the most important unanswered question, followed by the next three. Ranking uses priority, whether it's required, and whether something said in the conversation makes it relevant.
-- **Conditional questions.** Some questions only appear when relevant words are heard (for example, "heparin drip" brings up the titration/SCT question). Follow-ups appear when a parent question gets a specific answer.
+- **Conditional questions.** Follow-ups appear when a parent question gets a specific answer, or when a Logic Builder flow switches them on.
 - **Live CMS assessment.** Shows the status (meets / likely / needs review / does not meet / gathering info), the three-part bed-confinement test, supporting conditions, disqualifiers, alerts, missing required items, and documentation requirements (PCS, the 60-day rule for repetitive transports, the 48-hour rule for non-repetitive ones).
 - **Recommended level of service.** BLS, ALS1, or SCT, emergency or non-emergency, with the HCPCS code (A0428/A0429/A0426/A0427/A0434).
 - **Emergency screening.** A banner tells the call taker to transfer to 911 when red-flag symptoms come up on a non-emergency call.
@@ -93,7 +83,6 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
   - **Where to open it:** administrators can open the PCS for any call from the Call Log. Call takers can open the PCS only for their own calls. Each generation is recorded in the audit log.
   - **Saving twice** updates the same call record, so regenerating the PCS after changes doesn't create duplicates.
 - **Save, copy, and print.** Save the call record (attributed to the signed-in call taker), copy a narrative for the trip record or PCS request, or print a summary.
-- **Optional AI analysis (Claude).** Suggests answers, writes a short summary, and proposes follow-up questions the bank doesn't cover.
 
 **Admin dashboard** (`/admin.html`, password protected)
 - **Overview:** question-bank and call statistics, plus recent calls.
@@ -274,10 +263,6 @@ public/
   css/app.css                 shared styles
 test/                 engine and API tests (node:test)
 ```
-
-## Capturing caller audio
-
-Browser speech recognition listens to the computer's **microphone**. To capture both sides of the call, route the phone audio into the computer (a softphone, a USB phone adapter, or a headset with a mixed-audio output). Speech recognition in Chrome and Edge is processed by the browser vendor's cloud service. Check that this fits your privacy policy, or replace it with a HIPAA-eligible speech-to-text service (see roadmap).
 
 ## Security and PHI
 

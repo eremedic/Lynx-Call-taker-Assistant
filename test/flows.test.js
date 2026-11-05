@@ -111,3 +111,11 @@ test('validation catches loops, missing questions and empty outcomes', () => {
   const wrongPort = { nodes: [{ id: 'a', type: 'question', code: 'BED_SIT' }, { id: 'b', type: 'outcome', kind: 'level', value: 'bls' }], edges: [{ from: 'a', port: 'maybe', to: 'b' }] };
   assert.ok(validateGraph(wrongPort, byCode).some((e) => /no longer has/.test(e)));
 });
+
+test('the question form can list every applicable question, not only ones the conversation prompted', () => {
+  const triggered = BANK.filter((q) => (q.triggers || []).length && !q.depends_on_code && !(q.payers || []).length && !(q.call_types || []).length);
+  assert.ok(triggered.length > 0, 'the bank has conversation-triggered questions');
+  const code = triggered[0].code;
+  assert.ok(!evaluateCall({ callType: 'non_emergency', questions: BANK, answers: {} }).visibleCodes.includes(code));
+  assert.ok(evaluateCall({ callType: 'non_emergency', questions: BANK, answers: {}, allQuestions: true }).visibleCodes.includes(code));
+});
