@@ -11,6 +11,12 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const NODE_WIDTH = 250;
+const MIN_WIDTH = 180;
+const MAX_WIDTH = 640;
+const MAX_HEIGHT = 900;
+const nodeWidth = (n) => n.w || NODE_WIDTH;
+// Position and size of a box. A stored height is a minimum: content never gets cut off.
+const boxStyle = (n) => `left:${n.x}px; top:${n.y}px; width:${nodeWidth(n)}px;${n.h ? ` min-height:${n.h}px;` : ''}`;
 const OUTCOME_ICONS = { status: '✓', level: '⬆', alert: '!', document: '✎' };
 
 let deps; // { getQuestions, getPayers, getConfig, openQuestion }
@@ -158,7 +164,7 @@ function questionNodeHtml(n, q, run) {
   const state = ed.testMode ? (run.nodeOn.get(n.id) ? 'on' : gated ? 'off' : '') : '';
   const ports = portsFor(n, q);
   return `
-    <div class="lnode lnode-question ${state} ${ed.selected?.id === n.id ? 'selected' : ''}" data-node="${n.id}" style="left:${n.x}px; top:${n.y}px; width:${NODE_WIDTH}px">
+    <div class="lnode lnode-question ${state} ${ed.selected?.id === n.id ? 'selected' : ''}" data-node="${n.id}" style="${boxStyle(n)}">
       <div class="lnode-in" data-in="${n.id}" title="Lines into this box decide when the question is asked"></div>
       <div class="lnode-head" data-drag="${n.id}">
         <span class="lnode-type">Question</span><span class="lnode-code">${esc(n.code)}</span>
@@ -179,6 +185,7 @@ function questionNodeHtml(n, q, run) {
           <input class="input" data-cond-value="${n.id}" type="number" placeholder="Value">
           <button type="button" class="btn btn-sm" data-add-cond="${n.id}">+ Answer range</button>
         </div></div>` : ''}
+      <div class="lnode-resize" data-resize="${n.id}" title="Drag to resize · double-click for the default size" aria-hidden="true"></div>
     </div>`;
 }
 
@@ -199,7 +206,7 @@ function outcomeNodeHtml(n, run) {
     body = `<textarea class="textarea" rows="2" data-field="text" data-node-field="${n.id}" placeholder="What must be documented, e.g. signed PCS from the attending physician">${esc(n.text || '')}</textarea>`;
   }
   return `
-    <div class="lnode lnode-outcome kind-${n.kind} ${fires ? 'on' : ed.testMode ? 'off' : ''} ${ed.selected?.id === n.id ? 'selected' : ''}" data-node="${n.id}" style="left:${n.x}px; top:${n.y}px; width:${NODE_WIDTH}px">
+    <div class="lnode lnode-outcome kind-${n.kind} ${fires ? 'on' : ed.testMode ? 'off' : ''} ${ed.selected?.id === n.id ? 'selected' : ''}" data-node="${n.id}" style="${boxStyle(n)}">
       <div class="lnode-in" data-in="${n.id}" title="Draw lines from answers into this box"></div>
       <div class="lnode-head" data-drag="${n.id}">
         <span class="lnode-type">${OUTCOME_ICONS[n.kind]} Outcome</span>
@@ -212,6 +219,7 @@ function outcomeNodeHtml(n, run) {
         ${matchControl(n)}
         ${count === 0 ? '<div class="lnode-note">Draw a line from an answer into this box.</div>' : ''}
       </div>
+      <div class="lnode-resize" data-resize="${n.id}" title="Drag to resize · double-click for the default size" aria-hidden="true"></div>
     </div>`;
 }
 
@@ -219,7 +227,18 @@ function renderNodes() {
   const qs = questionsByCode();
   const run = runFlow(graph(), ed.testAnswers);
   $('#lb-nodes').innerHTML = graph().nodes.map((n) => (n.type === 'question' ? questionNodeHtml(n, qs.get(n.code), run) : outcomeNodeHtml(n, run))).join('');
+  // Redraw the lines whenever a box changes size (resize grip, text areas, wrapping).
+  sizeWatcher.disconnect();
+  $$('#lb-nodes .lnode').forEach((el) => sizeWatcher.observe(el));
 }
+
+const lastGrip = { id: null, at: 0 };
+let redrawQueued = false;
+const sizeWatcher = new ResizeObserver(() => {
+  if (redrawQueued) return;
+  redrawQueued = true;
+  requestAnimationFrame(() => { redrawQueued = false; if (ed.flow) drawEdges(); });
+});
 
 // Center of an element in world coordinates.
 function worldCenter(el) {
@@ -361,7 +380,7 @@ function select(sel) {
 
 function centerOn(node) {
   const c = $('#lb-canvas').getBoundingClientRect();
-  ed.panX = c.width / 2 - (node.x + NODE_WIDTH / 2) * ed.scale;
+  ed.panX = c.width / 2 - (node.x + nodeWidth(node) / 2) * ed.scale;
   ed.panY = c.height / 2 - (node.y + 60) * ed.scale;
   applyTransform();
   drawEdges();
@@ -392,7 +411,7 @@ function fitView() {
   const heights = new Map(els.map((el) => [el.dataset.node, el.offsetHeight]));
   const minX = Math.min(...nodes.map((n) => n.x));
   const minY = Math.min(...nodes.map((n) => n.y));
-  const maxX = Math.max(...nodes.map((n) => n.x + NODE_WIDTH));
+  const maxX = Math.max(...nodes.map((n) => n.x + nodeWidth(n)));
   const maxY = Math.max(...nodes.map((n) => n.y + (heights.get(n.id) || 160)));
   const pad = 40;
   ed.scale = Math.min(1.2, Math.max(0.3, Math.min((c.width - pad * 2) / (maxX - minX), (c.height - pad * 2) / (maxY - minY))));
@@ -586,6 +605,34 @@ function bind() {
     if (e.button !== 0 || !ed.flow) return;
     const out = e.target.closest('[data-out]');
     const head = e.target.closest('[data-drag]');
+    const grip = e.target.closest('[data-resize]');
+    if (grip) {
+      e.preventDefault();
+      // Double-click on the grip (two clicks, no drag): back to the default
+      // size. Detected here because the drag captures the pointer, so no
+      // dblclick event arrives.
+      const now = Date.now();
+      if (lastGrip.id === grip.dataset.resize && now - lastGrip.at < 400) {
+        lastGrip.at = 0;
+        const reset = nodeById(grip.dataset.resize);
+        delete reset.w;
+        delete reset.h;
+        renderAll();
+        return;
+      }
+      const node = nodeById(grip.dataset.resize);
+      const el = grip.closest('.lnode');
+      // The height the content needs, so the box can't be made smaller than that.
+      const saved = el.style.minHeight;
+      el.style.minHeight = '';
+      const natural = el.offsetHeight;
+      el.style.minHeight = saved;
+      ed.gesture = { type: 'resize', node, el, natural, startX: e.clientX, startY: e.clientY, w: nodeWidth(node), h: el.offsetHeight, moved: false };
+      select({ type: 'node', id: node.id });
+      canvas.setPointerCapture(e.pointerId);
+      canvas.classList.add('resizing');
+      return;
+    }
     if (out) {
       e.preventDefault();
       const start = worldCenter(out);
@@ -625,6 +672,17 @@ function bind() {
       g.el.style.top = `${g.node.y}px`;
       g.moved = true;
       drawEdges();
+    } else if (g.type === 'resize') {
+      const w = Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, g.w + (e.clientX - g.startX) / ed.scale)));
+      const h = Math.round(Math.min(MAX_HEIGHT, Math.max(g.natural, g.h + (e.clientY - g.startY) / ed.scale)));
+      g.node.w = w === NODE_WIDTH ? undefined : w;
+      g.node.h = h > g.natural + 2 ? h : undefined; // at its natural height, keep it automatic
+      if (!g.node.w) delete g.node.w;
+      if (!g.node.h) delete g.node.h;
+      g.el.style.width = `${w}px`;
+      g.el.style.minHeight = g.node.h ? `${g.node.h}px` : '';
+      g.moved = true;
+      drawEdges();
     } else if (g.type === 'wire') {
       g.end = clientToWorld(e.clientX, e.clientY);
       const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.lnode');
@@ -637,16 +695,19 @@ function bind() {
     const g = ed.gesture;
     if (!g) return;
     ed.gesture = null;
-    canvas.classList.remove('wiring', 'panning');
+    canvas.classList.remove('wiring', 'panning', 'resizing');
     $$('#lb-nodes .lnode.drop-ok').forEach((el) => el.classList.remove('drop-ok'));
     if (g.type === 'wire') {
       const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.lnode');
       if (over && e.type === 'pointerup' && over.dataset.node !== g.from) addEdge(g.from, g.port, over.dataset.node);
       else drawEdges();
     }
-    if (g.type === 'node' && g.moved) markChanged();
+    if ((g.type === 'node' || g.type === 'resize') && g.moved) markChanged();
+    // A click on the grip without dragging counts toward a double-click.
+    if (g.type === 'resize') Object.assign(lastGrip, g.moved ? { id: null, at: 0 } : { id: g.node.id, at: Date.now() });
   };
   canvas.addEventListener('pointerup', endGesture);
+
   canvas.addEventListener('pointercancel', endGesture);
 
   canvas.addEventListener('wheel', (e) => {

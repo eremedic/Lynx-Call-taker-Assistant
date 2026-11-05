@@ -18,6 +18,7 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 - **Stays in sync with the rest of the console.** Answers recorded in the chat, the checklist or *Ask next* all update the same call.
 
 **Logic Builder** (Admin → Logic Builder)
+- **Resizable boxes.** Drag the grip in a box's bottom-right corner to make it wider or taller (extra height goes to its text). Double-click the grip for the default size. Sizes are saved with the flow.
 - **Full screen.** **⛶ Full screen**, in the toolbar or the canvas corner, gives the canvas the whole screen. Press Esc or **Exit full screen** to return.
 - **Drag and drop.** Drag questions from the question bank and outcome boxes onto a canvas. Move boxes by their header. Drag the background to move around, and scroll or use + / − / Fit to zoom. **+ New question** adds a question to the bank without leaving the screen.
 - **Connect answers with lines.** Every answer has a dot: Yes (green), No (red), each choice, "any answer", and number ranges such as "≥ 300". Drag from a dot to another box. One answer can feed several boxes, and several lines can come into one box. A box with several lines in it fires when **all** of them match or when **any** one matches, whichever you choose. Click a line and press Delete, or use its ×, to remove it.
