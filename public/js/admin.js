@@ -632,7 +632,7 @@ async function openCall(id) {
     ['Level requested', d.requested_level],
     ['Caller', [d.caller_name, d.caller_facility, d.caller_phone, d.caller_email].filter(Boolean).join(' · ')],
     ['Pick-up', d.pickup_location],
-    ['Destination', d.destination],
+    ['Destination', [d.destination_facility, d.destination].filter(Boolean).join(', ')],
     ['Appointment', d.appointment?.replace('T', ' ')],
     ['Call taker', c.call_taker],
     ['Duration', d.duration_seconds ? `${Math.floor(d.duration_seconds / 60)}m ${d.duration_seconds % 60}s` : ''],

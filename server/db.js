@@ -590,8 +590,12 @@ export function facilityRepo(db) {
     },
     // How many saved calls picked each facility, and when it was last used.
     async usage() {
-      const rows = await db.query(`SELECT details::jsonb ->> 'facility_id' AS id, COUNT(*)::int AS calls, MAX(created_at) AS last_used
-        FROM ${S}.calls WHERE details::jsonb ? 'facility_id' GROUP BY 1`);
+      // Pickup or destination; a call using one facility for both counts once.
+      const rows = await db.query(`SELECT id, COUNT(DISTINCT call_id)::int AS calls, MAX(created_at) AS last_used FROM (
+          SELECT details::jsonb ->> 'facility_id' AS id, id AS call_id, created_at FROM ${S}.calls
+          UNION ALL
+          SELECT details::jsonb ->> 'destination_facility_id', id, created_at FROM ${S}.calls
+        ) used WHERE id IS NOT NULL GROUP BY id`);
       return new Map(rows.map((r) => [Number(r.id), { calls: r.calls, last_used: r.last_used }]));
     },
     async remove(id) {

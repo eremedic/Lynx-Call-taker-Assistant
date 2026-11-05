@@ -244,7 +244,8 @@ function bindSetup() {
     $('#chat-input')?.focus();
   });
   $('#setup-edit').addEventListener('click', () => setSetupDone(false));
-  $('#facility-name').addEventListener('click', openFacility);
+  $('#facility-name').addEventListener('click', () => openFacility('pickup'));
+  $('#destination-name').addEventListener('click', () => openFacility('destination'));
   $('#facility-select').addEventListener('change', (e) => fillFacilityForm(state.facilities.find((f) => String(f.id) === e.target.value)));
   $('#facility-form').addEventListener('submit', saveFacility);
   $('#facility-modal').addEventListener('click', (e) => {
@@ -275,23 +276,43 @@ function renderSetupSummary() {
     item('Trip', trip), item('Level', d.requested_level), item('Insurance', payer), item('Secondary', second),
     item('Facility', d.caller_facility), item('Address', d.pickup_location), item('Call back', d.caller_phone),
     item('Caller', d.caller_name), item('Email', d.caller_email),
+    item('Destination', [d.destination_facility, d.destination].filter(Boolean).join(', ')),
   ].join('');
 }
 
 // --------------------------------------------------------- facility pop-out
-async function openFacility() {
+// One shared list of saved facilities, used for both the pickup and the
+// destination. The pop-out knows which one it is filling.
+const FACILITY_TARGETS = {
+  pickup: {
+    idKey: 'facility_id', nameKey: 'caller_facility', button: '#facility-name', title: 'Pickup facility',
+    empty: 'Choose or add a facility…', labels: ['Phone (call back)', 'Caller name', 'Caller email address'],
+  },
+  destination: {
+    idKey: 'destination_facility_id', nameKey: 'destination_facility', button: '#destination-name', title: 'Destination facility',
+    empty: 'Choose or add a destination…', labels: ['Phone', 'Contact name', 'Contact email address'],
+  },
+};
+
+async function openFacility(target = 'pickup') {
+  const t = FACILITY_TARGETS[target];
+  state.facilityTarget = target;
   try {
     state.facilities = await api('/api/facilities');
   } catch (err) {
     toast(`Could not load saved facilities: ${err.message}`, 'error');
   }
+  const currentId = state.details[t.idKey];
   $('#facility-select').innerHTML = '<option value="">+ New facility</option>'
-    + state.facilities.map((f) => `<option value="${f.id}" ${f.id === state.facilityId ? 'selected' : ''}>${esc(f.name)}${f.address ? ` — ${esc(f.address)}` : ''}</option>`).join('');
-  const current = state.facilities.find((f) => f.id === state.facilityId);
-  fillFacilityForm(current || (state.details.caller_facility ? {
-    name: state.details.caller_facility, address: state.details.pickup_location, phone: state.details.caller_phone,
-    contact_name: state.details.caller_name, contact_email: state.details.caller_email,
-  } : null), { keepSelect: !current });
+    + state.facilities.map((f) => `<option value="${f.id}" ${f.id === currentId ? 'selected' : ''}>${esc(f.name)}${f.address ? ` — ${esc(f.address)}` : ''}</option>`).join('');
+  $('#facility-modal-title').textContent = t.title;
+  [$('#f-fac-phone-label').textContent, $('#f-fac-contact-label').textContent, $('#f-fac-email-label').textContent] = t.labels;
+  const d = state.details;
+  const current = state.facilities.find((f) => f.id === currentId);
+  const typed = target === 'pickup'
+    ? (d.caller_facility ? { name: d.caller_facility, address: d.pickup_location, phone: d.caller_phone, contact_name: d.caller_name, contact_email: d.caller_email } : null)
+    : (d.destination_facility || d.destination ? { name: d.destination_facility, address: d.destination } : null);
+  fillFacilityForm(current || typed, { keepSelect: !current });
   $('#facility-error').hidden = true;
   $('#facility-modal').hidden = false;
   (state.facilities.length ? $('#facility-select') : $('#f-fac-name')).focus();
@@ -299,14 +320,14 @@ async function openFacility() {
 
 function fillFacilityForm(f, { keepSelect = false } = {}) {
   const el = $('#facility-form').elements;
-  for (const [field, key] of [['name', 'name'], ['address', 'address'], ['phone', 'phone'], ['contact_name', 'contact_name'], ['contact_email', 'contact_email']]) el[field].value = f?.[key] || '';
+  for (const key of ['name', 'address', 'phone', 'contact_name', 'contact_email']) el[key].value = f?.[key] || '';
   if (!keepSelect) $('#facility-select').value = f?.id ? String(f.id) : '';
   $('#facility-save').textContent = f?.id ? 'Use facility' : 'Save & use facility';
 }
 
 function closeFacility() {
   $('#facility-modal').hidden = true;
-  $('#facility-name').focus();
+  $(FACILITY_TARGETS[state.facilityTarget || 'pickup'].button).focus();
 }
 
 async function saveFacility(e) {
@@ -329,27 +350,36 @@ async function saveFacility(e) {
     $('#facility-error').hidden = false;
     return;
   }
-  applyFacility(facility);
+  applyFacility(facility, state.facilityTarget || 'pickup');
   closeFacility();
 }
 
-function applyFacility(f) {
+function applyFacility(f, target = 'pickup') {
   markActive();
-  state.facilityId = f.id;
-  setDetail('facility_id', f.id);
-  setDetail('caller_facility', f.name);
-  setDetail('pickup_location', f.address || '');
-  setDetail('caller_phone', f.phone || '');
-  setDetail('caller_name', f.contact_name || '');
-  setDetail('caller_email', f.contact_email || '');
+  if (target === 'destination') {
+    setDetail('destination_facility_id', f.id);
+    setDetail('destination_facility', f.name);
+    setDetail('destination', f.address || '');
+    setDetail('destination_phone', f.phone || '');
+  } else {
+    state.facilityId = f.id;
+    setDetail('facility_id', f.id);
+    setDetail('caller_facility', f.name);
+    setDetail('pickup_location', f.address || '');
+    setDetail('caller_phone', f.phone || '');
+    setDetail('caller_name', f.contact_name || '');
+    setDetail('caller_email', f.contact_email || '');
+  }
   renderFacilityButton();
 }
 
 function renderFacilityButton() {
-  const name = state.details.caller_facility;
-  const btn = $('#facility-name');
-  btn.textContent = name || 'Choose or add a facility…';
-  btn.classList.toggle('chosen', Boolean(name));
+  for (const t of Object.values(FACILITY_TARGETS)) {
+    const name = state.details[t.nameKey];
+    const btn = $(t.button);
+    btn.textContent = name || t.empty;
+    btn.classList.toggle('chosen', Boolean(name));
+  }
 }
 
 function setAnswer(code, value) {
@@ -849,7 +879,9 @@ function buildNarrative() {
   if (d.patient_name) lines.push(`Patient: ${d.patient_name}${d.patient_dob ? ` (DOB ${d.patient_dob})` : ''}`);
   if (d.requested_level) lines.push(`Level requested: ${d.requested_level}`);
   if (d.caller_name || d.caller_facility) lines.push(`Caller: ${[d.caller_name, d.caller_facility].filter(Boolean).join(', ')}${d.caller_phone ? ` — ${d.caller_phone}` : ''}${d.caller_email ? ` — ${d.caller_email}` : ''}`);
-  if (d.pickup_location || d.destination) lines.push(`Trip: ${d.pickup_location || '?'} → ${d.destination || '?'}${d.appointment ? ` (appt ${d.appointment.replace('T', ' ')})` : ''}`);
+  const from = [d.caller_facility, d.pickup_location].filter(Boolean).join(', ');
+  const to = [d.destination_facility, d.destination].filter(Boolean).join(', ');
+  if (from || to) lines.push(`Trip: ${from || '?'} → ${to || '?'}${d.appointment ? ` (appt ${d.appointment.replace('T', ' ')})` : ''}`);
   if (a) {
     lines.push(`Assessment: ${STATUS_LABELS[a.status]} — ${a.levelOfService.label}${a.levelOfService.hcpcs ? ` (${a.levelOfService.hcpcs})` : ''}`);
     lines.push(`Bed-confined (CMS 3-part test): ${a.bedConfinement.met ? 'Yes' : 'No / not established'}`);

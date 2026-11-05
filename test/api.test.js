@@ -472,3 +472,20 @@ test('admins see every facility with usage, and can hide or delete them', async 
   assert.ok(!(await admin('/api/admin/facilities')).data.some((x) => x.id === f.id));
   assert.ok((await auditActions()).includes('facility.deleted'));
 });
+
+test('facilities used as a destination count toward usage and print on the PCS', async () => {
+  const hosp = (await admin('/api/facilities', { method: 'POST', body: { name: 'Memorial Hospital', address: '1 Hospital Way' } })).data;
+  const snf = (await admin('/api/facilities', { method: 'POST', body: { name: 'Oak Manor', address: '5 Oak Ln' } })).data;
+  const call = (await taker('/api/calls', { method: 'POST', body: {
+    callType: 'non_emergency', answers: {},
+    details: { facility_id: snf.id, caller_facility: 'Oak Manor', pickup_location: '5 Oak Ln', destination_facility_id: hosp.id, destination_facility: 'Memorial Hospital', destination: '1 Hospital Way' },
+  } })).data;
+  // The same facility as pickup and destination counts once for that call.
+  await taker('/api/calls', { method: 'POST', body: { callType: 'non_emergency', answers: {}, details: { facility_id: hosp.id, destination_facility_id: hosp.id } } });
+  const usage = new Map((await admin('/api/admin/facilities')).data.map((f) => [f.id, f.calls]));
+  assert.equal(usage.get(hosp.id), 2);
+  assert.equal(usage.get(snf.id), 1);
+  const pcs = (await taker(`/api/calls/${call.id}/pcs`)).data;
+  assert.equal(pcs.transport.origin, 'Oak Manor, 5 Oak Ln');
+  assert.equal(pcs.transport.destination, 'Memorial Hospital, 1 Hospital Way');
+});

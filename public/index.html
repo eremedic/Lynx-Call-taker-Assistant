@@ -101,6 +101,13 @@
           <div class="field"><label for="s-caller_name">Caller name</label><input class="input" id="s-caller_name" data-detail="caller_name" autocomplete="off"></div>
           <div class="field span-2"><label for="s-caller_email">Caller email address</label><input class="input" id="s-caller_email" data-detail="caller_email" type="email" autocomplete="off"></div>
 
+          <div class="section-label span-2">Destination</div>
+          <div class="field span-2">
+            <label for="destination-name">Destination facility</label>
+            <button id="destination-name" type="button" class="select facility-picker" aria-haspopup="dialog">Choose or add a destination…</button>
+          </div>
+          <div class="field span-2"><label for="s-destination">Destination address</label><input class="input" id="s-destination" data-detail="destination" autocomplete="off"></div>
+
           <div class="setup-actions span-2">
             <span id="setup-missing" class="small" role="alert"></span>
             <button id="setup-start" class="btn btn-primary btn-lg" type="button">Start questions →</button>
@@ -263,14 +270,14 @@
         <div class="field">
           <label for="facility-select">Choose a saved facility</label>
           <select id="facility-select" class="select"><option value="">+ New facility</option></select>
-          <span class="hint">Facilities are saved as they’re entered, so they can be picked next time.</span>
+          <span class="hint">One shared list for pickups and destinations. Facilities are saved as they’re entered, so they can be picked next time.</span>
         </div>
         <div class="setup-grid">
           <div class="field span-2"><label for="f-fac-name">Facility name</label><input id="f-fac-name" name="name" class="input" required maxlength="120" autocomplete="off"></div>
           <div class="field span-2"><label for="f-fac-address">Address</label><input id="f-fac-address" name="address" class="input" maxlength="300" autocomplete="off"></div>
-          <div class="field"><label for="f-fac-phone">Phone (call back)</label><input id="f-fac-phone" name="phone" class="input" inputmode="tel" maxlength="40" autocomplete="off"></div>
-          <div class="field"><label for="f-fac-contact">Caller name</label><input id="f-fac-contact" name="contact_name" class="input" maxlength="120" autocomplete="off"></div>
-          <div class="field span-2"><label for="f-fac-email">Caller email address</label><input id="f-fac-email" name="contact_email" class="input" type="email" maxlength="200" autocomplete="off"></div>
+          <div class="field"><label for="f-fac-phone" id="f-fac-phone-label">Phone (call back)</label><input id="f-fac-phone" name="phone" class="input" inputmode="tel" maxlength="40" autocomplete="off"></div>
+          <div class="field"><label for="f-fac-contact" id="f-fac-contact-label">Caller name</label><input id="f-fac-contact" name="contact_name" class="input" maxlength="120" autocomplete="off"></div>
+          <div class="field span-2"><label for="f-fac-email" id="f-fac-email-label">Caller email address</label><input id="f-fac-email" name="contact_email" class="input" type="email" maxlength="200" autocomplete="off"></div>
         </div>
         <p id="facility-error" class="small" style="color: var(--red-600)" role="alert" hidden></p>
       </div>
