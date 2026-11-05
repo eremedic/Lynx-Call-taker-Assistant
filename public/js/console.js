@@ -388,6 +388,7 @@ function renderChecklist() {
   }
   $('#checklist').innerHTML = html || '<div class="empty">No questions configured.</div>';
   $('#checklist-count').textContent = `${answered} of ${ev.visibleCodes.length} answered`;
+  $('#all-questions-count').textContent = `${answered} of ${ev.visibleCodes.length} answered`;
 }
 
 function checkItem(mark, text) {
@@ -427,13 +428,75 @@ function renderPayer(p) {
     : '';
 }
 
+// The headline, icon and step-by-step guidance for the Medical Necessity panel.
+const RESULT_VIEW = {
+  meets: { icon: '✓', title: 'Medical Necessity Met', next: 'Next steps' },
+  likely: { icon: '✓', title: 'Likely Met — Finish Up', next: 'To finish' },
+  review: { icon: '!', title: 'Needs Review', next: 'What to do next' },
+  not_met: { icon: '✕', title: 'Medical Necessity Not Met', next: 'What to do next' },
+  not_required: { icon: 'i', title: 'Medical Necessity Not Required', next: 'Next steps' },
+  incomplete: { icon: '…', title: 'Gathering Information', next: '' },
+};
+
+function nextSteps(a, callType) {
+  const payer = a.payer?.name || 'this payer';
+  const level = a.levelOfService?.label || 'the recommended level';
+  const steps = [];
+  if (a.emergencyFlag && callType !== 'emergency') steps.push('Possible emergency: follow your emergency protocol now (dispatch an emergency response or transfer to 911) before continuing the intake.');
+  if (a.status === 'meets' || a.status === 'likely') {
+    if (a.status === 'meets') steps.push(`Ambulance transport is supported for ${payer}. Schedule it as ${level}.`);
+    else steps.push(`Ambulance transport is supported for ${payer} (${level}), but the record isn’t complete yet.`);
+    for (const m of (a.missing || []).slice(0, 3)) steps.push(`Ask: ${m.text}`);
+    for (const g of (a.documentationGaps || []).slice(0, 2)) steps.push(`Resolve: ${g}`);
+    if (a.payer?.priorAuth === 'required') steps.push('Prior authorization is required: get or confirm the authorization number before scheduling.');
+    if (callType !== 'emergency') steps.push('Get a signed Physician Certification Statement (PCS) before transport. Use “Generate PCS form”.');
+    steps.push('Confirm the pick-up time, address and destination, then save the call record.');
+  } else if (a.status === 'not_met') {
+    steps.push(`Don’t schedule an ambulance under ${payer}: the answers don’t meet medical-necessity criteria.`);
+    const alt = (a.alerts || []).find((al) => al.code === 'PAYER_ALTERNATE');
+    steps.push(alt ? `Offer the alternative: ${alt.text}` : 'Offer other transport: wheelchair van, stretcher van, or another option your service provides.');
+    steps.push('If the caller still wants an ambulance, explain it may not be covered and offer private pay. For Medicare patients, have the patient sign an Advance Beneficiary Notice (ABN) before transport.');
+    steps.push('If the caller reports a change in condition, update the answers. The result is recalculated automatically.');
+    steps.push('Escalate to a supervisor if there is any clinical concern, and save the call record.');
+  } else if (a.status === 'review') {
+    for (const d of (a.disqualifiers || []).slice(0, 2)) steps.push(`Clarify with the caller: ${d.text}`);
+    steps.push('The answers conflict. Re-ask the questions above and correct any answer that was misheard.');
+    steps.push('If it’s still unclear, escalate to a supervisor before scheduling.');
+  } else if (a.status === 'not_required') {
+    steps.push(`${payer} doesn’t require a medical-necessity review. Confirm payment details and the transport.`);
+    steps.push('Save the call record.');
+  }
+  return steps;
+}
+
+let lastStatus = null;
+function announceResult(a) {
+  const changed = lastStatus !== null && a.status !== lastStatus;
+  lastStatus = a.status;
+  if (!changed) return;
+  const banner = $('#status-banner');
+  banner.classList.remove('flash');
+  void banner.offsetWidth; // restart the animation
+  banner.classList.add('flash');
+  if (a.status === 'meets') toast('Medical necessity MET: see the next steps on the right.', 'success');
+  else if (a.status === 'not_met') toast('Medical necessity NOT met: see what to do next on the right.', 'error');
+  else if (a.status === 'review') toast('Conflicting answers: needs review.', 'warning');
+}
+
 function renderAssessment() {
   const a = state.evaluation.assessment;
   const banner = $('#status-banner');
-  banner.className = `status-banner status-${a.status}`;
-  $('#status-value').textContent = STATUS_LABELS[a.status] || a.status;
+  const view = RESULT_VIEW[a.status] || RESULT_VIEW.incomplete;
+  banner.className = `status-banner status-${a.status}${banner.classList.contains('flash') ? ' flash' : ''}`;
+  $('#status-icon').textContent = view.icon;
+  $('#status-value').textContent = view.title;
   $('#status-label').textContent = `Medical necessity · ${a.payer ? a.payer.name : 'CMS criteria'}`;
   $('#status-summary').textContent = a.summary;
+  const steps = nextSteps(a, state.callType);
+  $('#status-next').hidden = steps.length === 0;
+  $('#status-next-title').textContent = view.next || 'What to do next';
+  $('#status-steps').innerHTML = steps.map((s) => `<li>${esc(s)}</li>`).join('');
+  announceResult(a);
   $('#emergency-bar').hidden = !(a.emergencyFlag && state.callType !== 'emergency');
 
   $('#progress-bar').style.width = `${a.progress.percent}%`;
@@ -711,6 +774,7 @@ async function newCall() {
   $('#secondary-member-field').hidden = true;
   renderAiQuestions();
   chatbot?.reset();
+  lastStatus = null;
   try {
     setQuestions(await api('/api/questions')); // pick up any admin changes
   } catch { /* keep the existing bank */ }

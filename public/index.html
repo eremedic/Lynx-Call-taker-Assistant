@@ -100,7 +100,7 @@
       <div id="chat-card" class="card chat-card">
         <div class="card-header">
           <h2 class="card-title">Intake Assistant</h2>
-          <span class="chip chip-violet">Guided chat</span>
+          <span class="chip chip-violet">One question at a time</span>
         </div>
         <div id="chat-scroll" class="chat-scroll">
           <div id="chat-history"></div>
@@ -112,8 +112,12 @@
         </form>
       </div>
 
-      <div id="ask-next" class="ask-next" aria-live="polite"></div>
+      <!-- Replaced by the Intake Assistant; kept for the shared rendering code. -->
+      <div id="ask-next" class="ask-next" hidden></div>
 
+      <details id="all-questions" class="all-questions">
+        <summary><span>All questions &amp; checklist</span><span id="all-questions-count" class="muted small"></span></summary>
+        <div class="all-questions-body">
       <div id="suggestions-card" class="card" hidden>
         <div class="card-header">
           <h2 class="card-title">Detected From Conversation</h2>
@@ -137,14 +141,20 @@
         </div>
         <div id="checklist"></div>
       </div>
+        </div>
+      </details>
     </section>
 
     <!-- ====================================================== RIGHT -->
     <section class="col right">
-      <div id="status-banner" class="status-banner status-incomplete">
+      <div id="status-banner" class="status-banner status-incomplete" aria-live="polite">
         <div class="label" id="status-label">Medical Necessity</div>
-        <div class="value" id="status-value">Gathering Information</div>
+        <div class="status-head"><span id="status-icon" class="status-icon" aria-hidden="true">…</span><div class="value" id="status-value">Gathering Information</div></div>
         <p id="status-summary"></p>
+        <div id="status-next" class="status-next" hidden>
+          <div class="status-next-title" id="status-next-title">What to do next</div>
+          <ol id="status-steps"></ol>
+        </div>
       </div>
 
       <div class="card">

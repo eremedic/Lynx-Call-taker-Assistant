@@ -37,6 +37,16 @@ export function findAskedQuestion(question, text) {
   return { start: before === -1 ? start : before, end: stop === -1 ? end : end + stop + 1 };
 }
 
+// Questions whose answer decides medical necessity "pop out" in the chat.
+const KEY_QUESTIONS = {
+  bed_confined: { tone: 'qualify', label: 'Qualifying question: bed confinement (all three needed)', answerLabel: 'Qualifies if' },
+  condition: { tone: 'qualify', label: 'Qualifying question: this condition can establish medical necessity', answerLabel: 'Qualifies if' },
+  als: { tone: 'qualify', label: 'Qualifying question: ALS-level care', answerLabel: 'Qualifies if' },
+  sct: { tone: 'qualify', label: 'Qualifying question: specialty care transport', answerLabel: 'Qualifies if' },
+  disqualifier: { tone: 'disqualify', label: 'Key question: this answer can rule out ambulance transport', answerLabel: 'Rules out if' },
+  emergency: { tone: 'emergency', label: 'Emergency screen: ask this first', answerLabel: 'Emergency if' },
+};
+
 const YES_RE = /\b(yes|yeah|yep|yup|correct|that's right|she does|he does|they do|she is|he is|absolutely|definitely)\b/i;
 const NO_RE = /\b(no|nope|not really|doesn't|does not|isn't|is not|can't|cannot|never|none)\b/i;
 
@@ -73,6 +83,7 @@ export function createChatbot({ state, setAnswer, appendTranscript, currentSugge
     finished: false,
     lastActiveHtml: '',
     spoken: [], // questions the call taker read aloud: { start, end, text }
+    popped: null, // the question whose pop-out animation already played
   };
 
   const say = (who, html) => chat.log.push({ who, html });
@@ -83,7 +94,7 @@ export function createChatbot({ state, setAnswer, appendTranscript, currentSugge
   }
 
   function reset() {
-    Object.assign(chat, { log: [], code: null, phase: 'ask', postedAt: 0, answerFrom: null, finished: false, lastActiveHtml: '', spoken: [] });
+    Object.assign(chat, { log: [], code: null, phase: 'ask', postedAt: 0, answerFrom: null, finished: false, lastActiveHtml: '', spoken: [], popped: null });
     greet();
   }
 
@@ -155,7 +166,13 @@ export function createChatbot({ state, setAnswer, appendTranscript, currentSugge
     if (chat.code) {
       const q = question(chat.code);
       const p = proposal(q);
-      parts.push(`<div class="bubble bot active">${questionBubble(q)}
+      const key = KEY_QUESTIONS[q.criterion];
+      const pop = key && chat.popped !== q.code ? ' pop-in' : '';
+      if (key) chat.popped = q.code;
+      parts.push(`<div class="bubble bot active${key ? ` key key-${key.tone}` : ''}${pop}">
+        ${key ? `<div class="key-banner"><span class="key-star" aria-hidden="true">★</span> ${esc(key.label)}
+          ${q.qualifying_answer ? `<span class="key-answer">${esc(key.answerLabel)}: <strong>${esc(formatAnswer(q.qualifying_answer.split('|')[0]))}</strong></span>` : ''}</div>` : ''}
+        ${questionBubble(q)}
         ${chat.phase === 'ask' ? `<div class="chat-actions">
           <button type="button" class="btn btn-sm btn-primary" data-chat-asked>✓ I asked it</button>
           <button type="button" class="btn btn-sm btn-ghost" data-skip="${esc(q.code)}">Skip</button>

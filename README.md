@@ -10,6 +10,11 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 
 ## Features
 
+**Call-taker console: one question at a time**
+- **One question at a time.** The Intake Assistant is the only place questions appear. The full list and checklist are folded under **All questions & checklist** for when you need them.
+- **Key questions pop out.** Qualifying questions (bed confinement, clinical conditions, ALS, SCT) pop out in a green box that shows the answer that qualifies. Questions that can rule ambulance transport out pop out in amber, and the emergency screen in red.
+- **Medical Necessity panel** (top right, always in view). It turns **green** with next steps when necessity is met: level of service, PCS, prior authorization, and confirming the trip. It turns **red** with what to do next when it isn't met: don't schedule under this payer, offer the alternative, private pay and ABN, update the answers if the condition changes, and escalate if needed. It turns **amber** when answers conflict. A pop-up message also announces each change.
+
 **Intake Assistant (guided chat)** on the call-taker console
 - **One question at a time.** The assistant posts the next question to ask, using the same ranking as *Ask next*. Questions prompted by what it heard come first.
 - **Listens for the answer.** With the microphone on, it notices when the call taker reads the question aloud, then listens to the caller's reply. Without the microphone, click **I asked it** and type the caller's reply into the chat.

@@ -548,3 +548,42 @@ body.lb-fullscreen-open { overflow: hidden; }
   background: linear-gradient(135deg, transparent 0 50%, var(--ink-400) 50% 58%, transparent 58% 70%, var(--ink-400) 70% 78%, transparent 78%); opacity: .55; }
 .lnode:hover .lnode-resize, .lnode.selected .lnode-resize { opacity: 1; }
 .lb-canvas.resizing, .lb-canvas.resizing * { cursor: nwse-resize !important; }
+
+/* ------------------------------------------- Console: one question at a time */
+.chat-scroll { max-height: 62vh; min-height: 280px; }
+.all-questions { flex: none; }
+.all-questions > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); font-weight: 700; font-size: 13px; color: var(--ink-700); box-shadow: var(--shadow); }
+.all-questions > summary::-webkit-details-marker { display: none; }
+.all-questions > summary span:first-child::before { content: '▸ '; color: var(--ink-400); }
+.all-questions[open] > summary span:first-child::before { content: '▾ '; }
+.all-questions-body { display: flex; flex-direction: column; gap: 16px; margin-top: 12px; }
+
+/* Qualifying / key questions pop out of the chat. */
+.bubble.bot.active.key { max-width: 100%; width: 100%; padding: 14px 16px; border-width: 2px; box-shadow: 0 10px 28px rgba(15, 23, 42, .16); }
+.bubble.bot.active.key .chat-q { font-size: 18px; }
+.bubble.key-qualify { border-color: var(--green-600) !important; background: linear-gradient(180deg, var(--green-50), #fff); box-shadow: inset 4px 0 0 var(--green-600), 0 10px 28px rgba(21, 128, 61, .18) !important; }
+.bubble.key-disqualify { border-color: var(--amber-600) !important; background: linear-gradient(180deg, var(--amber-50), #fff); box-shadow: inset 4px 0 0 var(--amber-600), 0 10px 28px rgba(180, 83, 9, .16) !important; }
+.bubble.key-emergency { border-color: var(--red-600) !important; background: linear-gradient(180deg, var(--red-50), #fff); box-shadow: inset 4px 0 0 var(--red-600), 0 10px 28px rgba(198, 40, 40, .16) !important; }
+.key-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.key-qualify .key-banner { color: var(--green-600); }
+.key-disqualify .key-banner { color: var(--amber-600); }
+.key-emergency .key-banner { color: var(--red-600); }
+.key-answer { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--ink-700); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+.pop-in { animation: pop-in .35s cubic-bezier(.2, .9, .3, 1.3); transform-origin: left center; }
+@keyframes pop-in { 0% { transform: scale(.92); opacity: .4; } 100% { transform: scale(1); opacity: 1; } }
+
+/* Medical Necessity panel: stays in view, turns green / red / amber. */
+.col.right > .status-banner { position: sticky; top: 0; z-index: 5; box-shadow: var(--shadow-lg); }
+.status-head { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.status-icon { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .22); font-size: 18px; font-weight: 800; }
+.status-banner .value { margin-top: 0; line-height: 1.2; }
+.status-next { margin-top: 10px; background: rgba(255, 255, 255, .14); border-radius: 8px; padding: 10px 12px; }
+.status-next-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; opacity: .9; margin-bottom: 4px; }
+.status-next ol { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.45; }
+.status-next li + li { margin-top: 4px; }
+.status-banner.flash { animation: result-flash 1.2s ease-out; }
+@keyframes result-flash { 0% { transform: scale(1.04); box-shadow: 0 0 0 8px rgba(255, 255, 255, .7), var(--shadow-lg); } 100% { transform: scale(1); } }
+.toast.warning { background: var(--amber-600); }
+@media (prefers-reduced-motion: reduce) { .pop-in, .status-banner.flash { animation: none; } }
+@media print { .all-questions > summary { display: none; } .all-questions-body { display: flex !important; } }
