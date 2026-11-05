@@ -126,6 +126,18 @@ CREATE TABLE IF NOT EXISTS ambuintake.audit_log (
 CREATE INDEX IF NOT EXISTS audit_log_created ON ambuintake.audit_log (created_at);
 CREATE INDEX IF NOT EXISTS audit_log_user ON ambuintake.audit_log (user_id);
 
+CREATE TABLE IF NOT EXISTS ambuintake.logic_flows (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  active BOOLEAN NOT NULL DEFAULT true,
+  call_types TEXT NOT NULL DEFAULT '[]',
+  payers TEXT NOT NULL DEFAULT '[]',
+  graph TEXT NOT NULL DEFAULT '{"nodes":[],"edges":[]}',
+  created_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS'),
+  updated_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')
+);
+
 -- The audit trail is append-only.
 CREATE OR REPLACE FUNCTION ambuintake.audit_log_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
   BEGIN RAISE EXCEPTION 'audit_log is append-only'; END $$;
@@ -142,6 +154,7 @@ ALTER TABLE ambuintake.login_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ambuintake.payers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ambuintake.calls ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ambuintake.audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ambuintake.logic_flows ENABLE ROW LEVEL SECURITY;
 DO $$
 DECLARE r TEXT;
 BEGIN

@@ -21,7 +21,7 @@ VALUES ('org_name', 'Your Ambulance Service')
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO ambuintake.settings (key, value)
-VALUES ('seed_version', '4')
+VALUES ('seed_version', '5')
 ON CONFLICT (key) DO NOTHING;
 
 -- Payer profiles

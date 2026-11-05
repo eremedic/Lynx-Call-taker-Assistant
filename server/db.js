@@ -40,7 +40,8 @@ const DEFAULT_SETTINGS = {
 // Seed version history:
 //   3 - CMS question bank, payer profiles, private/facility pay, brokers
 //   4 - secondary payer on calls (schema only)
-const SEED_VERSION = 4;
+//   5 - Logic Builder flows (schema only)
+const SEED_VERSION = 5;
 const CONTENT_VERSION = 3; // last version that added built-in questions/payers
 const MIGRATION_LOCK = 724_310_001;
 
@@ -164,6 +165,18 @@ export const SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS audit_log_created ON ${S}.audit_log (created_at);
   CREATE INDEX IF NOT EXISTS audit_log_user ON ${S}.audit_log (user_id);
 
+  CREATE TABLE IF NOT EXISTS ${S}.logic_flows (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    active BOOLEAN NOT NULL DEFAULT true,
+    call_types TEXT NOT NULL DEFAULT '[]',
+    payers TEXT NOT NULL DEFAULT '[]',
+    graph TEXT NOT NULL DEFAULT '{"nodes":[],"edges":[]}',
+    created_at TEXT NOT NULL DEFAULT ${NOW},
+    updated_at TEXT NOT NULL DEFAULT ${NOW}
+  );
+
   -- The audit trail is append-only.
   CREATE OR REPLACE FUNCTION ${S}.audit_log_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
     BEGIN RAISE EXCEPTION 'audit_log is append-only'; END $$;
@@ -180,6 +193,7 @@ export const SCHEMA_SQL = `
   ALTER TABLE ${S}.payers ENABLE ROW LEVEL SECURITY;
   ALTER TABLE ${S}.calls ENABLE ROW LEVEL SECURITY;
   ALTER TABLE ${S}.audit_log ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE ${S}.logic_flows ENABLE ROW LEVEL SECURITY;
   DO $$
   DECLARE r TEXT;
   BEGIN
@@ -541,6 +555,47 @@ function payerRow(input) {
     row[f] = v;
   }
   return row;
+}
+
+// ------------------------------------------------------------ logic flows
+const toFlow = (row) => row && {
+  ...row,
+  active: Boolean(row.active),
+  call_types: JSON.parse(row.call_types || '[]'),
+  payers: JSON.parse(row.payers || '[]'),
+  graph: JSON.parse(row.graph || '{"nodes":[],"edges":[]}'),
+};
+const flowRow = (input) => {
+  const row = {};
+  for (const f of ['name', 'description', 'active']) if (f in input) row[f] = input[f];
+  for (const f of ['call_types', 'payers', 'graph']) if (f in input) row[f] = JSON.stringify(input[f]);
+  return row;
+};
+
+export function flowRepo(db) {
+  return {
+    async list({ activeOnly = false } = {}) {
+      return (await db.query(`SELECT * FROM ${S}.logic_flows ${activeOnly ? 'WHERE active' : ''} ORDER BY name, id`)).map(toFlow);
+    },
+    async get(id) {
+      return toFlow((await db.query(`SELECT * FROM ${S}.logic_flows WHERE id = $1`, [id]))[0]);
+    },
+    async create(input) {
+      const p = insertParts(flowRow(input));
+      return toFlow((await db.query(`INSERT INTO ${S}.logic_flows (${p.cols}) VALUES (${p.marks}) RETURNING *`, p.values))[0]);
+    },
+    async update(id, input) {
+      const row = flowRow(input);
+      if (Object.keys(row).length) {
+        const a = assignments(row);
+        await db.query(`UPDATE ${S}.logic_flows SET ${a.sql}, updated_at = ${NOW} WHERE id = $${a.values.length + 1}`, [...a.values, id]);
+      }
+      return this.get(id);
+    },
+    async remove(id) {
+      return (await db.query(`DELETE FROM ${S}.logic_flows WHERE id = $1 RETURNING id`, [id])).length > 0;
+    },
+  };
 }
 
 export function payerRepo(db) {

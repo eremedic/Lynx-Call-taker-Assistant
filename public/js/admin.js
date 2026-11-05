@@ -1,3 +1,4 @@
+import { initLogicBuilder, showLogicBuilder, logicHasUnsavedChanges } from './logic-builder.js';
 import { api, esc, toast, showLoadFailure, requireUser, mountUserMenu, ROLE_LABELS, STATUS_LABELS, STATUS_CHIPS, CRITERION_LABELS, CRITERION_CHIPS, PRIORITY_LABELS, formatAnswer, formatDate } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -17,6 +18,12 @@ async function init() {
   $('#org-name').textContent = `${state.config.orgName || ''} · Admin Dashboard`;
   $('#app').hidden = false;
   bindEvents();
+  initLogicBuilder({
+    getQuestions: () => state.questions,
+    getPayers: () => state.payers,
+    getConfig: () => state.config,
+    openQuestion: () => openQuestion(null),
+  });
   showView(location.hash.slice(1) || 'overview');
 }
 
@@ -129,7 +136,9 @@ function bindEvents() {
 }
 
 function showView(view) {
-  if (!['overview', 'questions', 'payers', 'calls', 'users', 'audit', 'settings'].includes(view)) view = 'overview';
+  if (!['overview', 'questions', 'payers', 'logic', 'calls', 'users', 'audit', 'settings'].includes(view)) view = 'overview';
+  const current = $('[data-panel]:not([hidden])')?.dataset.panel;
+  if (current === 'logic' && view !== 'logic' && logicHasUnsavedChanges() && !confirm('Leave the Logic Builder? Your unsaved changes to this flow will stay here until you come back, but are not saved yet.')) return;
   history.replaceState(null, '', `#${view}`);
   $$('.sidenav [data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
   $$('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== view; });
@@ -139,6 +148,7 @@ function showView(view) {
   if (view === 'settings') loadSettings();
   if (view === 'users') loadUsers();
   if (view === 'payers') loadPayers();
+  if (view === 'logic') loadQuestions().then(showLogicBuilder);
   if (view === 'audit') { state.auditOffset = 0; loadAuditUsers().then(loadAudit); }
 }
 
@@ -174,6 +184,7 @@ async function loadQuestions() {
   $('#q-category').innerHTML = `<option value="">All categories</option>${cats.map((c) => `<option ${c === selected ? 'selected' : ''}>${esc(c)}</option>`).join('')}`;
   $('#category-list').innerHTML = cats.map((c) => `<option value="${esc(c)}">`).join('');
   renderQuestions();
+  document.dispatchEvent(new CustomEvent('questions-changed'));
 }
 
 function renderQuestions() {

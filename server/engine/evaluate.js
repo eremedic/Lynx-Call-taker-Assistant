@@ -4,6 +4,7 @@
 // This is decision support for the call taker, not a coverage determination.
 
 import { detectAnswers, detectTriggers } from './detect.js';
+import { runFlows, STATUS_SEVERITY, LEVEL_RANK, STATUS_OPTIONS } from '../../public/js/flow-logic.js';
 
 export const CALL_TYPES = {
   emergency: 'Emergency',
@@ -55,7 +56,7 @@ function applyPriorAuthPolicy(q, policy) {
   return policy === 'required' ? { ...q, required: true } : q;
 }
 
-export function evaluateCall({ callType = 'non_emergency', questions = [], answers = {}, transcript = '', payer = null, brokers = [] }) {
+export function evaluateCall({ callType = 'non_emergency', questions = [], answers = {}, transcript = '', payer = null, brokers = [], flows = [] }) {
   const policy = payer?.prior_auth?.[callType] || null;
   const skipNecessity = skipsNecessity(payer);
   const active = questions
@@ -69,7 +70,10 @@ export function evaluateCall({ callType = 'non_emergency', questions = [], answe
   // A question is shown when it has no triggers (core question), its trigger
   // words were heard, or it was already answered. Follow-ups also require
   // their parent question to have the specified answer.
+  // Logic Builder flows can hold a question back until earlier answers call for it.
+  const rules = runFlows(flows, { answers, callType, payer });
   const visible = active.filter((q) => {
+    if (rules.hidden.has(q.code)) return false;
     if (q.depends_on_code && !sameAnswer(answers[q.depends_on_code], q.depends_on_answer)) return false;
     const hasTriggers = (q.triggers || []).length > 0;
     return !hasTriggers || triggered.has(q.code) || isAnswered(answers[q.code]) || Boolean(suggestions[q.code]);
@@ -95,8 +99,41 @@ export function evaluateCall({ callType = 'non_emergency', questions = [], answe
     suggestions: openSuggestions,
     nextQuestion: queue[0]?.code || null,
     queue: queue.slice(0, 5).map((q) => q.code),
-    assessment: assess({ callType, visible, answers, payer, policy, brokers }),
+    assessment: applyRuleOutcomes(assess({ callType, visible, answers, payer, policy, brokers }), rules.outcomes, callType),
   };
+}
+
+const RULE_LEVELS = {
+  sct: () => LEVELS.sct,
+  als: (callType) => (callType === 'emergency' ? LEVELS.als_emergency : LEVELS.als),
+  bls: (callType) => (callType === 'emergency' ? LEVELS.bls_emergency : LEVELS.bls),
+  none: () => LEVELS.none,
+};
+
+// Applies the outcomes that fired in Logic Builder flows. Alerts and
+// documentation reminders always apply. Results and levels of service override
+// the built-in assessment, except for payers that need no necessity review.
+function applyRuleOutcomes(a, outcomes, callType) {
+  if (!outcomes.length) return a;
+  const out = { ...a, alerts: [...a.alerts], documentation: [...a.documentation], rules: [] };
+  let status = null;
+  let level = null;
+  for (const { flow, node } of outcomes) {
+    out.rules.push({ flow: flow.name, kind: node.kind, value: node.value || null, text: node.text || '' });
+    if (node.kind === 'alert') out.alerts.push({ level: node.value || 'warning', text: node.text, code: `RULE_${flow.id}` });
+    if (node.kind === 'document') out.documentation.push(node.text);
+    if (node.kind === 'status' && (!status || STATUS_SEVERITY[node.value] > STATUS_SEVERITY[status.node.value])) status = { flow, node };
+    if (node.kind === 'level' && (!level || LEVEL_RANK[node.value] > LEVEL_RANK[level.node.value])) level = { flow, node };
+  }
+  if (a.status === 'not_required') return out;
+  if (status) {
+    out.status = status.node.value;
+    out.summary = `${String(status.node.text || '').trim() || STATUS_OPTIONS[status.node.value]} (rule: ${status.flow.name})`;
+  }
+  if (level) out.levelOfService = RULE_LEVELS[level.node.value](callType);
+  else if (status?.node.value === 'not_met') out.levelOfService = LEVELS.none;
+  else if (status && [LEVELS.pending, LEVELS.none].includes(a.levelOfService)) out.levelOfService = RULE_LEVELS.bls(callType); // met by rule: at least BLS
+  return out;
 }
 
 function payerSummary(payer, policy, brokers) {

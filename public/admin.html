@@ -27,6 +27,7 @@
         <button type="button" data-view="overview" class="active"><span class="nav-icon">◧</span>Overview</button>
         <button type="button" data-view="questions"><span class="nav-icon">☰</span>Question Bank</button>
         <button type="button" data-view="payers"><span class="nav-icon">$</span>Payers &amp; Brokers</button>
+        <button type="button" data-view="logic"><span class="nav-icon">⧓</span>Logic Builder</button>
         <button type="button" data-view="calls"><span class="nav-icon">☏</span>Call Log</button>
         <button type="button" data-view="users"><span class="nav-icon">◉</span>Users</button>
         <button type="button" data-view="audit"><span class="nav-icon">⧉</span>Audit Log</button>
@@ -119,6 +120,63 @@
         </section>
 
         <!-- ---------------------------------------------------- calls -->
+        <section data-panel="logic" hidden>
+          <div class="page-head">
+            <div><h1>Logic Builder</h1><p>Drag questions and outcomes onto the canvas, then drag from an answer’s dot to another box to connect them. Several lines can lead into one box: choose whether <strong>all</strong> of them or <strong>any</strong> of them must match.</p></div>
+            <div style="display: flex; gap: 8px"><button id="lb-example" class="btn" type="button">Load example</button><button id="lb-new" class="btn btn-primary" type="button">+ New flow</button></div>
+          </div>
+
+          <div id="lb-start" class="card lb-start">
+            <h2>No logic flows yet</h2>
+            <p>A flow links answers to outcomes. For example: <em>can’t get up from bed</em> + <em>can’t walk</em> + <em>can’t sit in a wheelchair</em> → <strong>Meets criteria</strong>. Flows can also hold a follow-up question back until a certain answer is given.</p>
+            <div style="display: flex; gap: 8px; justify-content: center"><button id="lb-start-example" class="btn" type="button">Start from an example</button><button id="lb-start-new" class="btn btn-primary" type="button">Start a blank flow</button></div>
+          </div>
+
+          <div id="lb-workspace" hidden>
+            <div class="card lb-toolbar">
+              <select id="lb-flow" class="select" aria-label="Choose a flow"></select>
+              <input id="lb-name" class="input" placeholder="Flow name" aria-label="Flow name" maxlength="120">
+              <label class="switch" title="Only active flows affect calls"><input type="checkbox" id="lb-active"><span class="track"></span><span>Active</span></label>
+              <button id="lb-scope" class="btn btn-sm" type="button">Applies to: All calls</button>
+              <span class="spacer"></span>
+              <label class="switch" title="Try answers and watch the lines light up"><input type="checkbox" id="lb-test"><span class="track"></span><span>Test mode</span></label>
+              <span id="lb-unsaved" class="chip chip-amber" hidden>Unsaved changes</span>
+              <button id="lb-delete" class="btn btn-sm btn-danger" type="button">Delete</button>
+              <button id="lb-save" class="btn btn-primary" type="button">Save flow</button>
+            </div>
+            <div id="lb-scope-panel" class="card lb-scope" hidden>
+              <div><div class="section-label">Call types <span class="muted small">(none checked = all)</span></div><div id="lb-scope-types" class="check-list"></div></div>
+              <div><div class="section-label">Payers <span class="muted small">(none checked = all)</span></div><div id="lb-scope-payers" class="check-list"></div></div>
+            </div>
+            <div id="lb-errors" class="alert alert-critical" role="alert" hidden></div>
+            <div id="lb-test-summary" class="alert alert-info lb-test-summary" hidden></div>
+
+            <div class="lb-layout">
+              <aside id="lb-palette" class="card lb-palette" aria-label="Boxes to add">
+                <div class="lb-pal-section">Outcomes</div>
+                <div class="lb-pal-item outcome kind-status" draggable="true" data-add-outcome="status"><span class="lb-pal-text">✓ Medical-necessity result</span><span class="lb-pal-meta">Meets / likely / review / does not meet</span></div>
+                <div class="lb-pal-item outcome kind-level" draggable="true" data-add-outcome="level"><span class="lb-pal-text">⬆ Level of service</span><span class="lb-pal-meta">BLS / ALS / SCT</span></div>
+                <div class="lb-pal-item outcome kind-alert" draggable="true" data-add-outcome="alert"><span class="lb-pal-text">! Alert to the call taker</span><span class="lb-pal-meta">Shown on the console</span></div>
+                <div class="lb-pal-item outcome kind-document" draggable="true" data-add-outcome="document"><span class="lb-pal-text">✎ Documentation reminder</span><span class="lb-pal-meta">Added to the checklist</span></div>
+                <div class="lb-pal-section" style="display: flex; justify-content: space-between; align-items: center">Questions <button id="lb-new-question" class="btn btn-sm" type="button">+ New question</button></div>
+                <input id="lb-search" class="input" type="search" placeholder="Search questions" aria-label="Search questions">
+                <div id="lb-questions" class="lb-pal-list"></div>
+              </aside>
+
+              <div id="lb-canvas" class="lb-canvas" tabindex="0" aria-label="Logic canvas">
+                <div id="lb-world" class="lb-world">
+                  <svg id="lb-edges" class="lb-edges" aria-hidden="true"></svg>
+                  <div id="lb-nodes"></div>
+                  <button id="lb-edge-del" class="lb-edge-del" type="button" aria-label="Delete line" hidden>×</button>
+                </div>
+                <div id="lb-empty" class="lb-empty">Drag a question or an outcome here from the list on the left.</div>
+                <div class="lb-zoom"><button type="button" class="btn btn-sm" data-zoom="in" aria-label="Zoom in">+</button><button type="button" class="btn btn-sm" data-zoom="out" aria-label="Zoom out">−</button><button type="button" class="btn btn-sm" data-zoom="fit">Fit</button></div>
+                <div class="lb-hint">Drag a box by its header · drag from an answer’s dot to connect · click a line, then press Delete · drag the background to move around · scroll to zoom</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section data-panel="calls" hidden>
           <div class="page-head">
             <div><h1>Call Log</h1><p>Saved call records with their medical-necessity assessment.</p></div>

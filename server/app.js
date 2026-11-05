@@ -1,7 +1,8 @@
 import express from 'express';
 import {
-  questionRepo, callRepo, settingsRepo, userRepo, sessionRepo, auditRepo, payerRepo, lockoutRepo, PAYER_FIELDS,
+  questionRepo, callRepo, settingsRepo, userRepo, sessionRepo, auditRepo, payerRepo, lockoutRepo, flowRepo, PAYER_FIELDS,
 } from './db.js';
+import { validateGraph } from '../public/js/flow-logic.js';
 import { PRIOR_AUTH_POLICIES } from './seed-payers.js';
 import { evaluateCall, appliesToPayer, skipsNecessity, CALL_TYPES } from './engine/evaluate.js';
 import { CATEGORIES } from './seed-questions.js';
@@ -158,6 +159,7 @@ export function createApp({ db, staticDir = null }) {
   const sessions = sessionRepo(db);
   const audit = auditRepo(db);
   const payers = payerRepo(db);
+  const flows = flowRepo(db);
   const lockout = lockoutRepo(db);
 
   const activePayer = async (code) => {
@@ -315,8 +317,8 @@ export function createApp({ db, staticDir = null }) {
   app.post('/api/evaluate', requireAuth, async (req, res) => {
     const { callType = 'non_emergency', answers = {}, transcript = '', payer = '' } = req.body || {};
     if (!(callType in CALL_TYPES)) return res.status(400).json({ error: 'Invalid call type.' });
-    const [context, bank] = await Promise.all([payerContext(payer), questions.list({ activeOnly: true })]);
-    res.json(evaluateCall({ callType, answers, transcript, ...context, questions: bank }));
+    const [context, bank, rules] = await Promise.all([payerContext(payer), questions.list({ activeOnly: true }), flows.list({ activeOnly: true })]);
+    res.json(evaluateCall({ callType, answers, transcript, ...context, questions: bank, flows: rules }));
   });
 
   app.post('/api/ai/analyze', requireAuth, async (req, res) => {
@@ -351,7 +353,7 @@ export function createApp({ db, staticDir = null }) {
     if (secondaryCode && !secondary) return { error: 'Unknown secondary payer.' };
     // The primary payer's rules drive the medical-necessity review.
     const { payer, brokers } = await payerContext(payerCode);
-    const { assessment } = evaluateCall({ callType, answers, transcript, payer, brokers, questions: await questions.list({ activeOnly: true }) });
+    const { assessment } = evaluateCall({ callType, answers, transcript, payer, brokers, questions: await questions.list({ activeOnly: true }), flows: await flows.list({ activeOnly: true }) });
     return { callType, payer: payer?.code, secondaryPayer: secondary?.code, details, answers, transcript, assessment };
   };
   // Call takers can reach their own calls; administrators can reach any call.
@@ -433,6 +435,8 @@ export function createApp({ db, staticDir = null }) {
     const existing = await questions.get(Number(req.params.id) || 0);
     if (!existing) return res.status(404).json({ error: 'Question not found.' });
     if (existing.is_system) return res.status(400).json({ error: 'Built-in questions cannot be deleted. Deactivate it instead.' });
+    const inFlows = (await flows.list()).filter((f) => f.graph.nodes.some((n) => n.type === 'question' && n.code === existing.code)).map((f) => f.name);
+    if (inFlows.length) return res.status(400).json({ error: `This question is used in these Logic Builder flows. Remove it from them first: ${inFlows.join(', ')}.` });
     await questions.remove(existing.id);
     await log(req, 'question.deleted', { entityType: 'question', entityId: existing.code, details: { text: existing.text } });
     res.status(204).end();
@@ -484,6 +488,63 @@ export function createApp({ db, staticDir = null }) {
     if (used.length) return res.status(400).json({ error: `Remove this payer from these questions first: ${used.join(', ')}.` });
     await payers.remove(existing.id);
     await log(req, 'payer.deleted', { entityType: 'payer', entityId: existing.code, details: { name: existing.name } });
+    res.status(204).end();
+  });
+
+  // ----------------------------------------------- admin: logic flows
+  const flowInput = async (body = {}, { partial = false } = {}) => {
+    const input = {};
+    const errors = [];
+    if (!partial || 'name' in body) {
+      input.name = String(body.name || '').trim().slice(0, 120);
+      if (!input.name) errors.push('Give the flow a name.');
+    }
+    if ('description' in body) input.description = String(body.description || '').slice(0, 2000);
+    if ('active' in body) input.active = Boolean(body.active);
+    if ('call_types' in body) {
+      input.call_types = Array.isArray(body.call_types) ? body.call_types.map(String) : [];
+      if (input.call_types.some((t) => !(t in CALL_TYPES))) errors.push('Invalid call type.');
+    }
+    if ('payers' in body) {
+      input.payers = Array.isArray(body.payers) ? body.payers.map(String) : [];
+      const codes = new Set((await payers.list()).map((x) => x.code));
+      if (input.payers.some((c) => !codes.has(c))) errors.push('Unknown payer.');
+    }
+    if (!partial || 'graph' in body) {
+      const g = body.graph || { nodes: [], edges: [] };
+      input.graph = { nodes: Array.isArray(g.nodes) ? g.nodes : [], edges: Array.isArray(g.edges) ? g.edges : [] };
+      if (JSON.stringify(input.graph).length > 500_000) errors.push('The flow is too large.');
+      else errors.push(...validateGraph(input.graph, new Map((await questions.list()).map((q) => [q.code, q]))));
+    }
+    return { input, errors };
+  };
+  const flowSummary = (f) => ({ name: f.name, active: f.active, call_types: f.call_types, payers: f.payers, boxes: f.graph.nodes.length, lines: f.graph.edges.length });
+
+  app.get('/api/admin/flows', requireAdmin, async (req, res) => res.json(await flows.list()));
+
+  app.post('/api/admin/flows', requireAdmin, async (req, res) => {
+    const { input, errors } = await flowInput(req.body);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), errors });
+    const flow = await flows.create(input);
+    await log(req, 'flow.created', { entityType: 'flow', entityId: flow.id, details: flowSummary(flow) });
+    res.status(201).json(flow);
+  });
+
+  app.put('/api/admin/flows/:id', requireAdmin, async (req, res) => {
+    const existing = await flows.get(Number(req.params.id) || 0);
+    if (!existing) return res.status(404).json({ error: 'Flow not found.' });
+    const { input, errors } = await flowInput(req.body, { partial: true });
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), errors });
+    const updated = await flows.update(existing.id, input);
+    await log(req, 'flow.updated', { entityType: 'flow', entityId: existing.id, details: { before: flowSummary(existing), after: flowSummary(updated), graph_changed: JSON.stringify(existing.graph) !== JSON.stringify(updated.graph) } });
+    res.json(updated);
+  });
+
+  app.delete('/api/admin/flows/:id', requireAdmin, async (req, res) => {
+    const existing = await flows.get(Number(req.params.id) || 0);
+    if (!existing) return res.status(404).json({ error: 'Flow not found.' });
+    await flows.remove(existing.id);
+    await log(req, 'flow.deleted', { entityType: 'flow', entityId: existing.id, details: flowSummary(existing) });
     res.status(204).end();
   });
 

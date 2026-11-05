@@ -391,3 +391,42 @@ test('administrators can set a user password themselves', async () => {
   assert.equal(reset.data.user.must_change_password, true, 'a change is required unless the admin says otherwise');
   assert.equal((await client()('/api/auth/login', { method: 'POST', body: { username: 'asmith', password: 'Second-pass-2026' } })).status, 200);
 });
+
+test('admins build logic flows that change how calls are evaluated', async () => {
+  const graph = {
+    nodes: [
+      { id: 'n1', type: 'question', code: 'BED_GET_UP', x: 0, y: 0 },
+      { id: 'n2', type: 'question', code: 'BED_SIT', x: 0, y: 200 },
+      { id: 'n3', type: 'outcome', kind: 'alert', value: 'critical', text: 'Rule fired: send a supervisor.', match: 'all', x: 400, y: 100 },
+    ],
+    edges: [{ from: 'n1', port: 'yes', to: 'n3' }, { from: 'n2', port: 'yes', to: 'n3' }],
+  };
+  assert.equal((await taker('/api/admin/flows')).status, 403, 'call takers cannot see flows');
+  const bad = await admin('/api/admin/flows', { method: 'POST', body: { name: 'Broken', graph: { nodes: [{ id: 'x', type: 'question', code: 'NOPE' }], edges: [] } } });
+  assert.equal(bad.status, 400);
+  assert.match(bad.data.error, /no longer exists/);
+
+  const created = await admin('/api/admin/flows', { method: 'POST', body: { name: 'Supervisor rule', active: true, graph } });
+  assert.equal(created.status, 201);
+  const answers = { BED_GET_UP: 'yes', BED_SIT: 'yes' };
+  const ev = (await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'medicare', answers } })).data;
+  assert.ok(ev.assessment.alerts.some((a) => a.text === 'Rule fired: send a supervisor.'));
+
+  // Scoped to another payer: no longer applies to Medicare calls.
+  const scoped = await admin(`/api/admin/flows/${created.data.id}`, { method: 'PUT', body: { payers: ['medicaid'] } });
+  assert.equal(scoped.status, 200);
+  const ev2 = (await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: 'medicare', answers } })).data;
+  assert.ok(!ev2.assessment.alerts.some((a) => a.text === 'Rule fired: send a supervisor.'));
+
+  // A question used in a flow can't be deleted out from under it.
+  const custom = (await admin('/api/admin/questions', { method: 'POST', body: { code: 'CUST_FLOW_Q', category: 'Clinical', text: 'Custom flow question?', answer_type: 'yes_no', criterion: 'info' } })).data;
+  await admin(`/api/admin/flows/${created.data.id}`, { method: 'PUT', body: { graph: { nodes: [...graph.nodes, { id: 'n4', type: 'question', code: 'CUST_FLOW_Q', x: 0, y: 400 }], edges: graph.edges } } });
+  const del = await admin(`/api/admin/questions/${custom.id}`, { method: 'DELETE' });
+  assert.equal(del.status, 400);
+  assert.match(del.data.error, /Supervisor rule/);
+
+  assert.equal((await admin(`/api/admin/flows/${created.data.id}`, { method: 'DELETE' })).status, 204);
+  assert.equal((await admin(`/api/admin/questions/${custom.id}`, { method: 'DELETE' })).status, 204);
+  const actions = await auditActions();
+  for (const a of ['flow.created', 'flow.updated', 'flow.deleted']) assert.ok(actions.includes(a), a);
+});

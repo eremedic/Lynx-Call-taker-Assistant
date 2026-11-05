@@ -17,6 +17,15 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 - **Picks up other answers.** Answers to other questions heard along the way are listed for one-click acceptance. The call taker's spoken questions are ignored when looking for answers, so a question's own words aren't mistaken for the caller's reply.
 - **Stays in sync with the rest of the console.** Answers recorded in the chat, the checklist or *Ask next* all update the same call.
 
+**Logic Builder** (Admin → Logic Builder)
+- **Drag and drop.** Drag questions from the question bank and outcome boxes onto a canvas. Move boxes by their header. Drag the background to move around, and scroll or use + / − / Fit to zoom. **+ New question** adds a question to the bank without leaving the screen.
+- **Connect answers with lines.** Every answer has a dot: Yes (green), No (red), each choice, "any answer", and number ranges such as "≥ 300". Drag from a dot to another box. One answer can feed several boxes, and several lines can come into one box. A box with several lines in it fires when **all** of them match or when **any** one matches, whichever you choose. Click a line and press Delete, or use its ×, to remove it.
+- **Outcomes:** a medical-necessity result (meets / likely / review / does not meet, with an optional explanation), a level of service (BLS / ALS / SCT / not indicated), an alert shown to the call taker, or a documentation reminder.
+- **Follow-up questions.** A line into a *question* box means that question is only asked once the lines coming in match. The console's checklist and the Intake Assistant follow this.
+- **Test mode.** Pick answers in the boxes and watch which lines and outcomes switch on before saving.
+- **How rules combine with the built-in CMS logic.** Alerts and documentation reminders are added. A rule's result and level of service replace the built-in ones. If several rules fire, the most cautious result and the highest level of care win. Payers that need no necessity review, such as private pay or facility pay, keep "not required".
+- **Scope and safety.** Each flow can be limited to call types and payers, and switched on or off. Flows are checked before saving: no loops, no missing questions, no empty outcomes. A question used in a flow can't be deleted. Every change is recorded in the audit log.
+
 **Accounts and sign-in** (`/login.html`)
 - **Two roles.** *Call Taker* uses the console. *Administrator* also manages questions, users, settings, and the audit log.
 - **Passwords set by an administrator.** When adding a user or resetting a password, the administrator either types the password, and chooses whether the user must change it at first sign-in, or lets AmbuIntake generate a temporary one, which is shown once and must be changed at first sign-in. Passwords need at least 10 characters with letters and numbers, and can't contain the username.
