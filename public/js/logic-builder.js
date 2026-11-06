@@ -86,6 +86,7 @@ function openFlow(flow) {
   $('#lb-errors').hidden = true;
   renderFlowPicker();
   renderAll();
+  renderPalette(); // mark this flow's questions as on the canvas
   requestAnimationFrame(fitView);
 }
 
@@ -121,15 +122,53 @@ function scopeLabel() {
   return parts.join(' · ') || 'All calls';
 }
 
+const CRITERION_SHORT = {
+  emergency: 'Emergency', bed_confined: 'Bed confinement', condition: 'Condition', als: 'ALS', sct: 'SCT',
+  disqualifier: 'Rules out', documentation: 'Documentation', prior_auth: 'Prior auth', info: 'Information',
+};
+const ANSWER_SHORT = { yes_no: 'Yes / No', choice: 'Choice', number: 'Number', text: 'Text' };
+
+// The question list: grouped by category, searchable, each with an Add button.
 function renderPalette() {
   const term = $('#lb-search').value.trim().toLowerCase();
+  const cat = $('#lb-category').value;
+  const all = deps.getQuestions();
   const onCanvas = new Set((ed.flow?.graph.nodes || []).filter((n) => n.type === 'question').map((n) => n.code));
-  const list = deps.getQuestions().filter((q) => !term || `${q.text} ${q.code} ${q.category}`.toLowerCase().includes(term));
-  $('#lb-questions').innerHTML = list.map((q) => `
-    <div class="lb-pal-item ${onCanvas.has(q.code) ? 'used' : ''}" draggable="true" data-add-question="${esc(q.code)}" title="Drag onto the canvas, or click to add">
-      <span class="lb-pal-text">${esc(q.text)}</span>
-      <span class="lb-pal-meta">${esc(q.category)} · ${esc(q.answer_type.replace('_', '/'))}${onCanvas.has(q.code) ? ' · on canvas' : ''}${q.active ? '' : ' · inactive'}</span>
-    </div>`).join('') || '<div class="muted small" style="padding: 8px">No matching questions.</div>';
+
+  // Category filter options (keep the current choice).
+  const cats = [...new Set(all.map((q) => q.category))];
+  $('#lb-category').innerHTML = `<option value="">All categories (${all.length})</option>`
+    + cats.map((c) => `<option value="${esc(c)}" ${c === cat ? 'selected' : ''}>${esc(c)} (${all.filter((q) => q.category === c).length})</option>`).join('');
+
+  const list = all.filter((q) => (!cat || q.category === cat)
+    && (!term || `${q.text} ${q.code} ${q.category} ${CRITERION_SHORT[q.criterion] || ''}`.toLowerCase().includes(term)));
+  $('#lb-q-total').textContent = String(all.length);
+
+  const groups = new Map();
+  for (const q of list) {
+    if (!groups.has(q.category)) groups.set(q.category, []);
+    groups.get(q.category).push(q);
+  }
+  $('#lb-questions').innerHTML = [...groups].map(([category, qs]) => `
+    <div class="lb-pal-group">
+      <div class="lb-pal-group-head">${esc(category)} <span>${qs.length}</span></div>
+      ${qs.map((q) => {
+        const used = onCanvas.has(q.code);
+        return `
+        <div class="lb-q ${used ? 'used' : ''}" draggable="true" data-add-question="${esc(q.code)}" title="${esc(q.text)}
+
+Drag onto the canvas, or click + Add.">
+          <div class="lb-q-text">${esc(q.text)}</div>
+          <div class="lb-q-meta">
+            <span class="lb-tag tag-${esc(q.criterion)}">${esc(CRITERION_SHORT[q.criterion] || q.criterion)}</span>
+            <span class="lb-tag">${esc(ANSWER_SHORT[q.answer_type] || q.answer_type)}</span>
+            ${q.active ? '' : '<span class="lb-tag tag-inactive">Inactive</span>'}
+            ${used ? '<span class="lb-tag tag-used">✓ On canvas</span>' : ''}
+            <button type="button" class="btn btn-sm lb-q-add" tabindex="-1">${used ? 'Show' : '+ Add'}</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('') || `<div class="lb-pal-empty">No questions match${term ? ` “${esc(term)}”` : ''}.<br><button type="button" class="btn btn-sm" data-pal-clear>Clear search</button></div>`;
 }
 
 function renderAll() {
@@ -612,6 +651,22 @@ function bind() {
     markChanged();
   });
   $('#lb-search').addEventListener('input', renderPalette);
+  $('#lb-category').addEventListener('change', renderPalette);
+  // Palette tabs: Questions / Start & outcomes.
+  $('#lb-palette').addEventListener('click', (e) => {
+    const tab = e.target.closest('[data-pal-tab]');
+    if (tab) {
+      $$('[data-pal-tab]').forEach((b) => { const on = b === tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', String(on)); });
+      $$('[data-pal-pane]').forEach((p) => { p.hidden = p.dataset.palPane !== tab.dataset.palTab; });
+      if (tab.dataset.palTab === 'questions') $('#lb-search').focus();
+      return;
+    }
+    if (e.target.closest('[data-pal-clear]')) {
+      $('#lb-search').value = '';
+      $('#lb-category').value = '';
+      renderPalette();
+    }
+  });
   // A question created from here drops onto the canvas once it is saved.
   let codesBeforeNew = null;
   $('#lb-new-question').addEventListener('click', () => {

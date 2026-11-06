@@ -179,6 +179,12 @@
 
             <div class="lb-layout">
               <aside id="lb-palette" class="card lb-palette" aria-label="Boxes to add">
+                <div class="lb-pal-tabs" role="tablist" aria-label="Add to the canvas">
+                  <button type="button" role="tab" class="active" aria-selected="true" data-pal-tab="questions">Questions <span id="lb-q-total" class="lb-pal-badge"></span></button>
+                  <button type="button" role="tab" aria-selected="false" data-pal-tab="boxes">Start &amp; outcomes</button>
+                </div>
+
+                <div class="lb-pal-pane" data-pal-pane="boxes" hidden>
                 <div class="lb-pal-section">Start a tree</div>
                 <div class="lb-pal-item condition" draggable="true" data-add-condition="payer"><span class="lb-pal-text">◆ Payer is…</span><span class="lb-pal-meta">Yes / No for the chosen insurance</span></div>
                 <div class="lb-pal-item condition" draggable="true" data-add-condition="level"><span class="lb-pal-text">◆ Level is…</span><span class="lb-pal-meta">BLS / ALS / SCT</span></div>
@@ -188,9 +194,19 @@
                 <div class="lb-pal-item outcome kind-level" draggable="true" data-add-outcome="level"><span class="lb-pal-text">⬆ Level of service</span><span class="lb-pal-meta">BLS / ALS / SCT</span></div>
                 <div class="lb-pal-item outcome kind-alert" draggable="true" data-add-outcome="alert"><span class="lb-pal-text">! Alert to the call taker</span><span class="lb-pal-meta">Shown on the console</span></div>
                 <div class="lb-pal-item outcome kind-document" draggable="true" data-add-outcome="document"><span class="lb-pal-text">✎ Documentation reminder</span><span class="lb-pal-meta">Added to the checklist</span></div>
-                <div class="lb-pal-section" style="display: flex; justify-content: space-between; align-items: center">Questions <button id="lb-new-question" class="btn btn-sm" type="button">+ New question</button></div>
-                <input id="lb-search" class="input" type="search" placeholder="Search questions" aria-label="Search questions">
-                <div id="lb-questions" class="lb-pal-list"></div>
+                <p class="lb-pal-help">Drag a box onto the canvas, or click it to add it in the middle.</p>
+                </div>
+
+                <div class="lb-pal-pane" data-pal-pane="questions">
+                  <div class="lb-pal-tools">
+                    <input id="lb-search" class="input" type="search" placeholder="Search questions…" aria-label="Search questions">
+                    <div class="lb-pal-filters">
+                      <select id="lb-category" class="select" aria-label="Category"><option value="">All categories</option></select>
+                      <button id="lb-new-question" class="btn btn-sm" type="button">+ New</button>
+                    </div>
+                  </div>
+                  <div id="lb-questions" class="lb-pal-list"></div>
+                </div>
               </aside>
 
               <div id="lb-canvas" class="lb-canvas" tabindex="0" aria-label="Logic canvas">
