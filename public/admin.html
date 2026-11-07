@@ -93,7 +93,7 @@
         <section data-panel="payers" hidden>
           <div class="page-head">
             <div><h1>Payers &amp; Brokers</h1><p>Payer-specific rules: prior authorization by call type, certification and documentation requirements, and where to refer patients who don't qualify for ambulance transport.</p></div>
-            <div style="display: flex; gap: 8px"><button id="add-broker" class="btn" type="button">+ Add Broker</button><button id="add-payer" class="btn btn-primary" type="button">+ Add Payer</button></div>
+            <div style="display: flex; gap: 8px"><button id="import-payers" class="btn" type="button">⇪ Import</button><button id="add-broker" class="btn" type="button">+ Add Broker</button><button id="add-payer" class="btn btn-primary" type="button">+ Add Payer</button></div>
           </div>
           <div class="alert alert-info" style="margin-bottom: 16px"><span class="icon">i</span><span>Medicaid and Medicare Advantage rules vary by state and plan. Review the built-in profiles against your state Medicaid provider manual and your contracted plans, and add a separate profile for each state program or plan whose rules differ.</span></div>
           <div class="card">
@@ -124,7 +124,7 @@
         <section data-panel="facilities" hidden>
           <div class="page-head">
             <div><h1>Facilities</h1><p>Pickup and destination facilities that call takers choose in Call Setup. Call takers add facilities as they take calls. Here you can correct details, merge duplicates by removing the extra, or take a facility off the list.</p></div>
-            <button id="add-facility" class="btn btn-primary" type="button">+ Add Facility</button>
+            <div style="display: flex; gap: 8px"><button id="import-facilities" class="btn" type="button">⇪ Import</button><button id="add-facility" class="btn btn-primary" type="button">+ Add Facility</button></div>
           </div>
           <div class="card">
             <div class="card-header" style="gap: 10px; flex-wrap: wrap">
@@ -436,6 +436,39 @@
         <button type="submit" class="btn btn-primary">Save question</button>
       </div>
     </form>
+  </div>
+
+  <!-- ==================================================== IMPORT MODAL -->
+  <div id="import-modal" class="modal-backdrop" hidden>
+    <div class="modal import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title">
+      <div class="modal-head">
+        <h2 id="import-title">Import</h2>
+        <button type="button" class="btn btn-ghost btn-sm" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="import-intro" class="small" style="margin-top: 0"></p>
+        <label id="import-drop" class="import-drop">
+          <input id="import-file" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv">
+          <span class="import-drop-icon" aria-hidden="true">⇪</span>
+          <span><strong>Choose a file</strong> or drag it here</span>
+          <span class="small muted">CSV or Excel (.xlsx), up to 5,000 rows</span>
+        </label>
+        <p id="import-error" class="small" style="color: var(--red-600)" role="alert" hidden></p>
+
+        <div id="import-step-map" hidden>
+          <div class="section-label">1. Match your columns <span id="import-file-name" class="muted" style="text-transform: none; letter-spacing: 0; font-weight: 600"></span></div>
+          <div id="import-mapping" class="import-mapping"></div>
+          <label class="switch" style="margin-top: 10px"><input type="checkbox" id="import-update" checked><span class="track"></span><span>Update records that are already saved (matched by ID, or by name)</span></label>
+          <div class="section-label">2. Check the rows</div>
+          <div id="import-summary" class="import-summary"></div>
+          <div id="import-preview" class="import-preview"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="button" class="btn btn-primary" id="import-run" disabled>Import</button>
+      </div>
+    </div>
   </div>
 
   <!-- ================================================== FACILITY MODAL -->

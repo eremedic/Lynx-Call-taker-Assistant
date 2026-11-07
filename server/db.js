@@ -41,7 +41,8 @@ const DEFAULT_SETTINGS = {
 //   5 - Logic Builder flows (schema only)
 //   6 - saved pickup facilities (schema only)
 //   7 - only private pay and facility pay may skip the necessity review
-const SEED_VERSION = 7;
+//   8 - external IDs on payers and facilities, for imports (schema only)
+const SEED_VERSION = 8;
 const CONTENT_VERSION = 3; // last version that added built-in questions/payers
 const MIGRATION_LOCK = 724_310_001;
 
@@ -190,6 +191,10 @@ export const SCHEMA_SQL = `
     updated_at TEXT NOT NULL DEFAULT ${NOW}
   );
   CREATE UNIQUE INDEX IF NOT EXISTS facilities_name ON ${S}.facilities (lower(name));
+  -- The record's ID in another system (e.g. a dispatch/billing export), so
+  -- re-importing a list updates the same records.
+  ALTER TABLE ${S}.facilities ADD COLUMN IF NOT EXISTS external_id TEXT NOT NULL DEFAULT '';
+  ALTER TABLE ${S}.payers ADD COLUMN IF NOT EXISTS external_id TEXT NOT NULL DEFAULT '';
 
   -- The audit trail is append-only.
   CREATE OR REPLACE FUNCTION ${S}.audit_log_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -549,7 +554,7 @@ export function auditRepo(db) {
 // ----------------------------------------------------------------- payers
 export const PAYER_FIELDS = ['code', 'name', 'kind', 'parent_code', 'description', 'requires_medical_necessity', 'prior_auth',
   'prior_auth_note', 'certification', 'documentation', 'alternate_transport', 'contact_name', 'contact_phone', 'contact_fax',
-  'contact_email', 'contact_url', 'sort_order', 'active'];
+  'contact_email', 'contact_url', 'sort_order', 'active', 'external_id'];
 
 const toPayer = (row) => row && {
   ...row,
@@ -578,7 +583,7 @@ function payerRow(input) {
 }
 
 // ------------------------------------------------------------- facilities
-export const FACILITY_FIELDS = ['name', 'address', 'phone', 'contact_name', 'contact_email', 'active'];
+export const FACILITY_FIELDS = ['name', 'address', 'phone', 'contact_name', 'contact_email', 'active', 'external_id'];
 const toFacility = (row) => row && { ...row, active: Boolean(row.active) };
 
 export function facilityRepo(db) {

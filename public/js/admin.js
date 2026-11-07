@@ -1,4 +1,5 @@
 import { initLogicBuilder, showLogicBuilder, logicHasUnsavedChanges, isFullscreen as logicIsFullscreen } from './logic-builder.js';
+import { openImport, bindImport } from './importer.js';
 import { api, esc, toast, showLoadFailure, watchForUpdates, requireUser, mountUserMenu, ROLE_LABELS, STATUS_LABELS, STATUS_CHIPS, CRITERION_LABELS, CRITERION_CHIPS, PRIORITY_LABELS, formatAnswer, formatDate } from './common.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -58,6 +59,9 @@ function bindEvents() {
   });
   $('#refresh-calls').addEventListener('click', loadCalls);
   $('#add-facility').addEventListener('click', () => openFacility(null));
+  bindImport();
+  $('#import-facilities').addEventListener('click', () => openImport('facilities', { onDone: loadFacilities }));
+  $('#import-payers').addEventListener('click', () => openImport('payers', { onDone: loadPayers }));
   $('#fac-search').addEventListener('input', renderFacilities);
   $('#fac-status').addEventListener('change', renderFacilities);
   $('#facility-form').addEventListener('submit', saveFacility);
@@ -801,6 +805,8 @@ const ACTION_LABELS = {
   'user.deactivated': 'Deactivated user',
   'user.password_reset': 'Reset password',
   'facility.created': 'Added facility',
+  'facility.imported': 'Imported facilities',
+  'payer.imported': 'Imported payers',
   'facility.updated': 'Edited facility',
   'facility.deleted': 'Deleted facility',
   'flow.created': 'Created logic flow',

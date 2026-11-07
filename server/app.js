@@ -3,6 +3,7 @@ import {
   questionRepo, callRepo, settingsRepo, userRepo, sessionRepo, auditRepo, payerRepo, lockoutRepo, flowRepo, facilityRepo, FACILITY_FIELDS, PAYER_FIELDS,
 } from './db.js';
 import { validateGraph } from '../public/js/flow-logic.js';
+import { importFacilities, importPayers, MAX_IMPORT_ROWS } from './importer.js';
 import { PRIOR_AUTH_POLICIES } from './seed-payers.js';
 import { evaluateCall, appliesToPayer, skipsNecessity, CALL_TYPES, NO_NECESSITY_PAYERS } from './engine/evaluate.js';
 import { CATEGORIES } from './seed-questions.js';
@@ -197,6 +198,7 @@ export function createApp({ db, staticDir = null }) {
     if (req.path.startsWith('/api/')) res.setHeader('Cache-Control', 'no-store');
     next();
   });
+  app.use('/api/admin/import', express.json({ limit: '5mb' })); // payer / facility lists
   app.use(express.json({ limit: '1mb' }));
   // CSRF defense in depth (cookies are already SameSite=Strict): state-changing
   // API calls must be JSON, which cross-site forms cannot send.
@@ -362,6 +364,23 @@ export function createApp({ db, staticDir = null }) {
     if (Object.keys(changes).length) await log(req, 'facility.updated', { entityType: 'facility', entityId: existing.id, details: { name: updated.name, changes } });
     res.json(updated);
   });
+
+  // ------------------------------------------------ admin: bulk imports
+  // Payer and facility lists exported from another system. dryRun (the
+  // default) only reports what would happen, for the preview.
+  const importRoute = (kind, run) => async (req, res) => {
+    const { rows, update = true, dryRun = true, fileName = '', rowOffset = 0 } = req.body || {};
+    if (!Array.isArray(rows) || !rows.length) return res.status(400).json({ error: 'The file has no rows to import.' });
+    if (rows.length > MAX_IMPORT_ROWS) return res.status(400).json({ error: `At most ${MAX_IMPORT_ROWS.toLocaleString()} rows can be imported at once. Split the file.` });
+    if (rows.some((r) => !r || typeof r !== 'object' || Array.isArray(r))) return res.status(400).json({ error: 'Rows must be objects.' });
+    const result = await run(db, rows, { update: update !== false, dryRun: dryRun !== false, userId: req.user.id, rowOffset: Math.min(Math.max(Number(rowOffset) || 0, 0), 10) });
+    if (dryRun === false) {
+      await log(req, `${kind}.imported`, { details: { file: String(fileName).slice(0, 200), ...result.summary } });
+    }
+    res.json(result);
+  };
+  app.post('/api/admin/import/facilities', requireAdmin, importRoute('facility', importFacilities));
+  app.post('/api/admin/import/payers', requireAdmin, importRoute('payer', importPayers));
 
   // Admin → Facilities: every facility (including removed ones) with usage.
   app.get('/api/admin/facilities', requireAdmin, async (req, res) => {

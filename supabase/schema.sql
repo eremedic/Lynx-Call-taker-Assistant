@@ -151,6 +151,10 @@ CREATE TABLE IF NOT EXISTS ambuintake.facilities (
   updated_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')
 );
 CREATE UNIQUE INDEX IF NOT EXISTS facilities_name ON ambuintake.facilities (lower(name));
+-- The record's ID in another system (e.g. a dispatch/billing export), so
+-- re-importing a list updates the same records.
+ALTER TABLE ambuintake.facilities ADD COLUMN IF NOT EXISTS external_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE ambuintake.payers ADD COLUMN IF NOT EXISTS external_id TEXT NOT NULL DEFAULT '';
 
 -- The audit trail is append-only.
 CREATE OR REPLACE FUNCTION ambuintake.audit_log_append_only() RETURNS trigger LANGUAGE plpgsql AS $$

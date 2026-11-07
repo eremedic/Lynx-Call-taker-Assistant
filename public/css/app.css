@@ -781,3 +781,23 @@ body.console-page .emergency-bar { flex: none; }
 .lb-pal-empty { padding: 24px 12px; text-align: center; color: var(--ink-500); font-size: 13px; }
 .lb-pal-empty .btn { margin-top: 8px; }
 @media (max-width: 1100px) { .lb-layout { grid-template-columns: 290px minmax(0, 1fr); } }
+
+/* Import payers / facilities */
+.import-modal { max-width: 920px; width: 100%; }
+.import-drop { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px; border: 2px dashed var(--line-strong); border-radius: 10px; background: var(--surface-2); cursor: pointer; text-align: center; }
+.import-drop:hover, .import-drop.dragging { border-color: var(--blue-500); background: var(--blue-50); }
+.import-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.import-drop:focus-within { box-shadow: 0 0 0 3px rgba(47, 116, 240, .3); }
+.import-drop-icon { font-size: 26px; color: var(--blue-600); }
+.import-mapping { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
+.import-map-row { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; font-weight: 600; color: var(--ink-700); }
+.import-map-row .req { color: var(--red-600); }
+.import-map-row .select { font-size: 13px; padding: 6px 8px; }
+.import-summary { font-size: 13.5px; margin-bottom: 8px; }
+.import-preview { max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+.import-preview .table { margin: 0; }
+.import-preview th { position: sticky; top: 0; background: var(--surface-2); z-index: 1; }
+.import-table tr.import-error td { background: var(--red-50); }
+.import-table tr.import-skip td, .import-table tr.import-unchanged td { color: var(--ink-500); }
+@media (max-width: 700px) { .import-mapping { grid-template-columns: 1fr; } }
+.import-warning { color: var(--amber-600); font-weight: 600; margin-top: 2px; }

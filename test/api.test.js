@@ -505,3 +505,59 @@ test('facilities used as a destination count toward usage and print on the PCS',
   assert.equal(pcs.transport.origin, 'Oak Manor, 5 Oak Ln');
   assert.equal(pcs.transport.destination, 'Memorial Hospital, 1 Hospital Way');
 });
+
+test('admins import facility lists: preview first, then import; re-import updates instead of duplicating', async () => {
+  const rows = [
+    { external_id: 'F-100', name: 'Lakeside Rehab', address: '1 Lake Rd, Springfield, IL 62701', phone: '217-555-0400', contact_name: 'Front desk' },
+    { external_id: 'F-101', name: 'Hilltop SNF', address: '9 Hill St', contact_email: 'not-an-email' },
+    { external_id: 'F-100', name: 'Lakeside Rehab (again)' },
+    { name: '' },
+  ];
+  assert.equal((await taker('/api/admin/import/facilities', { method: 'POST', body: { rows } })).status, 403);
+  const before = (await admin('/api/admin/facilities')).data.length;
+  const preview = (await admin('/api/admin/import/facilities', { method: 'POST', body: { rows } })).data;
+  assert.deepEqual(preview.results.map((r) => r.action), ['create', 'create', 'skip', 'error']);
+  assert.match(preview.results[1].warning, /isn’t valid and was left out/);
+  assert.equal((await admin('/api/admin/facilities')).data.length, before, 'a preview saves nothing');
+
+  const done = (await admin('/api/admin/import/facilities', { method: 'POST', body: { rows, dryRun: false, fileName: 'facilities.csv' } })).data;
+  assert.equal(done.summary.create, 2);
+  assert.equal((await admin('/api/admin/facilities')).data.find((f) => f.external_id === 'F-101').contact_email, '', 'the bad email is left out');
+  const lake = (await admin('/api/admin/facilities')).data.find((f) => f.external_id === 'F-100');
+  assert.equal(lake.address, '1 Lake Rd, Springfield, IL 62701');
+
+  // Re-import with a new phone and a blank address: the phone updates, the address is kept.
+  const again = (await admin('/api/admin/import/facilities', { method: 'POST', body: { rows: [{ external_id: 'F-100', name: 'Lakeside Rehab', phone: '217-555-0499', address: '' }], dryRun: false } })).data;
+  assert.equal(again.results[0].action, 'update');
+  const updated = (await admin('/api/admin/facilities')).data.find((f) => f.external_id === 'F-100');
+  assert.equal(updated.phone, '217-555-0499');
+  assert.equal(updated.address, '1 Lake Rd, Springfield, IL 62701');
+  const skip = (await admin('/api/admin/import/facilities', { method: 'POST', body: { rows: [{ external_id: 'F-100', name: 'Lakeside Rehab', phone: '1' }], update: false } })).data;
+  assert.equal(skip.results[0].action, 'skip');
+  assert.ok((await auditActions()).includes('facility.imported'));
+});
+
+test('admins import payer lists; brokers link to payers in the same file; the necessity rule holds', async () => {
+  const rows = [
+    { external_id: 'P-9', name: 'Blue Valley Health Plan', type: 'Commercial', contact_phone: '800-555-0100', contact_url: 'bluevalley.example.com' },
+    { external_id: 'B-1', name: 'MetroRide NEMT', type: 'Broker', parent: 'Blue Valley Health Plan' },
+    { name: 'Medicaid', contact_fax: '800-555-0199' }, // matches the built-in payer by name
+    { name: 'Bad Portal Payer', contact_url: 'not a url' },
+  ];
+  const preview = (await admin('/api/admin/import/payers', { method: 'POST', body: { rows } })).data;
+  assert.deepEqual(preview.results.map((r) => r.action), ['create', 'create', 'update', 'create']);
+  assert.match(preview.results[3].warning, /isn’t a web address/);
+  await admin('/api/admin/import/payers', { method: 'POST', body: { rows, dryRun: false } });
+  const list = (await admin('/api/admin/payers')).data;
+  const plan = list.find((p) => p.external_id === 'P-9');
+  const broker = list.find((p) => p.external_id === 'B-1');
+  assert.equal(plan.contact_url, 'https://bluevalley.example.com');
+  assert.equal(plan.requires_medical_necessity, true);
+  assert.equal(broker.kind, 'broker');
+  assert.equal(broker.parent_code, plan.code);
+  assert.equal(list.find((p) => p.code === 'medicaid').contact_fax, '800-555-0199');
+  // Imported payers show up for call takers and get the necessity questions.
+  const ev = (await taker('/api/evaluate', { method: 'POST', body: { callType: 'non_emergency', payer: plan.code, allQuestions: true } })).data;
+  assert.ok(ev.visibleCodes.includes('BED_GET_UP'));
+  assert.ok((await auditActions()).includes('payer.imported'));
+});
