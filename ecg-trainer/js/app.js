@@ -398,7 +398,7 @@
       '<div class="two-col"><div class="lead-diagram">' + leadSvg() + '</div><div>' +
       '<div class="lead-legend">' +
       '<div class="el"><span class="sw" style="background:#fff"></span><span><b>RA — white</b> (IEC: red) · right arm or below right clavicle</span></div>' +
-      '<div class="el"><span class="sw" style="background:#222;border-color:#222"></span><span><b>LA — black</b> (IEC: yellow) · left arm or below left clavicle</span></div>' +
+      '<div class="el"><span class="sw" style="background:#222"></span><span><b>LA — black</b> (IEC: yellow) · left arm or below left clavicle</span></div>' +
       '<div class="el"><span class="sw" style="background:#e0262b;border-color:#e0262b"></span><span><b>LL — red</b> (IEC: green) · left lower torso or left leg</span></div></div>' +
       '<p class="callout" style="margin-top:14px"><b>Memory aid (AHA colors):</b> “White on the right, smoke (black) over fire (red).”</p>' +
       '<table class="criteria" style="margin-top:10px"><tr><th>Lead I</th><td>RA (−) → LA (+) · views the lateral wall</td></tr><tr><th>Lead II</th><td>RA (−) → LL (+) · parallels normal conduction: the clearest P waves and tallest R waves — the standard monitoring lead</td></tr><tr><th>Lead III</th><td>LA (−) → LL (+) · inferior view</td></tr></table>' +
@@ -454,7 +454,7 @@
       var q = 0.35, pOn = q - 0.16, pEnd = pOn + 0.1, qEnd = q + 0.085, tEnd = q + 0.4 + 0.02, tPeak = q + 0.4 - 0.075;
       ctx.font = '800 18px Inter, sans-serif';
       ctx.textAlign = 'center';
-      function lbl(t, mv, text, col) { ctx.fillStyle = col || '#1b2a5b'; ctx.fillText(text, X(t), b.base - mv * ppmv); }
+      function lbl(t, mv, text, col) { ctx.fillStyle = col || ECGRender.paper().ink; ctx.fillText(text, X(t), b.base - mv * ppmv); }
       lbl(pOn + 0.05, 0.36, 'P');
       lbl(q + 0.04, 1.3, 'R');
       lbl(q + 0.008, -0.38, 'Q');
@@ -511,17 +511,17 @@
 
   function leadSvg() {
     return '<svg viewBox="0 0 400 380" role="img" aria-label="Einthoven triangle showing 3-lead electrode placement">' +
-      '<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1b2a5b"/></marker></defs>' +
-      '<path d="M200 28c-30 0-46 22-46 48 0 18 8 32 20 40-46 6-92 20-108 56l-8 190h284l-8-190c-16-36-62-50-108-56 12-8 20-22 20-40 0-26-16-48-46-48z" fill="#eef2f9" stroke="#c9d3e6" stroke-width="2"/>' +
+      '<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--svg-text)"/></marker></defs>' +
+      '<path d="M200 28c-30 0-46 22-46 48 0 18 8 32 20 40-46 6-92 20-108 56l-8 190h284l-8-190c-16-36-62-50-108-56 12-8 20-22 20-40 0-26-16-48-46-48z" style="fill:var(--chip);stroke:var(--input-border)" stroke-width="2"/>' +
       '<path d="M200 182c-24 0-40 18-40 40 0 30 40 52 40 52s40-22 40-52c0-22-16-40-40-40z" fill="#ffd9d9" stroke="#e8a3a3" opacity=".8"/>' +
-      '<line x1="96" y1="150" x2="304" y2="150" stroke="#1b2a5b" stroke-width="3" marker-end="url(#ar)"/>' +
+      '<line x1="96" y1="150" x2="304" y2="150" style="stroke:var(--svg-text)" stroke-width="3" marker-end="url(#ar)"/>' +
       '<line x1="96" y1="150" x2="296" y2="322" stroke="#1b7a8c" stroke-width="3" marker-end="url(#ar)"/>' +
       '<line x1="304" y1="150" x2="304" y2="320" stroke="#7b4bc4" stroke-width="3" marker-end="url(#ar)"/>' +
-      '<text x="200" y="140" text-anchor="middle" font-family="Inter" font-weight="700" font-size="15" fill="#1b2a5b">Lead I</text>' +
+      '<text x="200" y="140" text-anchor="middle" font-family="Inter" font-weight="700" font-size="15" style="fill:var(--svg-text)">Lead I</text>' +
       '<text x="180" y="262" text-anchor="middle" font-family="Inter" font-weight="700" font-size="15" fill="#1b7a8c" transform="rotate(40 180 262)">Lead II</text>' +
       '<text x="318" y="240" font-family="Inter" font-weight="700" font-size="15" fill="#7b4bc4">Lead III</text>' +
       '<circle cx="96" cy="150" r="17" fill="#fff" stroke="#55607a" stroke-width="3"/><text x="96" y="155" text-anchor="middle" font-family="Inter" font-weight="800" font-size="12" fill="#1b2a5b">RA</text>' +
-      '<circle cx="304" cy="150" r="17" fill="#222" stroke="#222" stroke-width="3"/><text x="304" y="155" text-anchor="middle" font-family="Inter" font-weight="800" font-size="12" fill="#fff">LA</text>' +
+      '<circle cx="304" cy="150" r="17" fill="#222" stroke="#9aa4bb" stroke-width="2"/><text x="304" y="155" text-anchor="middle" font-family="Inter" font-weight="800" font-size="12" fill="#fff">LA</text>' +
       '<circle cx="304" cy="336" r="17" fill="#e0262b" stroke="#b81d22" stroke-width="3"/><text x="304" y="341" text-anchor="middle" font-family="Inter" font-weight="800" font-size="12" fill="#fff">LL</text>' +
       '<text x="62" y="128" font-family="Inter" font-weight="700" font-size="14" fill="#55607a">−</text><text x="330" y="128" font-family="Inter" font-weight="700" font-size="14" fill="#55607a">+</text>' +
       '</svg>';
@@ -718,7 +718,7 @@
     leads.forEach(function (l) {
       var a = pt(l[1], R), b = pt(l[1] + 180, R), lab = pt(l[1], R + 18);
       s += '<line x1="' + b[0].toFixed(1) + '" y1="' + b[1].toFixed(1) + '" x2="' + a[0].toFixed(1) + '" y2="' + a[1].toFixed(1) + '" stroke="#9aa4bb" stroke-dasharray="3 3"/>' +
-        '<text x="' + lab[0].toFixed(1) + '" y="' + (lab[1] + 4).toFixed(1) + '" text-anchor="middle" font-family="Inter" font-size="12" font-weight="700" fill="#1b2a5b">' + l[0] + '</text>';
+        '<text x="' + lab[0].toFixed(1) + '" y="' + (lab[1] + 4).toFixed(1) + '" text-anchor="middle" font-family="Inter" font-size="12" font-weight="700" style="fill:var(--svg-text)">' + l[0] + '</text>';
     });
     s += '<g id="axis-arrow"><line x1="150" y1="150" x2="250" y2="150" stroke="#c2185b" stroke-width="4" stroke-linecap="round"/><path d="M254 150l-14-8v16z" fill="#c2185b"/></g>' +
       '<circle cx="150" cy="150" r="5" fill="#1b2a5b"/>' +
@@ -730,8 +730,8 @@
   function chestSvg() {
     var V = [['V1', 186, 168, '#e0262b'], ['V2', 234, 168, '#e6b800'], ['V3', 262, 188, '#3a9b3f'], ['V4', 290, 206, '#1e66d0'], ['V5', 330, 206, '#f08a1c'], ['V6', 364, 206, '#7b4bc4']];
     var s = '<svg viewBox="0 0 420 340" class="chest-svg" role="img" aria-label="Precordial electrode positions V1 to V6">' +
-      '<path d="M210 20c-24 0-38 16-38 38v14c-50 6-96 18-118 44-10 70-8 140 6 210h300c14-70 16-140 6-210-22-26-68-38-118-44V58c0-22-14-38-38-38z" fill="#eef2f9" stroke="#c9d3e6" stroke-width="2"/>' +
-      '<rect x="200" y="96" width="20" height="150" rx="8" fill="#dfe5f1" stroke="#c9d3e6"/>' +
+      '<path d="M210 20c-24 0-38 16-38 38v14c-50 6-96 18-118 44-10 70-8 140 6 210h300c14-70 16-140 6-210-22-26-68-38-118-44V58c0-22-14-38-38-38z" style="fill:var(--chip);stroke:var(--input-border)" stroke-width="2"/>' +
+      '<rect x="200" y="96" width="20" height="150" rx="8" style="fill:var(--track);stroke:var(--input-border)"/>' +
       '<path d="M200 98C170 92 130 92 96 104M220 98c30-6 70-6 104 6" stroke="#c9d3e6" stroke-width="3" fill="none"/>';
     [[130, 'ICS 2'], [150, ''], [168, 'ICS 4'], [206, 'ICS 5']].forEach(function (r) {
       s += '<path d="M90 ' + r[0] + 'Q210 ' + (r[0] + 14) + ' 370 ' + r[0] + '" stroke="#d6dcea" stroke-width="1.5" fill="none"/>';
@@ -1325,6 +1325,31 @@
     b.textContent = 'Click again to erase all progress';
     setTimeout(function () { if (b.dataset.armed) { delete b.dataset.armed; b.textContent = 'Reset my progress'; } }, 4000);
   });
+  /* theme: follows the device until the user picks; choice remembered */
+  var THEME_KEY = 'cshealthed-theme';
+  function syncThemeButton() {
+    var dark = ECGRender.isDark(), b = $('#theme-toggle');
+    b.classList.toggle('is-dark', dark);
+    var label = dark ? 'Switch to light mode' : 'Switch to dark mode';
+    b.setAttribute('aria-label', label); b.title = label;
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', dark ? '#0d121c' : '#1b2a5b');
+  }
+  function redrawForTheme() { syncThemeButton(); window.dispatchEvent(new Event('resize')); }
+  $('#theme-toggle').addEventListener('click', function () {
+    var next = ECGRender.isDark() ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* storage unavailable */ }
+    redrawForTheme();
+  });
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    var onSys = function () { if (!document.documentElement.hasAttribute('data-theme')) redrawForTheme(); };
+    if (mq.addEventListener) mq.addEventListener('change', onSys); else if (mq.addListener) mq.addListener(onSys);
+  }
+  // the hosting page may also set data-theme on the root; keep the button and canvases in step
+  new MutationObserver(redrawForTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  syncThemeButton();
   $('#year').textContent = new Date().getFullYear();
   route();
 })();

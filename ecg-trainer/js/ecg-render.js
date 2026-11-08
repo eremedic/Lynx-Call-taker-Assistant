@@ -15,6 +15,16 @@
     monitor: { bg: '#04100b', minor: 'rgba(40, 200, 120, 0.06)', major: 'rgba(40, 200, 120, 0.16)', trace: '#3dff8f', label: '#7dffb8', tick: 'rgba(125,255,184,.6)', spike: '#ffffff' }
   };
 
+  var PAPER_DARK = { bg: '#161a22', minor: 'rgba(255, 128, 128, 0.10)', major: 'rgba(255, 120, 120, 0.30)', trace: '#eef1f7', label: '#ffb8b8', tick: '#ffb8b8', spike: '#ffffff', ink: '#e6ecff' };
+  THEMES.paper.ink = '#1b2a5b';
+  function isDark() {
+    var t = document.documentElement.getAttribute('data-theme');
+    if (t === 'dark') return true;
+    if (t === 'light') return false;
+    return !!(global.matchMedia && global.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  function paper() { return isDark() ? PAPER_DARK : THEMES.paper; }
+
   function sampleAt(sig, lead, t) {
     var s = sig.leads[lead];
     var x = t * sig.fs;
@@ -130,7 +140,7 @@
   function drawStrip(canvas, sig, opts) {
     opts = opts || {};
     var mode = opts.mode || 'paper';
-    var th = THEMES[mode];
+    var th = mode === 'paper' ? paper() : THEMES.monitor;
     var leads = opts.leads || ['II'];
     var seconds = opts.seconds || 6;
     var t0 = opts.start || 0;
@@ -281,5 +291,5 @@
     return { clear: function () { a = b = null; render(); } };
   }
 
-  global.ECGRender = { drawStrip: drawStrip, Monitor: Monitor, attachCalipers: attachCalipers, MM_PER_S: MM_PER_S };
+  global.ECGRender = { isDark: isDark, paper: paper, drawStrip: drawStrip, Monitor: Monitor, attachCalipers: attachCalipers, MM_PER_S: MM_PER_S };
 })(window);
