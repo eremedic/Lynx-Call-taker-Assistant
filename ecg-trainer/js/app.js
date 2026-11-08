@@ -212,7 +212,7 @@
 
   function moduleCard(m) {
     var p = Math.round(moduleProgress(m) * 100);
-    var href = m.exam ? '#/quiz/exam' : '#/module/' + m.id;
+    var href = m.exam ? '#q-exam' : '#m-' + m.id;
     var count = m.lesson ? 'Core lesson' : m.exam ? (ALL_RHYTHMS.length + ' rhythms · 20 questions') : (m.rhythms.length + ' rhythms + quiz');
     var best = store.data.quiz[m.id];
     return '<a class="module-card" href="' + href + '" style="--c:' + m.color + '"><div class="band"></div><div class="body">' +
@@ -231,7 +231,7 @@
       '<div class="eyebrow">Paramedic ECG Program · 3-Lead Rhythm Interpretation</div>' +
       '<h1>Read rhythms with <span class="hl">confidence</span> — one module at a time.</h1>' +
       '<p class="lead">Interactive lessons, live monitor simulation and unlimited practice strips for paramedic students. Learn the systematic approach, then master sinus, atrial, junctional, ventricular, AV-block and paced rhythms in Leads I, II and III.</p>' +
-      '<div class="hero-cta"><a class="btn btn-primary" href="#/module/foundations">Start with Foundations</a><a class="btn btn-light" href="#/modules">Browse modules</a></div>' +
+      '<div class="hero-cta"><a class="btn btn-primary" href="#m-foundations">Start with Foundations</a><a class="btn btn-light" href="#modules">Browse modules</a></div>' +
       '<div class="hero-stats"><div><b>' + MODULES.length + '</b><span>learning modules</span></div><div><b>' + ALL_RHYTHMS.length + '</b><span>rhythms</span></div><div><b>∞</b><span>unique practice strips</span></div></div>' +
       '</div><div><div class="monitor-frame"><div class="monitor-top"><div><div class="mlabel">II · ECG · 25 mm/s</div><div class="seg" style="margin-top:8px;background:rgba(255,255,255,.06)" id="teaser">' +
       teaser.map(function (t, i) { return '<button data-r="' + t[0] + '" class="' + (i === 0 ? 'on' : '') + '" style="color:#9fe9c0">' + t[1] + '</button>'; }).join('') +
@@ -240,7 +240,7 @@
       '<div class="monitor-foot"><span id="hero-name">Normal Sinus Rhythm</span><span>Simulated · for education</span></div></div></div></div></section>' +
 
       '<section class="section"><div class="wrap"><div class="section-head"><div><h2>Learning modules</h2><p>Work through the modules in order — each one builds on the last. Your progress is saved in this browser.</p></div>' +
-      '<a class="btn btn-ghost" href="#/practice">Practice &amp; exams →</a></div>' +
+      '<a class="btn btn-ghost" href="#practice">Practice &amp; exams →</a></div>' +
       '<div class="module-grid">' + MODULES.map(moduleCard).join('') + '</div></div></section>' +
 
       '<section class="section" style="padding-top:0"><div class="wrap"><div class="section-head"><div><h2>How it works</h2><p>Built around how paramedics actually read rhythms on a 3-lead monitor.</p></div></div>' +
@@ -281,7 +281,7 @@
 
   /* ------------------------------------------------------------ MODULES LIST */
   function viewModules() {
-    main.innerHTML = pageHead('#1b7a8c', '<a href="#/">Home</a> / Modules', 'Learning Modules', 'A structured path from the basics of the ECG to complex blocks and paced rhythms. Complete each module’s rhythms and pass its quiz (80%) to finish it.') +
+    main.innerHTML = pageHead('#1b7a8c', '<a href="#home">Home</a> / Modules', 'Learning Modules', 'A structured path from the basics of the ECG to complex blocks and paced rhythms. Complete each module’s rhythms and pass its quiz (80%) to finish it.') +
       '<section class="section"><div class="wrap"><div class="module-grid">' + MODULES.map(moduleCard).join('') + '</div></div></section>';
   }
 
@@ -290,19 +290,19 @@
     var m = moduleById(id);
     if (!m) return viewNotFound();
     if (m.lesson) return viewFoundations(m, query);
-    if (m.exam) { location.hash = '#/quiz/exam'; return; }
+    if (m.exam) { location.hash = '#q-exam'; return; }
     var current = query.r && m.rhythms.indexOf(query.r) >= 0 ? query.r : m.rhythms[0];
     var idx = MODULES.indexOf(m);
     var next = MODULES[idx + 1];
 
-    main.innerHTML = pageHead(m.color, '<a href="#/">Home</a> / <a href="#/modules">Modules</a> / Module ' + m.num, m.title, m.tagline,
-      '<a class="btn btn-primary" href="#/quiz/' + m.id + '">Take module quiz</a>') +
+    main.innerHTML = pageHead(m.color, '<a href="#home">Home</a> / <a href="#modules">Modules</a> / Module ' + m.num, m.title, m.tagline,
+      '<a class="btn btn-primary" href="#q-' + m.id + '">Take module quiz</a>') +
       '<div class="wrap module-layout" style="--c:' + m.color + '">' +
       '<aside class="rhythm-list" aria-label="Rhythms in this module"><h4>Rhythms</h4>' +
       m.rhythms.map(function (r) {
         return '<button data-r="' + r + '"><span class="dot' + (store.data.viewed[r] ? ' done' : '') + '"></span>' + esc(RHYTHMS[r].name) + '</button>';
       }).join('') +
-      '<div class="quiz-link"><a class="btn btn-navy btn-sm" style="width:100%" href="#/quiz/' + m.id + '">' + ICON.trophy.replace('<svg', '<svg width="16" height="16"') + ' Module quiz' + (store.data.quiz[m.id] != null ? ' · best ' + store.data.quiz[m.id] + '%' : '') + '</a></div>' +
+      '<div class="quiz-link"><a class="btn btn-navy btn-sm" style="width:100%" href="#q-' + m.id + '">' + ICON.trophy.replace('<svg', '<svg width="16" height="16"') + ' Module quiz' + (store.data.quiz[m.id] != null ? ' · best ' + store.data.quiz[m.id] + '%' : '') + '</a></div>' +
       '</aside>' +
       '<div class="module-content">' +
       '<div class="panel intro-panel"><p>' + m.intro + '</p></div>' +
@@ -331,7 +331,7 @@
       var dot = $('.rhythm-list [data-r="' + rid + '"] .dot'); if (dot) dot.classList.add('done');
       $('#prev').disabled = i === 0;
       $('#next').textContent = i === m.rhythms.length - 1 ? (next && !next.exam ? 'Take the quiz →' : 'Take the quiz →') : 'Next rhythm →';
-      history.replaceState(null, '', '#/module/' + m.id + '?r=' + rid);
+      history.replaceState(null, '', '#m-' + m.id + '-r-' + rid);
       if (scroll) $('#viewer-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     $('.rhythm-list').addEventListener('click', function (e) {
@@ -341,15 +341,15 @@
     $('#prev').addEventListener('click', function () { var i = m.rhythms.indexOf(current); if (i > 0) { viewer.set(m.rhythms[i - 1]); show(m.rhythms[i - 1], true); } });
     $('#next').addEventListener('click', function () {
       var i = m.rhythms.indexOf(current);
-      if (i < m.rhythms.length - 1) { viewer.set(m.rhythms[i + 1]); show(m.rhythms[i + 1], true); } else location.hash = '#/quiz/' + m.id;
+      if (i < m.rhythms.length - 1) { viewer.set(m.rhythms[i + 1]); show(m.rhythms[i + 1], true); } else location.hash = '#q-' + m.id;
     });
     show(current, false);
   }
 
   /* ------------------------------------------------------------ FOUNDATIONS */
   function viewFoundations(m, query) {
-    main.innerHTML = pageHead(m.color, '<a href="#/">Home</a> / <a href="#/modules">Modules</a> / Module 1', 'Foundations of ECG Interpretation', 'Everything you need before you read your first rhythm: how the heart conducts, what each wave means, how to read the paper, where the three leads go and a systematic way to analyse every strip.',
-      '<a class="btn btn-primary" href="#/module/sinus">Next: Sinus Rhythms →</a>') +
+    main.innerHTML = pageHead(m.color, '<a href="#home">Home</a> / <a href="#modules">Modules</a> / Module 1', 'Foundations of ECG Interpretation', 'Everything you need before you read your first rhythm: how the heart conducts, what each wave means, how to read the paper, where the three leads go and a systematic way to analyse every strip.',
+      '<a class="btn btn-primary" href="#m-sinus">Next: Sinus Rhythms →</a>') +
       '<div class="wrap" style="padding:28px 20px 56px">' +
       '<nav class="lesson-nav no-print"><a href="#" data-s="conduction">1 · Conduction system</a><a href="#" data-s="waves">2 · Waves &amp; intervals</a><a href="#" data-s="paper">3 · ECG paper</a><a href="#" data-s="leads">4 · 3-lead placement</a><a href="#" data-s="approach">5 · Systematic approach</a><a href="#" data-s="rate">6 · Rate trainer</a></nav>' +
 
@@ -425,7 +425,7 @@
       '<div class="feedback" id="rate-fb"></div>' +
       '</section>' +
 
-      '<div class="pager"><a class="btn btn-ghost" href="#/modules">← All modules</a><a class="btn btn-primary" href="#/module/sinus">Continue to Module 2: Sinus Rhythms →</a></div>' +
+      '<div class="pager"><a class="btn btn-ghost" href="#modules">← All modules</a><a class="btn btn-primary" href="#m-sinus">Continue to Module 2: Sinus Rhythms →</a></div>' +
       '</div>';
 
     store.lesson('foundations');
@@ -532,7 +532,7 @@
     order = order.slice(0, N);
     var qi = 0, score = 0, answered = false, missed = [], rateHits = 0, rateTries = 0;
 
-    main.innerHTML = pageHead(m.color, '<a href="#/">Home</a> / <a href="#/practice">Practice</a> / ' + (exam ? 'Final exam' : 'Module ' + m.num + ' quiz'),
+    main.innerHTML = pageHead(m.color, '<a href="#home">Home</a> / <a href="#practice">Practice</a> / ' + (exam ? 'Final exam' : 'Module ' + m.num + ' quiz'),
       exam ? 'Final Exam — Mixed Rhythms' : m.title + ' — Module Quiz',
       'Identify each rhythm. Work through the five steps before choosing. Pass mark: 80%.') +
       '<div class="wrap quiz-shell" id="quiz"></div>';
@@ -555,7 +555,7 @@
       root.innerHTML =
         '<div class="quiz-top"><div class="quiz-progress"><div class="lbl"><span>Question ' + (qi + 1) + ' of ' + N + '</span><span>Score ' + score + '/' + qi + '</span></div>' +
         '<div class="progress" style="--c:' + m.color + '"><i style="width:' + ((qi / N) * 100) + '%"></i></div></div>' +
-        '<a class="btn btn-ghost btn-sm" href="' + (exam ? '#/practice' : '#/module/' + m.id) + '">Exit</a></div>' +
+        '<a class="btn btn-ghost btn-sm" href="' + (exam ? '#practice' : '#m-' + m.id) + '">Exit</a></div>' +
         '<div class="panel"><h3 style="margin-bottom:12px">What rhythm is this?</h3><div id="qviewer"></div>' +
         '<div class="rate-guess"><label for="rg">Optional — your rate estimate:</label><input id="rg" type="number" inputmode="numeric" placeholder="bpm"><span>/min</span></div>' +
         '<div class="options">' + opts.map(function (o, i) {
@@ -607,10 +607,10 @@
         '<h2>' + (pass ? 'Passed — great work!' : 'Keep practising') + '</h2>' +
         '<p class="muted">You identified ' + score + ' of ' + N + ' rhythms correctly' + (rateTries ? ' and estimated ' + rateHits + ' of ' + rateTries + ' rates within 10%' : '') + '. ' + (pass ? 'This ' + (exam ? 'exam' : 'module') + ' is marked complete.' : 'A score of 80% is needed to pass.') + '</p>' +
         (uniqMissed.length ? '<div class="review-list"><h3>Review these rhythms</h3><ul>' + uniqMissed.map(function (r) {
-          return '<li><a href="#/module/' + RHYTHMS[r].module + '?r=' + r + '">' + esc(RHYTHMS[r].name) + '</a></li>';
+          return '<li><a href="#m-' + RHYTHMS[r].module + '-r-' + r + '">' + esc(RHYTHMS[r].name) + '</a></li>';
         }).join('') + '</ul></div>' : '') +
         '<div class="hero-cta" style="justify-content:center"><button class="btn btn-primary" id="retry">Try again</button>' +
-        (exam ? '<a class="btn btn-ghost" href="#/practice">Back to practice</a>' : '<a class="btn btn-ghost" href="#/module/' + m.id + '">Back to module</a>') + '</div></div>';
+        (exam ? '<a class="btn btn-ghost" href="#practice">Back to practice</a>' : '<a class="btn btn-ghost" href="#m-' + m.id + '">Back to module</a>') + '</div></div>';
       $('#retry').addEventListener('click', function () { route(); });
     }
 
@@ -630,28 +630,28 @@
   /* ------------------------------------------------------------ PRACTICE */
   function viewPractice() {
     var mods = MODULES.filter(function (m) { return m.rhythms; });
-    main.innerHTML = pageHead('#e0262b', '<a href="#/">Home</a> / Practice', 'Practice &amp; Exams', 'Every question uses a freshly generated strip, so you can retake quizzes as often as you like. Score 80% or higher to pass.') +
+    main.innerHTML = pageHead('#e0262b', '<a href="#home">Home</a> / Practice', 'Practice &amp; Exams', 'Every question uses a freshly generated strip, so you can retake quizzes as often as you like. Score 80% or higher to pass.') +
       '<section class="section"><div class="wrap">' +
-      '<div class="exam-banner"><div><h3>Final Exam</h3><p>20 mixed rhythms from all modules · ' + (store.data.quiz.exam != null ? 'best score ' + store.data.quiz.exam + '%' : 'not attempted yet') + '</p></div><a class="btn btn-primary" href="#/quiz/exam">Start final exam</a></div>' +
+      '<div class="exam-banner"><div><h3>Final Exam</h3><p>20 mixed rhythms from all modules · ' + (store.data.quiz.exam != null ? 'best score ' + store.data.quiz.exam + '%' : 'not attempted yet') + '</p></div><a class="btn btn-primary" href="#q-exam">Start final exam</a></div>' +
       '<div class="practice-grid">' + mods.map(function (m) {
         var best = store.data.quiz[m.id];
         return '<div class="practice-card" style="--c:' + m.color + '"><div class="row"><span class="icon-badge">' + ICON[m.icon] + '</span>' + (best >= 80 ? '<span class="badge">✓ Passed</span>' : '') + '</div>' +
           '<h3>' + m.title + '</h3><p class="muted">' + m.rhythms.length + ' rhythms · 10 questions</p>' +
-          '<div class="row"><span class="best">Best: <b>' + (best != null ? best + '%' : '—') + '</b></span><a class="btn btn-navy btn-sm" href="#/quiz/' + m.id + '">Start quiz</a></div></div>';
+          '<div class="row"><span class="best">Best: <b>' + (best != null ? best + '%' : '—') + '</b></span><a class="btn btn-navy btn-sm" href="#q-' + m.id + '">Start quiz</a></div></div>';
       }).join('') +
-      '<div class="practice-card" style="--c:#1b2a5b"><div class="row"><span class="icon-badge">' + ICON.search + '</span></div><h3>Rate Trainer</h3><p class="muted">Practise the 6-second, 300 and 1500 methods on random strips.</p><div class="row"><span></span><a class="btn btn-navy btn-sm" href="#/module/foundations?s=rate">Open</a></div></div>' +
+      '<div class="practice-card" style="--c:#1b2a5b"><div class="row"><span class="icon-badge">' + ICON.search + '</span></div><h3>Rate Trainer</h3><p class="muted">Practise the 6-second, 300 and 1500 methods on random strips.</p><div class="row"><span></span><a class="btn btn-navy btn-sm" href="#m-foundations-s-rate">Open</a></div></div>' +
       '</div></div></section>';
   }
 
   /* ------------------------------------------------------------ REFERENCE */
   function viewReference() {
     var mods = MODULES.filter(function (m) { return m.rhythms; });
-    main.innerHTML = pageHead('#1b7a8c', '<a href="#/">Home</a> / Quick reference', 'Quick Reference', 'Every rhythm in the course with its five-step criteria and an example Lead II strip.', '<button class="btn btn-light no-print" onclick="window.print()">Print</button>') +
+    main.innerHTML = pageHead('#1b7a8c', '<a href="#home">Home</a> / Quick reference', 'Quick Reference', 'Every rhythm in the course with its five-step criteria and an example Lead II strip.') +
       '<section class="section"><div class="wrap">' + mods.map(function (m) {
         return '<div class="ref-module" style="--c:' + m.color + '"><h2>' + m.title + '</h2><table class="ref-table"><thead><tr><th>Rhythm</th><th>Rate</th><th>Regularity</th><th>P waves</th><th>PR</th><th>QRS</th></tr></thead><tbody>' +
           m.rhythms.map(function (r) {
             var c = RHYTHMS[r].criteria;
-            return '<tr><td class="name"><a href="#/module/' + m.id + '?r=' + r + '">' + esc(RHYTHMS[r].name) + '</a><div class="ref-thumb"><canvas data-thumb="' + r + '"></canvas></div></td>' +
+            return '<tr><td class="name"><a href="#m-' + m.id + '-r-' + r + '">' + esc(RHYTHMS[r].name) + '</a><div class="ref-thumb"><canvas data-thumb="' + r + '"></canvas></div></td>' +
               '<td data-l="Rate">' + esc(c.rate) + '</td><td data-l="Rhythm">' + esc(c.regularity) + '</td><td data-l="P waves">' + esc(c.p) + '</td><td data-l="PR">' + esc(c.pr) + '</td><td data-l="QRS">' + esc(c.qrs) + '</td></tr>';
           }).join('') + '</tbody></table></div>';
       }).join('') + '</div></section>';
@@ -666,17 +666,24 @@
   }
 
   function viewNotFound() {
-    main.innerHTML = pageHead('#1b2a5b', '<a href="#/">Home</a>', 'Page not found', 'That page doesn’t exist. Head back to the modules to keep learning.', '<a class="btn btn-primary" href="#/modules">Modules</a>');
+    main.innerHTML = pageHead('#1b2a5b', '<a href="#home">Home</a>', 'Page not found', 'That page doesn’t exist. Head back to the modules to keep learning.', '<a class="btn btn-primary" href="#modules">Modules</a>');
   }
 
   /* ------------------------------------------------------------ router */
+  // Routes are plain #names so links survive any host: #home, #modules, #practice,
+  // #reference, #m-<module>[-r-<rhythm>][-s-<section>], #q-<module>
   function parse() {
     var h = location.hash.replace(/^#\/?/, '');
-    var q = {}, qs = h.split('?')[1];
-    if (qs) qs.split('&').forEach(function (kv) { var p = kv.split('='); q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); });
-    return { parts: h.split('?')[0].split('/').filter(Boolean), query: q };
+    var q = {}, parts = [];
+    var mm = /^m-([A-Za-z]+)(?:-r-([A-Za-z0-9]+))?(?:-s-([A-Za-z]+))?$/.exec(h);
+    var qm = /^q-([A-Za-z]+)$/.exec(h);
+    if (mm) { parts = ['module', mm[1]]; if (mm[2]) q.r = mm[2]; if (mm[3]) q.s = mm[3]; }
+    else if (qm) parts = ['quiz', qm[1]];
+    else if (h && h !== 'home') parts = [h];
+    return { parts: parts, query: q };
   }
   function route() {
+    if (location.hash === '#main') return; // skip-link target, not a page
     cleanup.forEach(function (f) { f(); });
     cleanup = [];
     if (quizDetach) { quizDetach(); quizDetach = null; }
@@ -701,7 +708,11 @@
     this.setAttribute('aria-expanded', n.classList.contains('open'));
   });
   $('#reset-progress').addEventListener('click', function () {
-    if (confirm('Reset all saved progress and quiz scores in this browser?')) { store.reset(); route(); }
+    var b = this;
+    if (b.dataset.armed) { store.reset(); delete b.dataset.armed; b.textContent = 'Progress reset'; route(); setTimeout(function () { b.textContent = 'Reset my progress'; }, 2500); return; }
+    b.dataset.armed = '1';
+    b.textContent = 'Click again to erase all progress';
+    setTimeout(function () { if (b.dataset.armed) { delete b.dataset.armed; b.textContent = 'Reset my progress'; } }, 4000);
   });
   $('#year').textContent = new Date().getFullYear();
   route();
