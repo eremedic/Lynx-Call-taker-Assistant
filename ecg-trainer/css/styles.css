@@ -630,3 +630,10 @@ input, select, textarea { background: var(--card); color: var(--ink); }
   .theme-toggle { margin-left: auto; }
   .nav-toggle { margin-left: 4px; }
 }
+
+/* ---------- embedded inside the CSHealthED platform (?embed=1) ---------- */
+.embedded .site-footer { display: none; }
+.embedded .brand img, .embedded .brand .wordmark { display: none; }
+.embedded .product-pill { display: inline-block; font-size: .8rem; padding: 6px 12px; }
+.embedded .header-inner { height: 56px; }
+@media (max-width: 1080px) { .embedded .site-nav { top: 56px; } }
