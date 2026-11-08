@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ECG Trainer · CSHealthED</title>
+  <meta name="description" content="CSHealthED ECG Trainer — interactive 3-lead rhythm interpretation for paramedic students: sinus, atrial, junctional, ventricular, AV blocks and paced rhythms, with live strips, calipers and quizzes.">
+  <meta name="theme-color" content="#1b2a5b">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/favicon.png">
+  <meta property="og:title" content="CSHealthED ECG Trainer">
+  <meta property="og:description" content="Interactive 3-lead ECG rhythm interpretation for paramedic students.">
+  <meta property="og:image" content="assets/cshealthed-logo.webp">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="#/" aria-label="CSHealthED ECG Trainer home">
+        <img src="assets/cshealthed-emblem.webp" alt="" width="44" height="47">
+        <span class="wordmark"><span class="wm-cs">CS</span><span class="wm-health">Health</span><span class="wm-ed">ED</span></span>
+        <span class="product-pill">ECG Trainer</span>
+      </a>
+      <button class="nav-toggle" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#/" data-nav="home">Home</a>
+        <a href="#/modules" data-nav="modules">Modules</a>
+        <a href="#/practice" data-nav="practice">Practice &amp; Exams</a>
+        <a href="#/reference" data-nav="reference">Quick Reference</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1"></main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div class="footer-brand">
+        <img src="assets/cshealthed-logo.webp" alt="CSHealthED — Healthcare Education Software" width="180" height="162">
+      </div>
+      <div class="footer-cols">
+        <div>
+          <h4>Learn</h4>
+          <a href="#/module/foundations">Foundations</a>
+          <a href="#/modules">All modules</a>
+          <a href="#/reference">Quick reference</a>
+        </div>
+        <div>
+          <h4>Test yourself</h4>
+          <a href="#/practice">Module quizzes</a>
+          <a href="#/quiz/exam">Final exam</a>
+          <a href="#/module/foundations?s=rate">Rate trainer</a>
+        </div>
+        <div class="footer-note">
+          <h4>Educational use</h4>
+          <p>Strips are computer-generated simulations for training. Clinical notes are general guidance — always follow your local protocols and medical direction.</p>
+        </div>
+      </div>
+    </div>
+    <div class="wrap footer-base">
+      <span>© <span id="year"></span> CSHealthED · Healthcare Education Software</span>
+      <button class="link-btn" id="reset-progress">Reset my progress</button>
+    </div>
+  </footer>
+
+  <script src="js/ecg-engine.js"></script>
+  <script src="js/ecg-render.js"></script>
+  <script src="js/content.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
