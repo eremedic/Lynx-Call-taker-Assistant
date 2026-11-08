@@ -33,6 +33,17 @@
     this.update(true);
   };
 
+  // Label for a premixed medication bag (or glass bottle): drug, diluent, concentration.
+  function premixLabel(b, fluidShort) {
+    var m = b.premix, f = 'font-family="Inter,Arial,sans-serif" text-anchor="middle"';
+    return '<rect x="88" y="44" width="110" height="11" rx="2" fill="' + (m.color || '#b91c1c') + '"/>' +
+      '<text x="143" y="52" ' + f + ' font-size="6.2" font-weight="900" fill="#ffffff">PREMIXED' + (m.glass ? ' · GLASS BOTTLE' : '') + '</text>' +
+      '<text x="143" y="67" ' + f + ' font-size="10" font-weight="900" fill="#0f172a">' + esc(m.label) + '</text>' +
+      '<text x="143" y="78" ' + f + ' font-size="7.2" font-weight="700" fill="#334155">in ' + b.vol + ' mL ' + esc(fluidShort.replace('5% Dextrose', 'D5W')) + '</text>' +
+      '<text x="143" y="91" ' + f + ' font-size="10" font-weight="900" fill="#1d4ed8">' + esc(m.conc) + '</text>' +
+      '<text x="143" y="103" ' + f + ' font-size="5.6" font-weight="700" fill="#92400e">SIMULATED · TRAINING ONLY</text>';
+  }
+
   DripSet.prototype.render = function () {
     var b = this.bag, self = this;
     var fluidShort = b.fluid.replace('0.9% Sodium Chloride', '0.9% NaCl');
@@ -49,10 +60,11 @@
       [0, 1, 2, 3, 4].map(function (i) { var y = 70 + i * 28; return '<line x1="214" y1="' + y + '" x2="224" y2="' + y + '" stroke="#94a3b8"/><text x="212" y="' + (y + 2.5) + '" text-anchor="end">' + Math.round(b.vol * (i + 1) / 5) + '</text>'; }).reverse().join('') + '</g>' +
       // fluid label
       '<rect x="88" y="44" width="110" height="64" rx="4" fill="#ffffff" stroke="#cbd5e1"/>' +
+      (b.premix ? premixLabel(b, fluidShort) :
       '<rect x="88" y="44" width="110" height="9" rx="2" fill="#1d4ed8"/>' +
       '<text x="143" y="69" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="10.5" font-weight="900" fill="#0f172a">' + esc(fluidShort) + '</text>' +
       '<text x="143" y="84" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="900" fill="#1d4ed8">' + b.vol + ' mL</text>' +
-      '<text x="143" y="98" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="5.6" font-weight="700" fill="#92400e">SIMULATED · TRAINING ONLY</text>' +
+      '<text x="143" y="98" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="5.6" font-weight="700" fill="#92400e">SIMULATED · TRAINING ONLY</text>') +
       // additive label (hidden until a drug is added)
       '<g class="dr-additive" opacity="0" transform="rotate(-4 143 150)"><rect x="92" y="118" width="104" height="58" rx="3" fill="#fef08a" stroke="#ca8a04"/>' +
       '<text x="144" y="131" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="7.5" font-weight="900" fill="#713f12">MEDICATION ADDED</text>' +

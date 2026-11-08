@@ -497,7 +497,28 @@
   var DRIPS = window.PharmDripCases, DripSet = window.DripSet;
   var FLUID_TINT = { magnesium: '#a5f3fc', amiodarone: '#c7d2fe', txa: '#e7e5e4', ketamine: '#e5e7eb' };
 
+  var MASS = { g: 1e6, mg: 1e3, mcg: 1 };
+  function premixPlan(c) {
+    var m = c.premix, d = D.byId(m.drug), cu = m.concUnit.split('/')[0], du = m.doseUnit.split('/')[0], perKg = /\/kg\//.test(m.doseUnit);
+    var amtConv = m.amt * MASS[m.amtUnit] / MASS[cu], conc = amtConv / c.bagVol;
+    var perMin = m.dose * (perKg ? m.weight : 1) * MASS[du] / MASS[cu], mlhr = Math.round(perMin * 60 / conc * 10) / 10;
+    var gtt = Math.round(mlhr * c.set / 60);
+    var concSteps = (m.amtUnit !== cu ? [C.n(m.amt) + ' ' + m.amtUnit + ' = ' + C.n(amtConv) + ' ' + cu + ' (1 ' + m.amtUnit + ' = 1,000 ' + cu + ')'] : [])
+      .concat(['Concentration = ' + C.frac('drug amount', 'bag volume') + ' = ' + C.frac(C.n(amtConv) + ' ' + cu, c.bagVol + ' mL') + ' = <b>' + C.n(conc) + ' ' + m.concUnit + '</b>']);
+    var mlhrSteps = (perKg ? ['Dose per minute = ' + C.n(m.dose) + ' ' + m.doseUnit + ' × ' + m.weight + ' kg = ' + C.n(m.dose * m.weight) + ' ' + du + '/min'] : [])
+      .concat(['Dose per hour = ' + C.n(perMin) + ' ' + cu + '/min × 60 = ' + C.n(perMin * 60) + ' ' + cu + '/hr',
+        'mL/hr = ' + C.frac('dose per hour', 'concentration') + ' = ' + C.frac(C.n(perMin * 60) + ' ' + cu + '/hr', C.n(conc) + ' ' + m.concUnit) + ' = <b>' + C.n(mlhr) + ' mL/hr</b>']);
+    var gttSteps = ['gtt/min = ' + C.frac('mL/hr × drop factor', '60 min'), '= ' + C.frac(C.n(mlhr) + ' mL/hr × ' + c.set + ' gtt/mL', '60') + ' = <b>' + gtt + ' gtt/min</b>', 'With a 60 gtt/mL microdrip set, gtt/min always equals mL/hr.'];
+    return {
+      d: d, premix: m, conc: conc, concSteps: concSteps, mlhr: mlhr, mlhrSteps: mlhrSteps, gtt: gtt, gttSteps: gttSteps,
+      order: m.label + ' in ' + c.bagVol + ' mL ' + c.fluid + ' (premixed); infuse at ' + C.n(m.dose) + ' ' + m.doseUnit + (perKg ? ' (' + m.weight + ' kg)' : ''),
+      note: 'An infusion pump is preferred. Use a 60 gtt/mL microdrip only when no pump is available and your protocol allows it.',
+      plan: ['conc', 'mlhr', 'gtt', 'safety', 'clamp']
+    };
+  }
+
   function dripPlan(c) {
+    if (c.premix) return premixPlan(c);
     var d = c.drug ? D.byId(c.drug) : null, med = d ? C.volumeFor(d, c.dose, c.unit) : null, gtt, steps;
     if (c.mlhr) {
       gtt = Math.round(c.mlhr * c.set / 60);
@@ -514,11 +535,11 @@
   }
 
   function viewDrips() {
-    main.innerHTML = pageHead('#2563eb', '<a href="#home">Home</a> / Drip Lab', 'Drip Lab', 'Mix and run gravity IV drips. For medication drips you calculate the dose, draw it up, add it to the bag, calculate the drip rate, then roll the clamp until the drops in the chamber match.') +
+    main.innerHTML = pageHead('#2563eb', '<a href="#home">Home</a> / Drip Lab', 'Drip Lab', 'Mix and run gravity IV drips. For medication drips you calculate the dose, draw it up, add it to the bag, calculate the drip rate, then roll the clamp until the drops in the chamber match. Premixed drips (dopamine, lidocaine, nitroglycerin) start with the concentration and the mL/hr.') +
       '<section class="section"><div class="wrap"><div class="scn-grid">' + DRIPS.map(function (c) {
         var cat = D.CATS[c.cat], best = (store.data.drips || {})[c.id];
-        return '<a class="scn-card" href="#dr-' + c.id + '" style="--c:' + cat.color + '"><div class="scn-meta"><span style="color:' + cat.color + '">' + (c.drug ? 'Mixed medication drip' : 'IV fluid') + '</span><span>' + c.level + '</span></div><h3>' + esc(c.title) + '</h3><p>' + esc(c.setting) + '</p>' +
-          '<div class="scn-meta"><span>' + c.set + ' gtt/mL set · ' + (c.drug ? '5' : '2') + ' steps</span><span>' + (best != null ? 'Best ' + best + '%' : 'Not started') + '</span></div></a>';
+        return '<a class="scn-card" href="#dr-' + c.id + '" style="--c:' + cat.color + '"><div class="scn-meta"><span style="color:' + cat.color + '">' + (c.premix ? 'Premixed medication drip' : c.drug ? 'Mixed medication drip' : 'IV fluid') + '</span><span>' + c.level + '</span></div><h3>' + esc(c.title) + '</h3><p>' + esc(c.setting) + '</p>' +
+          '<div class="scn-meta"><span>' + c.set + ' gtt/mL set · ' + dripPlan(c).plan.length + ' steps</span><span>' + (best != null ? 'Best ' + best + '%' : 'Not started') + '</span></div></a>';
       }).join('') + '</div></div></section>';
   }
 
@@ -529,11 +550,11 @@
     main.innerHTML = pageHead(cat.color, '<a href="#home">Home</a> / <a href="#drips">Drip Lab</a> / ' + esc(c.title), esc(c.title), esc(c.setting)) +
       '<div class="wrap drip-layout"><aside class="panel drip-side"><div class="kicker" style="color:' + cat.color + '">Patient</div><div class="vitals">' +
       Object.keys(c.vitals).map(function (k) { return '<div class="vital"><b>' + esc(k) + '</b><span>' + esc(c.vitals[k]) + '</span></div>'; }).join('') + '</div>' +
-      '<div class="order-card" style="margin-top:12px"><span class="lbl">Order</span><span class="ord" style="font-size:1.05rem">' + esc(P.order) + '</span></div>' +
+      '<div class="order-card" style="margin-top:12px"><span class="lbl">Order</span><span class="ord" style="font-size:1.05rem">' + esc(P.order) + '</span>' + (P.note ? '<span class="hint" style="display:block;margin-top:6px">' + esc(P.note) + '</span>' : '') + '</div>' +
       '<div id="drip-host" style="margin-top:12px"></div></aside>' +
       '<div><div class="panel"><div class="stepper" id="stepper" style="margin:0">' + P.plan.map(function () { return '<i></i>'; }).join('') + '</div></div>' +
       '<div class="panel" style="margin-top:18px" id="step-host"></div></div></div>';
-    var drip = new DripSet($('#drip-host'), { set: c.set, bag: { fluid: c.fluid, vol: c.bagVol }, locked: true });
+    var drip = new DripSet($('#drip-host'), { set: c.set, bag: { fluid: c.fluid, vol: c.bagVol, premix: P.premix ? { label: P.premix.label, conc: C.n(P.conc) + ' ' + P.premix.concUnit, glass: P.premix.glass, color: cat.color } : null }, locked: true });
     cleanup.push(function () { drip.destroy(); });
 
     function stepper() { $all('#stepper i').forEach(function (el, k) { el.className = k < results.length ? (results[k] ? 'done-ok' : 'done-bad') : k === i ? 'cur' : ''; }); }
@@ -587,8 +608,24 @@
             });
           });
         });
+      } else if (kind === 'conc') {
+        numStep('Concentration', 'The bag contains <b>' + esc(P.premix.label) + ' in ' + c.bagVol + ' mL</b>. What is the concentration in <b>' + P.premix.concUnit + '</b>?', P.conc, P.premix.concUnit, Math.max(0.011, P.conc * 0.01), P.concSteps);
+      } else if (kind === 'mlhr') {
+        numStep('Infusion rate', 'The order is <b>' + C.n(P.premix.dose) + ' ' + P.premix.doseUnit + '</b>' + (P.premix.weight ? ' for a <b>' + P.premix.weight + ' kg</b> patient' : '') + '. At ' + C.n(P.conc) + ' ' + P.premix.concUnit + ', how many mL/hr is that?', P.mlhr, 'mL/hr', Math.max(0.5, P.mlhr * 0.02), P.mlhrSteps);
+      } else if (kind === 'safety') {
+        var sq = c.safety;
+        host.innerHTML = head('Safety check') + '<h3 style="font-size:1.12rem;margin-top:6px">' + esc(sq.q) + '</h3><div class="options">' + sq.options.map(function (o, k) { return '<button class="option" data-k="' + k + '"><span class="key">' + (k + 1) + '</span>' + esc(o) + '</button>'; }).join('') + '</div><div id="step-fb"></div>';
+        $all('#step-host .option').forEach(function (b) {
+          b.addEventListener('click', function () {
+            if (results.length > i) return;
+            var k = +b.dataset.k, ok = k === sq.answer; results.push(ok);
+            $all('#step-host .option').forEach(function (x) { x.disabled = true; var kk = +x.dataset.k; if (kk === sq.answer) x.classList.add('correct'); else if (kk === k) x.classList.add('wrong'); });
+            $('#step-fb').innerHTML = '<div class="explain"><div class="verdict ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ Correct' : '✗ Not quite') + '</div><p style="margin:0">' + esc(sq.explain) + '</p>' + nextBtn() + '</div>';
+            stepper(); wireNext();
+          });
+        });
       } else if (kind === 'gtt') {
-        numStep('Drip-rate math', 'You are using a <b>' + c.set + ' gtt/mL</b> set. ' + (c.mlhr ? 'To run <b>' + c.mlhr + ' mL/hr</b>' : 'To infuse <b>' + c.bagVol + ' mL over ' + c.minutes + ' minutes</b>') + ', what drip rate do you need? <span class="hint">Round to the nearest whole drop.</span>', P.gtt, 'gtt/min', 1, P.gttSteps);
+        numStep('Drip-rate math', 'You are using a <b>' + c.set + ' gtt/mL</b> set. ' + (P.mlhr || c.mlhr ? 'To run <b>' + C.n(P.mlhr || c.mlhr) + ' mL/hr</b>' : 'To infuse <b>' + c.bagVol + ' mL over ' + c.minutes + ' minutes</b>') + ', what drip rate do you need? <span class="hint">Round to the nearest whole drop.</span>', P.gtt, 'gtt/min', 1, P.gttSteps);
       } else {
         drip.lock(false);
         var tol = Math.max(2, Math.round(P.gtt * 0.04)), first = true;
