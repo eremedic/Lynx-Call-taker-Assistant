@@ -637,3 +637,8 @@ input, select, textarea { background: var(--card); color: var(--ink); }
 .embedded .product-pill { display: inline-block; font-size: .8rem; padding: 6px 12px; }
 .embedded .header-inner { height: 56px; }
 @media (max-width: 1080px) { .embedded .site-nav { top: 56px; } }
+
+/* Headings are flex rows only when they carry an icon badge; question and
+   instruction headings with bold words must flow as normal sentences. */
+.panel h3:not(:has(.ic)) { display: block; }
+.panel h3 .hint { display: block; margin-top: 6px; font-weight: 500; }
