@@ -17,6 +17,20 @@ It is a static website (HTML, CSS and plain JavaScript, with no build step and n
 | 7 · Pacemaker | Ventricular paced, AV sequential paced, failure to capture |
 | 8 · Final exam | 20 mixed rhythms from every module |
 
+### Separate course: Basic 12-Lead ECG (`#twelve`)
+
+A stand-alone course for after the 3-lead modules:
+
+1. Why acquire a 12-lead (and when)
+2. Electrode placement: V1–V6 chest diagram and landmarks
+3. The twelve views: the standard 3 × 4 + rhythm-strip layout with colour-coded territories (inferior, lateral, septal, anterior) and their usual arteries
+4. A systematic 12-lead read
+5. Axis: the quadrant method with an interactive hexaxial dial (drag the axis and watch Leads I, aVF and II change)
+6. The ST segment and STEMI criteria: an annotated J-point measurement, contiguous leads, reciprocal changes, V4R/V7–V9 and STEMI mimics
+7. Case library: normal, inferior, anterior and lateral STEMI, posterior MI, RBBB, LBBB, LVH, pericarditis and hyperkalaemia. Each case has an **ST map** that boxes the leads with measured ST elevation or depression.
+
+The 12-lead quiz (10 questions) mixes interpretation, STEMI territory and axis questions. The 12-lead tracings come from `js/ecg12-engine.js`, which models each wave as a 3-D cardiac vector, so limb and precordial leads (and their reciprocal changes) stay consistent.
+
 Each rhythm page includes:
 
 - A realistic strip on standard ECG paper (25 mm/s, 10 mm/mV) with 3-second marks
@@ -52,6 +66,8 @@ ecg-trainer/
 ├── js/ecg-engine.js      waveform synthesis: rhythm generators → Lead I/II/III signals
 ├── js/ecg-render.js      ECG-paper renderer, animated monitor, calipers
 ├── js/content.js         modules, rhythm criteria, tips, prehospital notes
+├── js/ecg12-engine.js    12-lead synthesis (3-D vectors), 12-lead layout renderer, ST measurement
+├── js/content12.js       12-lead course cases, findings and axis categories
 ├── js/app.js             routing, lessons, quizzes, reference, progress
 └── assets/               CSHealthED logo, emblem, favicon
 ```

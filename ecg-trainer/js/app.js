@@ -243,6 +243,7 @@
       '<a class="btn btn-ghost" href="#practice">Practice &amp; exams →</a></div>' +
       '<div class="module-grid">' + MODULES.map(moduleCard).join('') + '</div></div></section>' +
 
+      '<section class="section" style="padding-top:0"><div class="wrap"><div class="section-head"><div><h2>Basic 12-Lead ECG</h2><p>Once you can read rhythms, step up to the 12-lead: a separate course on lead placement, territories, axis and STEMI recognition.</p></div></div>' + twelveCard() + '</div></section>' +
       '<section class="section" style="padding-top:0"><div class="wrap"><div class="section-head"><div><h2>How it works</h2><p>Built around how paramedics actually read rhythms on a 3-lead monitor.</p></div></div>' +
       '<div class="steps">' +
       '<div class="step"><div class="n">1</div><h3>Learn the pattern</h3><p>Each rhythm has the five-step criteria, recognition tips and prehospital considerations beside a realistic strip.</p></div>' +
@@ -276,13 +277,18 @@
       run(b.dataset.r);
     });
     run('nsr');
+    drawTwelveThumb();
+    onResize(drawTwelveThumb);
     cleanup.push(function () { if (mon) mon.stop(); clearInterval(t); });
   }
 
   /* ------------------------------------------------------------ MODULES LIST */
   function viewModules() {
     main.innerHTML = pageHead('#1b7a8c', '<a href="#home">Home</a> / Modules', 'Learning Modules', 'A structured path from the basics of the ECG to complex blocks and paced rhythms. Complete each module’s rhythms and pass its quiz (80%) to finish it.') +
-      '<section class="section"><div class="wrap"><div class="module-grid">' + MODULES.map(moduleCard).join('') + '</div></div></section>';
+      '<section class="section"><div class="wrap"><div class="section-head"><div><h2>3-Lead Rhythm Interpretation</h2><p>Eight modules from foundations to the final exam.</p></div></div><div class="module-grid">' + MODULES.map(moduleCard).join('') + '</div>' +
+      '<div class="section-head" style="margin-top:44px"><div><h2>Basic 12-Lead ECG</h2><p>A separate course, best taken after the 3-lead modules.</p></div></div>' + twelveCard() + '</div></section>';
+    drawTwelveThumb();
+    onResize(drawTwelveThumb);
   }
 
   /* ------------------------------------------------------------ MODULE */
@@ -627,6 +633,389 @@
   }
   var quizDetach = null;
 
+  /* ------------------------------------------------------------ 12-LEAD COURSE */
+  var C12 = ECG12Content;
+  var TERR_LABEL = { inferior: 'Inferior wall', anterior: 'Anterior (anteroseptal) wall', lateral: 'Lateral wall', posterior: 'Posterior wall' };
+
+  function twelveProgress() {
+    var seen = C12.CASE_ORDER.filter(function (c) { return store.data.viewed['12:' + c]; }).length;
+    return (seen + (store.data.lessons.twelve ? 1 : 0) + (store.data.quiz.twelve >= 80 ? 1 : 0)) / (C12.CASE_ORDER.length + 2);
+  }
+
+  function twelveCard() {
+    var p = Math.round(twelveProgress() * 100), best = store.data.quiz.twelve;
+    return '<a class="course12" href="#twelve" style="--c:' + C12.COURSE.color + '">' +
+      '<div class="c12-text"><div class="eyebrow12">Separate course · beyond the 3-lead</div><h3>Basic 12-Lead ECG Interpretation</h3><p>' + C12.COURSE.tagline + '</p>' +
+      '<div class="c12-meta"><span>Lesson · ' + C12.CASE_ORDER.length + ' case patterns · 10-question quiz</span><span>' + (best != null ? 'Best ' + best + '%' : p + '% complete') + '</span></div>' +
+      '<div class="progress"><i style="width:' + p + '%"></i></div><span class="btn btn-primary btn-sm c12-cta">Open the 12-lead course →</span></div>' +
+      '<div class="c12-thumb"><canvas id="c12-thumb" aria-label="Example 12-lead ECG" role="img"></canvas></div></a>';
+  }
+  function drawTwelveThumb() {
+    var c = $('#c12-thumb');
+    if (c) ECG12.draw(c, ECG12.generate('inferior', 77), { minWidth: 280, rhythm: false, stmap: true });
+  }
+
+  function Viewer12(host, opts) {
+    var st = { pattern: opts.pattern, seed: opts.seed || seed(), terr: !!opts.territories, stmap: !!opts.stmap, axis: opts.axis };
+    var sig;
+    var legend = Object.keys(ECG12.TERRITORIES).map(function (k) {
+      var T = ECG12.TERRITORIES[k];
+      return '<span class="tchip" style="--tc:' + T.color + '"><i></i>' + T.name + ' · ' + T.leads.join(', ') + '</span>';
+    }).join('') + '<span class="tchip" style="--tc:#8a93a8"><i></i>aVR · right upper view</span>';
+    host.innerHTML = '<div class="toolbar">' +
+      '<button class="tool-btn' + (st.terr ? ' on' : '') + '" data-act="terr" aria-pressed="' + st.terr + '">Territories</button>' +
+      '<button class="tool-btn' + (st.stmap ? ' on' : '') + '" data-act="st" aria-pressed="' + st.stmap + '"' + (opts.hideST ? ' hidden' : '') + '>ST map</button>' +
+      '<span class="spacer"></span><button class="tool-btn" data-act="new">' + ICON.refresh + 'New tracing</button></div>' +
+      '<div class="terr-legend"' + (st.terr ? '' : ' hidden') + '>' + legend + '</div>' +
+      '<div class="ecg12-scroll"><canvas role="img" aria-label="12-lead ECG tracing"></canvas></div>' +
+      '<p class="hint st-hint"' + (st.stmap ? '' : ' hidden') + '><b style="color:#e0262b">Red box</b>: ST elevation meeting STEMI voltage criteria (≥ 1 mm; ≥ 1.5 mm in V2–V3). <b style="color:#1e66d0">Blue dashed</b>: ST depression ≥ 0.5 mm. Measured 40 ms after the J point against the TP baseline.</p>';
+    var canvas = $('canvas', host);
+    function build() { sig = ECG12.generate(st.pattern, st.seed, st.axis != null ? { axis: st.axis } : {}); }
+    function draw() { ECG12.draw(canvas, sig, { territories: st.terr, stmap: st.stmap }); }
+    function sync() {
+      $('[data-act="terr"]', host).classList.toggle('on', st.terr);
+      $('[data-act="st"]', host).classList.toggle('on', st.stmap);
+      $('.terr-legend', host).hidden = !st.terr;
+      $('.st-hint', host).hidden = !st.stmap;
+    }
+    host.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b || !host.contains(b)) return;
+      if (b.dataset.act === 'terr') st.terr = !st.terr;
+      else if (b.dataset.act === 'st') st.stmap = !st.stmap;
+      else if (b.dataset.act === 'new') { st.seed = seed(); build(); }
+      else return;
+      sync(); draw();
+    });
+    build(); draw();
+    onResize(draw);
+    return {
+      set: function (pattern, axis) { st.pattern = pattern; st.axis = axis; st.seed = seed(); build(); draw(); },
+      reveal: function () { st.stmap = true; $('[data-act="st"]', host).hidden = false; sync(); draw(); },
+      sig: function () { return sig; }
+    };
+  }
+
+  function axisClass(a) {
+    if (a >= -30 && a <= 90) return 'normal';
+    if (a < -30 && a > -90) return 'lad';
+    if (a > 90) return 'rad';
+    return 'extreme';
+  }
+  function axisById(id) { return C12.AXES.filter(function (x) { return x.id === id; })[0]; }
+
+  function hexaxialSvg() {
+    var leads = [['I', 0], ['II', 60], ['III', 120], ['aVF', 90], ['aVL', -30], ['aVR', -150]];
+    var cx = 150, cy = 150, R = 110;
+    function pt(a, r) { return [cx + r * Math.cos(a * Math.PI / 180), cy + r * Math.sin(a * Math.PI / 180)]; }
+    function sector(a1, a2, col) {
+      var p1 = pt(a1, R), p2 = pt(a2, R), large = (a2 - a1) > 180 ? 1 : 0;
+      return '<path d="M' + cx + ' ' + cy + 'L' + p1[0].toFixed(1) + ' ' + p1[1].toFixed(1) + 'A' + R + ' ' + R + ' 0 ' + large + ' 1 ' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1) + 'Z" fill="' + col + '" opacity=".16"/>';
+    }
+    var s = '<svg viewBox="0 0 300 300" class="hexaxial" role="img" aria-label="Hexaxial reference system">' +
+      sector(-30, 90, '#3a9b3f') + sector(90, 180, '#f08a1c') + sector(-90, -30, '#1e88e5') + sector(-180, -90, '#e0262b') +
+      '<circle cx="150" cy="150" r="110" fill="none" stroke="#c9d3e6"/>';
+    leads.forEach(function (l) {
+      var a = pt(l[1], R), b = pt(l[1] + 180, R), lab = pt(l[1], R + 18);
+      s += '<line x1="' + b[0].toFixed(1) + '" y1="' + b[1].toFixed(1) + '" x2="' + a[0].toFixed(1) + '" y2="' + a[1].toFixed(1) + '" stroke="#9aa4bb" stroke-dasharray="3 3"/>' +
+        '<text x="' + lab[0].toFixed(1) + '" y="' + (lab[1] + 4).toFixed(1) + '" text-anchor="middle" font-family="Inter" font-size="12" font-weight="700" fill="#1b2a5b">' + l[0] + '</text>';
+    });
+    s += '<g id="axis-arrow"><line x1="150" y1="150" x2="250" y2="150" stroke="#c2185b" stroke-width="4" stroke-linecap="round"/><path d="M254 150l-14-8v16z" fill="#c2185b"/></g>' +
+      '<circle cx="150" cy="150" r="5" fill="#1b2a5b"/>' +
+      
+      '</svg>';
+    return s;
+  }
+
+  function chestSvg() {
+    var V = [['V1', 186, 168, '#e0262b'], ['V2', 234, 168, '#e6b800'], ['V3', 262, 188, '#3a9b3f'], ['V4', 290, 206, '#1e66d0'], ['V5', 330, 206, '#f08a1c'], ['V6', 364, 206, '#7b4bc4']];
+    var s = '<svg viewBox="0 0 420 340" class="chest-svg" role="img" aria-label="Precordial electrode positions V1 to V6">' +
+      '<path d="M210 20c-24 0-38 16-38 38v14c-50 6-96 18-118 44-10 70-8 140 6 210h300c14-70 16-140 6-210-22-26-68-38-118-44V58c0-22-14-38-38-38z" fill="#eef2f9" stroke="#c9d3e6" stroke-width="2"/>' +
+      '<rect x="200" y="96" width="20" height="150" rx="8" fill="#dfe5f1" stroke="#c9d3e6"/>' +
+      '<path d="M200 98C170 92 130 92 96 104M220 98c30-6 70-6 104 6" stroke="#c9d3e6" stroke-width="3" fill="none"/>';
+    [[130, 'ICS 2'], [150, ''], [168, 'ICS 4'], [206, 'ICS 5']].forEach(function (r) {
+      s += '<path d="M90 ' + r[0] + 'Q210 ' + (r[0] + 14) + ' 370 ' + r[0] + '" stroke="#d6dcea" stroke-width="1.5" fill="none"/>';
+      if (r[1]) s += '<text x="58" y="' + (r[0] + 4) + '" font-family="Inter" font-size="10" fill="#8a93a8">' + r[1] + '</text>';
+    });
+    s += '<line x1="290" y1="110" x2="290" y2="300" stroke="#b9c2d6" stroke-dasharray="4 4"/><text x="290" y="318" text-anchor="middle" font-family="Inter" font-size="9.5" fill="#5b6684">mid-clavicular</text>' +
+      '<line x1="330" y1="120" x2="330" y2="300" stroke="#b9c2d6" stroke-dasharray="4 4"/><text x="334" y="332" text-anchor="middle" font-family="Inter" font-size="9.5" fill="#5b6684">ant. axillary</text>' +
+      '<line x1="364" y1="130" x2="364" y2="300" stroke="#b9c2d6" stroke-dasharray="4 4"/><text x="378" y="318" text-anchor="middle" font-family="Inter" font-size="9.5" fill="#5b6684">mid-axillary</text>' +
+      '<text x="210" y="88" text-anchor="middle" font-family="Inter" font-size="9.5" fill="#5b6684">sternal angle → 2nd rib</text>' +
+      '<text x="100" y="300" text-anchor="middle" font-family="Inter" font-size="10" font-weight="700" fill="#8a93a8">Patient’s RIGHT</text><text x="320" y="70" text-anchor="middle" font-family="Inter" font-size="10" font-weight="700" fill="#8a93a8">Patient’s LEFT</text>';
+    V.forEach(function (v) {
+      s += '<circle cx="' + v[1] + '" cy="' + v[2] + '" r="13" fill="' + v[3] + '" stroke="#fff" stroke-width="2.5"/><text x="' + v[1] + '" y="' + (v[2] + 4) + '" text-anchor="middle" font-family="Inter" font-size="10" font-weight="800" fill="#fff">' + v[0] + '</text>';
+    });
+    return s + '</svg>';
+  }
+
+  function viewTwelve(query) {
+    var CO = C12.COURSE;
+    main.innerHTML = pageHead(CO.color, '<a href="#home">Home</a> / <a href="#modules">Courses</a> / 12-Lead', 'Basic 12-Lead ECG Interpretation',
+      'A separate course for after the 3-lead modules. Learn to place a 12-lead, read its twelve views, estimate the axis, measure the ST segment and recognise STEMI patterns and common mimics.',
+      '<a class="btn btn-primary" href="#q-twelve">Take the 12-lead quiz</a>') +
+      '<div class="wrap" style="padding-block:28px 56px">' +
+      '<nav class="lesson-nav no-print">' + [['why', '1 · Why 12 leads'], ['placement', '2 · Electrode placement'], ['views', '3 · The twelve views'], ['approach', '4 · Systematic read'], ['axis', '5 · Axis'], ['st', '6 · ST segment & STEMI'], ['cases', '7 · Case library']].map(function (x) {
+        return '<a href="#" data-s="' + x[0] + '">' + x[1] + '</a>';
+      }).join('') + '</nav>' +
+
+      '<section class="panel lesson-section" id="s-why"><h2><span class="n">1</span>Why acquire a 12-lead?</h2>' +
+      '<div class="two-col"><div><p>Your 3-lead monitor shows the heart from <b>two or three angles</b> — enough to identify a rhythm. A 12-lead looks at the heart from <b>twelve angles at once</b>: six in the frontal plane (I, II, III, aVR, aVL, aVF) and six across the chest in the horizontal plane (V1–V6).</p>' +
+      '<p>That lets you <b>localise</b> ischaemia and infarction, recognise conduction blocks and spot conditions that a rhythm strip cannot show.</p></div>' +
+      '<div class="callout blue"><b>Acquire a 12-lead early</b> for chest pain or anginal equivalents (dyspnoea, weakness, syncope, epigastric pain, diaphoresis), especially in older, diabetic and female patients who often present atypically. Aim to acquire it within <b>10 minutes</b> of patient contact, transmit it per protocol, and repeat it when symptoms change.</div></div></section>' +
+
+      '<section class="panel lesson-section" id="s-placement"><h2><span class="n">2</span>Electrode placement</h2>' +
+      '<div class="two-col"><div class="chest-wrap">' + chestSvg() + '</div><div>' +
+      '<table class="criteria v-table"><tr><th><span class="vdot" style="background:#e0262b"></span>V1</th><td>4th intercostal space, <b>right</b> sternal border</td></tr>' +
+      '<tr><th><span class="vdot" style="background:#e6b800"></span>V2</th><td>4th intercostal space, <b>left</b> sternal border</td></tr>' +
+      '<tr><th><span class="vdot" style="background:#3a9b3f"></span>V3</th><td>Midway between V2 and V4</td></tr>' +
+      '<tr><th><span class="vdot" style="background:#1e66d0"></span>V4</th><td>5th intercostal space, mid-clavicular line</td></tr>' +
+      '<tr><th><span class="vdot" style="background:#f08a1c"></span>V5</th><td>Anterior axillary line, level with V4</td></tr>' +
+      '<tr><th><span class="vdot" style="background:#7b4bc4"></span>V6</th><td>Mid-axillary line, level with V4 and V5</td></tr></table>' +
+      '<ul class="tight"><li>Find the <b>sternal angle</b> (angle of Louis) → 2nd rib → the space below is ICS 2; count down to ICS 4.</li><li>The most common error is placing V1–V2 too high, which can mimic or mask an infarct.</li><li>Place V4–V6 <b>under</b> breast tissue, not on it.</li><li>Limb electrodes (RA, LA, RL, LL) go on the limbs or proximal limbs; the patient should lie still and breathe normally to reduce artifact.</li></ul>' +
+      '</div></div></section>' +
+
+      '<section class="panel lesson-section" id="s-views"><h2><span class="n">3</span>The twelve views and their territories</h2>' +
+      '<p>The standard printout shows each lead for 2.5 seconds in a 3 × 4 grid, with a 10-second rhythm strip (usually Lead II) along the bottom. Leads that look at the same wall are called <b>contiguous</b> — ST changes must appear in two contiguous leads to be significant.</p>' +
+      '<div id="views-viewer"></div>' +
+      '<div class="table-scroll"><table class="ref-table" style="margin-top:16px"><thead><tr><th>Wall</th><th>Leads</th><th>Usual artery</th></tr></thead><tbody>' +
+      Object.keys(ECG12.TERRITORIES).map(function (k) {
+        var T = ECG12.TERRITORIES[k];
+        return '<tr><td class="name"><span class="vdot" style="background:' + T.color + '"></span>' + T.name + '</td><td>' + T.leads.join(', ') + '</td><td>' + T.artery + '</td></tr>';
+      }).join('') +
+      '<tr><td class="name"><span class="vdot" style="background:#7b4bc4"></span>Posterior</td><td>No direct view — seen as reciprocal changes in V1–V3 (confirm with V7–V9)</td><td>Circumflex or RCA</td></tr>' +
+      '<tr><td class="name"><span class="vdot" style="background:#8a93a8"></span>aVR</td><td>aVR</td><td>Looks into the cavity from the right shoulder. ST elevation in aVR with widespread ST depression suggests left main or multivessel ischaemia.</td></tr>' +
+      '</tbody></table></div></section>' +
+
+      '<section class="panel lesson-section" id="s-approach"><h2><span class="n">4</span>A systematic 12-lead read</h2>' +
+      '<ol class="five-steps">' +
+      '<li><div><b>Rate and rhythm.</b> Use the rhythm strip and everything you learned in the 3-lead modules.</div></li>' +
+      '<li><div><b>Intervals.</b> PR (0.12–0.20 s), QRS (≥ 0.12 s → bundle branch block, ventricular or paced rhythm), QT (roughly less than half the R–R).</div></li>' +
+      '<li><div><b>Axis.</b> Look at Lead I and aVF (Section 5).</div></li>' +
+      '<li><div><b>QRS morphology.</b> R-wave progression across V1–V6, pathological Q waves, very large voltages (hypertrophy), rSR′ in V1 (RBBB).</div></li>' +
+      '<li><div><b>ST segments and T waves in every lead.</b> Group findings by territory. Elevation in contiguous leads plus reciprocal depression = think STEMI.</div></li>' +
+      '<li><div><b>Compare and repeat.</b> Compare with prior ECGs if available, correlate with the patient and repeat serial 12-leads.</div></li>' +
+      '</ol></section>' +
+
+      '<section class="panel lesson-section" id="s-axis"><h2><span class="n">5</span>Electrical axis — the quadrant method</h2>' +
+      '<p>The axis is the average direction of ventricular depolarisation in the frontal plane. Look at whether the QRS is mostly <b>positive or negative</b> in Lead I and aVF:</p>' +
+      '<div class="table-scroll"><table class="ref-table axis-table"><thead><tr><th>Lead I</th><th>aVF</th><th>Axis</th></tr></thead><tbody>' +
+      '<tr><td>Positive ↑</td><td>Positive ↑</td><td><b style="color:#3a9b3f">Normal</b> (0° to +90°)</td></tr>' +
+      '<tr><td>Positive ↑</td><td>Negative ↓</td><td>Check Lead II: positive = <b style="color:#3a9b3f">normal</b> (0° to −30°); negative = <b style="color:#1e88e5">left axis deviation</b></td></tr>' +
+      '<tr><td>Negative ↓</td><td>Positive ↑</td><td><b style="color:#f08a1c">Right axis deviation</b> (+90° to +180°)</td></tr>' +
+      '<tr><td>Negative ↓</td><td>Negative ↓</td><td><b style="color:#e0262b">Extreme axis</b> (“no man’s land”) — consider ventricular rhythm or lead reversal</td></tr>' +
+      '</tbody></table></div>' +
+      '<div class="axis-widget"><div class="axis-left">' + hexaxialSvg() + '</div><div class="axis-right">' +
+      '<label for="axis-slider" class="axis-label">Drag to change the QRS axis: <b id="axis-val">+60°</b></label>' +
+      '<input type="range" id="axis-slider" min="-180" max="180" step="5" value="60">' +
+      '<div class="axis-verdict" id="axis-verdict"></div>' +
+      '<div class="strip-wrap"><canvas id="axis-strip"></canvas></div>' +
+      '<p class="hint">Leads I, aVF and II from the same simulated heart. Watch the QRS polarity change as the axis rotates.</p></div></div>' +
+      '<p class="muted" style="margin-top:12px">Left axis deviation: left anterior fascicular block, inferior MI, LVH, paced rhythms. Right axis deviation: right ventricular strain (pulmonary embolism, COPD), left posterior fascicular block, lateral MI; normal in children.</p>' +
+      '</section>' +
+
+      '<section class="panel lesson-section" id="s-st"><h2><span class="n">6</span>The ST segment and STEMI recognition</h2>' +
+      '<div class="two-col"><div><div class="strip-wrap"><canvas id="st-fig"></canvas></div><p class="hint">Lead V2 from an anterior STEMI. Measure from the <b>TP baseline</b> to the ST segment at the <b>J point</b> (some systems use J + 40–80 ms).</p></div>' +
+      '<div><h3>STEMI voltage criteria</h3><p>New ST elevation at the J point in <b>two or more contiguous leads</b>:</p><ul class="tight">' +
+      '<li><b>≥ 1 mm</b> in all leads other than V2–V3</li><li><b>V2–V3:</b> ≥ 2 mm in men ≥ 40, ≥ 2.5 mm in men &lt; 40, ≥ 1.5 mm in women</li>' +
+      '<li><b>Reciprocal ST depression</b> in the opposite wall strongly supports STEMI</li>' +
+      '<li>Posterior: ST depression in V1–V3 → obtain V7–V9 (≥ 0.5 mm elevation)</li><li>Inferior: obtain V4R for right ventricular involvement (≥ 1 mm)</li></ul>' +
+      '<div class="callout" style="margin-top:12px"><b>STEMI mimics</b> — ST elevation that is not acute infarction: LBBB, ventricular paced rhythm, LVH, pericarditis, benign early repolarisation, hyperkalaemia, Brugada pattern, ventricular aneurysm. When in doubt, transmit and consult — never delay care for a possible STEMI.</div></div></div>' +
+      '</section>' +
+
+      '<section class="panel lesson-section" id="s-cases"><h2><span class="n">7</span>Case library</h2>' +
+      '<p>Explore each pattern. Turn on <b>Territories</b> to colour the lead groups and <b>ST map</b> to see measured ST deviation in every lead. Press <b>New tracing</b> for another example.</p>' +
+      '<div class="case-tabs" role="tablist">' + C12.CASE_ORDER.map(function (c) {
+        return '<button role="tab" data-case="' + c + '"><span class="dot' + (store.data.viewed['12:' + c] ? ' done' : '') + '"></span>' + esc(C12.CASES[c].short) + '</button>';
+      }).join('') + '</div>' +
+      '<div class="viewer-head" style="margin-top:14px"><div><div class="kicker" id="case-group" style="color:' + CO.color + '"></div><h2 id="case-name" style="font-size:1.4rem"></h2></div></div>' +
+      '<div id="case-viewer"></div>' +
+      '<div class="info-grid"><div class="panel"><h3><span class="ic">' + ICON.search + '</span>Key findings</h3><ul id="case-findings"></ul><h3 style="margin-top:14px"><span class="ic">' + ICON.eye + '</span>Tips</h3><ul id="case-tips"></ul></div>' +
+      '<div class="panel"><h3><span class="ic red">' + ICON.ambulance + '</span>Prehospital considerations</h3><ul id="case-care"></ul><p class="protocol-note">General educational guidance — always follow your local protocols, STEMI destination policy and medical direction.</p></div></div>' +
+      '</section>' +
+
+      '<div class="pager"><a class="btn btn-ghost" href="#modules">← All courses</a><a class="btn btn-primary" href="#q-twelve">Take the 12-lead quiz →</a></div>' +
+      '</div>';
+
+    store.lesson('twelve');
+    $all('.lesson-section').forEach(function (s) { s.style.marginTop = '18px'; });
+    $('.lesson-nav').addEventListener('click', function (e) {
+      var a = e.target.closest('[data-s]'); if (!a) return;
+      e.preventDefault();
+      $('#s-' + a.dataset.s).scrollIntoView({ behavior: 'smooth' });
+    });
+
+    Viewer12($('#views-viewer'), { pattern: 'normal', territories: true, seed: 5 });
+
+    // axis widget
+    var slider = $('#axis-slider'), axisSig;
+    function drawAxis() {
+      var a = +slider.value;
+      $('#axis-val').textContent = (a > 0 ? '+' : '') + a + '°';
+      $('#axis-arrow').setAttribute('transform', 'rotate(' + a + ' 150 150)');
+      var cls = axisById(axisClass(a));
+      var col = { normal: '#3a9b3f', lad: '#1e88e5', rad: '#f08a1c', extreme: '#e0262b' }[cls.id];
+      axisSig = ECG12.generate('normal', 9, { axis: a, duration: 4.2 });
+      function pol(L) { var v = 0, s = axisSig.leads[L]; axisSig.qrsTimes.forEach(function (b) { for (var i = Math.round(b * 500); i < Math.round((b + 0.085) * 500) && i < s.length; i++) v += s[i]; }); return v >= 0 ? '+' : '−'; }
+      $('#axis-verdict').innerHTML = '<span class="badge" style="background:' + col + '22;color:' + col + '">' + cls.name + '</span> <span class="muted">Lead I ' + pol('I') + ' · aVF ' + pol('aVF') + ' · Lead II ' + pol('II') + '</span>';
+      ECGRender.drawStrip($('#axis-strip'), axisSig, { leads: ['I', 'aVF', 'II'], seconds: 4, bandMM: 22 });
+    }
+    slider.addEventListener('input', drawAxis);
+    drawAxis();
+
+    // ST figure
+    var stSig = ECG12.generate('anterior', 31, { duration: 3 });
+    function drawST() {
+      var q = stSig.qrsTimes.filter(function (t) { return t > 0.5; })[0];
+      var t0 = q - 0.4, c = $('#st-fig');
+      var info = ECGRender.drawStrip(c, stSig, { leads: ['V2'], seconds: 1.4, start: t0, width: Math.min(560, c.parentElement.clientWidth), bandMM: 26 });
+      var ctx = info.ctx, b = info.bands[0], s = stSig.leads.V2;
+      function X(t) { return (t - t0) * info.pps; }
+      function val(t) { return s[Math.round(t * 500)]; }
+      var tp = q - 0.16 - 0.06, base = 0;
+      for (var k = -5; k <= 5; k++) base += s[Math.round(tp * 500) + k];
+      base /= 11;
+      var yb = b.base - base * info.ppmv, J = q + stSig.qrsDur - 0.005, yj = b.base - val(J + 0.04) * info.ppmv;
+      ctx.save();
+      ctx.strokeStyle = '#1e66d0'; ctx.setLineDash([6, 5]); ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(0, yb); ctx.lineTo(info.width, yb); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#1e66d0'; ctx.font = '700 12px Inter, sans-serif'; ctx.fillText('TP baseline', 8, yb + 16);
+      ctx.fillStyle = '#c2185b'; ctx.beginPath(); ctx.arc(X(J), b.base - val(J) * info.ppmv, 5, 0, 6.3); ctx.fill();
+      ctx.fillText('J point', X(J) - 58, b.base - val(J) * info.ppmv + 4);
+      var xm = X(J + 0.04);
+      ctx.strokeStyle = '#e0262b'; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.moveTo(xm, yb); ctx.lineTo(xm, yj); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(xm - 5, yj + 7); ctx.lineTo(xm, yj); ctx.lineTo(xm + 5, yj + 7); ctx.stroke();
+      ctx.fillStyle = '#e0262b';
+      ctx.fillText('ST elevation ≈ ' + ((val(J + 0.04) - base) * 10).toFixed(1) + ' mm', xm + 10, (yb + yj) / 2 + 4);
+      ctx.restore();
+    }
+    drawST();
+
+    // case library
+    var current = query.c && C12.CASES[query.c] ? query.c : 'normal';
+    var cv = Viewer12($('#case-viewer'), { pattern: current, stmap: true });
+    function showCase(id, push) {
+      current = id;
+      var C = C12.CASES[id];
+      $('#case-group').textContent = C.group + (C.territory ? ' · ' + (TERR_LABEL[C.territory] || '') : '');
+      $('#case-name').textContent = C.name;
+      $('#case-findings').innerHTML = C.findings.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('');
+      $('#case-tips').innerHTML = C.tips.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('');
+      $('#case-care').innerHTML = C.care.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('');
+      $all('.case-tabs [data-case]').forEach(function (b) { var on = b.dataset.case === id; b.classList.toggle('active', on); b.setAttribute('aria-selected', on); });
+      store.view('12:' + id);
+      var d = $('.case-tabs [data-case="' + id + '"] .dot'); if (d) d.classList.add('done');
+      if (push) history.replaceState(null, '', '#twelve-c-' + id);
+    }
+    $('.case-tabs').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-case]'); if (!b) return;
+      cv.set(b.dataset.case); showCase(b.dataset.case, true);
+    });
+    showCase(current, false);
+
+    onResize(function () { drawAxis(); drawST(); });
+    var target = query.s || (query.c ? 'cases' : null);
+    if (target) setTimeout(function () { var el = $('#s-' + target); if (el) el.scrollIntoView(); }, 60);
+  }
+
+  function viewQuiz12() {
+    var CO = C12.COURSE, N = 10;
+    var stemi = ['inferior', 'anterior', 'lateral', 'posterior'];
+    var qs = [];
+    var interp = shuffle(C12.CASE_ORDER).concat(shuffle(C12.CASE_ORDER));
+    for (var i = 0; i < 6; i++) qs.push({ type: 'interp', c: interp[i] });
+    shuffle(stemi).slice(0, 2).forEach(function (c) { qs.push({ type: 'terr', c: c }); });
+    shuffle(C12.AXES).slice(0, 2).forEach(function (a) { qs.push({ type: 'axis', c: 'normal', ax: a.id, angle: a.angles[Math.floor(Math.random() * a.angles.length)] }); });
+    qs = shuffle(qs);
+    var qi = 0, score = 0, answered = false, missed = [];
+
+    main.innerHTML = pageHead(CO.color, '<a href="#home">Home</a> / <a href="#twelve">12-Lead</a> / Quiz', 'Basic 12-Lead ECG — Quiz',
+      'Ten questions: interpretation, STEMI territory and axis. Use Territories to orient yourself — the ST map is revealed after you answer. Pass mark: 80%.') +
+      '<div class="wrap quiz-shell" id="quiz"></div>';
+    var root = $('#quiz');
+
+    function optionsFor(q) {
+      if (q.type === 'terr') return shuffle(stemi).map(function (t) { return { v: t, label: TERR_LABEL[t] }; });
+      if (q.type === 'axis') return C12.AXES.map(function (a) { return { v: a.id, label: a.name + ' (' + a.range + ')' }; });
+      var C = C12.CASES[q.c];
+      var same = shuffle(C12.CASE_ORDER.filter(function (x) { return x !== q.c && C12.CASES[x].group === C.group; })).slice(0, 2);
+      var rest = shuffle(C12.CASE_ORDER.filter(function (x) { return x !== q.c && same.indexOf(x) < 0; }));
+      var picks = same.concat(rest).slice(0, 3).concat([q.c]);
+      return shuffle(picks).map(function (x) { return { v: x, label: C12.CASES[x].name }; });
+    }
+    function correctOf(q) { return q.type === 'terr' ? q.c : q.type === 'axis' ? q.ax : q.c; }
+    function prompt(q) { return q.type === 'terr' ? 'This patient has an acute MI. Which wall is affected?' : q.type === 'axis' ? 'What is the frontal-plane QRS axis?' : 'What is the most likely interpretation?'; }
+
+    var viewer;
+    function renderQ() {
+      answered = false;
+      var q = qs[qi], opts = optionsFor(q);
+      root.innerHTML =
+        '<div class="quiz-top"><div class="quiz-progress"><div class="lbl"><span>Question ' + (qi + 1) + ' of ' + N + '</span><span>Score ' + score + '/' + qi + '</span></div>' +
+        '<div class="progress" style="--c:' + CO.color + '"><i style="width:' + ((qi / N) * 100) + '%"></i></div></div>' +
+        '<a class="btn btn-ghost btn-sm" href="#twelve">Exit</a></div>' +
+        '<div class="panel"><h3 style="margin-bottom:12px">' + prompt(q) + '</h3><div id="qviewer"></div>' +
+        '<div class="options">' + opts.map(function (o, i) {
+          return '<button class="option" data-o="' + o.v + '"><span class="key">' + (i + 1) + '</span>' + esc(o.label) + '</button>';
+        }).join('') + '</div><div id="explain"></div></div>';
+      viewer = Viewer12($('#qviewer'), { pattern: q.c, axis: q.type === 'axis' ? q.angle : null, hideST: true });
+      $all('.option', root).forEach(function (b) { b.addEventListener('click', function () { answer(b.dataset.o); }); });
+    }
+
+    function answer(choice) {
+      if (answered) return;
+      answered = true;
+      var q = qs[qi], right = correctOf(q), ok = choice === right;
+      if (ok) score++; else missed.push(q.c);
+      $all('.option', root).forEach(function (b) {
+        b.disabled = true;
+        if (b.dataset.o === right) b.classList.add('correct'); else if (b.dataset.o === choice) b.classList.add('wrong');
+      });
+      viewer.reveal();
+      var C = C12.CASES[q.c], body;
+      if (q.type === 'axis') {
+        var A = axisById(q.ax), sig = viewer.sig();
+        body = '<p>The QRS axis on this tracing is about <b>' + (sig.axis > 0 ? '+' : '') + sig.axis + '°</b>: ' + esc(A.name.toLowerCase()) + ' (' + A.range + ').</p>' +
+          '<p class="muted">Quadrant method: look at whether the QRS is mainly positive or negative in Lead I and aVF; if I is positive and aVF negative, Lead II decides between normal and left axis deviation.</p>';
+      } else {
+        body = (q.type === 'terr' ? '<p>The changes are in the <b>' + esc(TERR_LABEL[q.c].toLowerCase()) + '</b>. ' + (C.territory === 'posterior' ? 'The posterior wall has no direct lead, so look for ST depression in V1–V3.' : 'Look at leads ' + ECG12.TERRITORIES[C.territory].leads.join(', ') + '.') + '</p>' : '') +
+          '<ul class="tight">' + C.findings.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul>' +
+          '<p style="margin:10px 0 0"><b>Key tip:</b> ' + esc(C.tips[0]) + '</p>';
+      }
+      $('#explain').innerHTML = '<div class="explain"><div class="verdict ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ Correct' : '✗ Not quite') + ' — ' + esc(q.type === 'axis' ? axisById(q.ax).name : q.type === 'terr' ? TERR_LABEL[q.c] : C.name) + '</div>' + body +
+        '<div style="margin-top:16px;display:flex;justify-content:flex-end"><button class="btn btn-primary" id="nextq">' + (qi === N - 1 ? 'See results' : 'Next question →') + '</button></div></div>';
+      $('#nextq').addEventListener('click', next);
+      $('#nextq').focus({ preventScroll: true });
+      $('#explain').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function next() {
+      cleanup.forEach(function (f) { f(); });
+      cleanup = [];
+      qi++;
+      if (qi < N) { renderQ(); window.scrollTo({ top: $('.page-head').offsetHeight, behavior: 'smooth' }); } else results();
+    }
+    function results() {
+      var pct = Math.round((score / N) * 100), pass = pct >= 80;
+      store.score('twelve', pct);
+      var um = missed.filter(function (r, i) { return missed.indexOf(r) === i; });
+      root.innerHTML = '<div class="panel result"><div class="ring" style="--p:' + pct + ';--rc:' + (pass ? 'var(--ok)' : 'var(--red)') + '"><div>' + pct + '%</div></div>' +
+        '<h2>' + (pass ? 'Passed — great work!' : 'Keep practising') + '</h2>' +
+        '<p class="muted">You answered ' + score + ' of ' + N + ' questions correctly. ' + (pass ? 'The 12-lead course is marked complete.' : 'A score of 80% is needed to pass.') + '</p>' +
+        (um.length ? '<div class="review-list"><h3>Review these patterns</h3><ul>' + um.map(function (c) {
+          return '<li><a href="#twelve-c-' + c + '">' + esc(C12.CASES[c].name) + '</a></li>';
+        }).join('') + '</ul><p class="muted">Missed an axis question? Revisit <a href="#twelve-s-axis">Section 5</a>.</p></div>' : '') +
+        '<div class="hero-cta" style="justify-content:center"><button class="btn btn-primary" id="retry">Try again</button><a class="btn btn-ghost" href="#twelve">Back to the course</a></div></div>';
+      $('#retry').addEventListener('click', function () { route(); });
+    }
+    function keys(e) {
+      if (e.target.tagName === 'INPUT') return;
+      if (!answered && /^[1-4]$/.test(e.key)) { var b = $all('.option', root)[+e.key - 1]; if (b) b.click(); }
+      else if (answered && e.key === 'Enter' && $('#nextq')) { e.preventDefault(); $('#nextq').click(); }
+    }
+    document.addEventListener('keydown', keys);
+    quizDetach = function () { document.removeEventListener('keydown', keys); };
+    renderQ();
+  }
+
   /* ------------------------------------------------------------ PRACTICE */
   function viewPractice() {
     var mods = MODULES.filter(function (m) { return m.rhythms; });
@@ -639,6 +1028,7 @@
           '<h3>' + m.title + '</h3><p class="muted">' + m.rhythms.length + ' rhythms · 10 questions</p>' +
           '<div class="row"><span class="best">Best: <b>' + (best != null ? best + '%' : '—') + '</b></span><a class="btn btn-navy btn-sm" href="#q-' + m.id + '">Start quiz</a></div></div>';
       }).join('') +
+      '<div class="practice-card" style="--c:' + C12.COURSE.color + '"><div class="row"><span class="icon-badge">' + ICON.heart + '</span>' + (store.data.quiz.twelve >= 80 ? '<span class="badge">✓ Passed</span>' : '') + '</div><h3>Basic 12-Lead ECG</h3><p class="muted">Interpretation, STEMI territory and axis · 10 questions</p><div class="row"><span class="best">Best: <b>' + (store.data.quiz.twelve != null ? store.data.quiz.twelve + '%' : '—') + '</b></span><a class="btn btn-navy btn-sm" href="#q-twelve">Start quiz</a></div></div>' +
       '<div class="practice-card" style="--c:#1b2a5b"><div class="row"><span class="icon-badge">' + ICON.search + '</span></div><h3>Rate Trainer</h3><p class="muted">Practise the 6-second, 300 and 1500 methods on random strips.</p><div class="row"><span></span><a class="btn btn-navy btn-sm" href="#m-foundations-s-rate">Open</a></div></div>' +
       '</div></div></section>';
   }
@@ -677,7 +1067,9 @@
     var q = {}, parts = [];
     var mm = /^m-([A-Za-z]+)(?:-r-([A-Za-z0-9]+))?(?:-s-([A-Za-z]+))?$/.exec(h);
     var qm = /^q-([A-Za-z]+)$/.exec(h);
-    if (mm) { parts = ['module', mm[1]]; if (mm[2]) q.r = mm[2]; if (mm[3]) q.s = mm[3]; }
+    var tw = /^twelve(?:-c-([A-Za-z]+))?(?:-s-([A-Za-z]+))?$/.exec(h);
+    if (tw) { parts = ['twelve']; if (tw[1]) q.c = tw[1]; if (tw[2]) q.s = tw[2]; }
+    else if (mm) { parts = ['module', mm[1]]; if (mm[2]) q.r = mm[2]; if (mm[3]) q.s = mm[3]; }
     else if (qm) parts = ['quiz', qm[1]];
     else if (h && h !== 'home') parts = [h];
     return { parts: parts, query: q };
@@ -691,14 +1083,16 @@
     if (!p.length) viewHome();
     else if (p[0] === 'modules') { nav = 'modules'; viewModules(); }
     else if (p[0] === 'module') { nav = 'modules'; viewModule(p[1], r.query); }
+    else if (p[0] === 'twelve') { nav = 'twelve'; viewTwelve(r.query); }
+    else if (p[0] === 'quiz' && p[1] === 'twelve') { nav = 'twelve'; viewQuiz12(); }
     else if (p[0] === 'quiz') { nav = 'practice'; viewQuiz(p[1]); }
     else if (p[0] === 'practice') { nav = 'practice'; viewPractice(); }
     else if (p[0] === 'reference') { nav = 'reference'; viewReference(); }
     else viewNotFound();
     $all('[data-nav]').forEach(function (a) { a.classList.toggle('active', a.dataset.nav === nav); });
     $('.site-nav').classList.remove('open');
-    if (!r.query.s) window.scrollTo(0, 0);
-    var titles = { home: 'ECG Trainer', modules: 'Modules', practice: 'Practice & Exams', reference: 'Quick Reference' };
+    if (!r.query.s && !r.query.c) window.scrollTo(0, 0);
+    var titles = { twelve: '12-Lead ECG', home: 'ECG Trainer', modules: 'Modules', practice: 'Practice & Exams', reference: 'Quick Reference' };
     document.title = (titles[nav] || 'ECG Trainer') + ' · CSHealthED';
   }
 
