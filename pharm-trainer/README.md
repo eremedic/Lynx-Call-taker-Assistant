@@ -11,6 +11,7 @@ Paramedic pharmacology practice from **CSHealthED — Healthcare Education Softw
 | **Draw-Up Lab** | A random order and a realistic label. The student calculates the volume, chooses a syringe (1, 3, 5, 10 or 20 mL) and drags the plunger to the line, with keyboard support. Feedback shows the correct volume, the nearest line on the syringe, the dose that would actually be given, whether the syringe choice was best, and the worked math. |
 | **Scenarios** | 10 patient cases (chest pain/STEMI, anaphylaxis, opioid overdose, hypoglycemia, pediatric seizure, SVT, VF arrest, post-ROSC shock, severe asthma, trauma hemorrhage). Each mixes decisions, calculations and syringe draw-ups, with feedback after every step. |
 | **Exam** | 20 questions: drug knowledge, medication math and draw-ups. Pass mark 80%, with a review list of missed items. |
+| **Pop-out calculator** | Floating on every page. Arithmetic with parentheses and percent (a small parser, not `eval`), quick buttons for lb ↔ kg, ×/÷ 1,000 and ×/÷ 60, a short history, and **Insert**, which puts the result into the answer box the student was using. It can be dragged and remembers its position. Keyboard: type, Enter for =, Esc to close. |
 | **Drug Reference** | 32 medications with full monographs, clinical pearls and labels, plus search. |
 
 Progress is saved in the browser's `localStorage`. The site follows the device's dark-mode setting until the student picks a theme; the choice is shared with the ECG Trainer.
@@ -52,6 +53,7 @@ pharm-trainer/
 ├── js/syringe.js      interactive syringe component
 ├── js/calc.js         8 med-math problem generators with worked solutions
 ├── js/scenarios.js    10 practice scenarios
+├── js/calculator.js   pop-out calculator
 ├── js/app.js          routing, flashcards, med math, draw-up lab, scenarios, exam, reference
 └── assets/            CSHealthED logo, emblem, favicon
 ```
