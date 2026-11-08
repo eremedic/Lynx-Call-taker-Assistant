@@ -1,0 +1,11 @@
+# CSHealthED Pharmacology Trainer — static site, no build step.
+# On Netlify set "Base directory" to pharm-trainer.
+[build]
+  publish = "."
+  command = ""
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"
