@@ -39,7 +39,7 @@
 
   Syringe.prototype.render = function () {
     var S = SIZES[this.size], self = this;
-    var ticks = '';
+    var ticks = '', labels = '';
     var n = Math.round(S.cap / S.minor);
     for (var i = 0; i <= n; i++) {
       var v = Math.round(i * S.minor * 1000) / 1000;
@@ -47,7 +47,8 @@
       var major = isMultiple(v, S.major), mid = !major && isMultiple(v, S.mid);
       var len = major ? 24 : mid ? 17 : 10;
       ticks += '<line x1="' + x.toFixed(2) + '" y1="' + TOP + '" x2="' + x.toFixed(2) + '" y2="' + (TOP + len) + '" stroke="#1e293b" stroke-width="' + (major ? 1.6 : 1) + '"/>';
-      if (major && v > 0) ticks += '<text x="' + x.toFixed(2) + '" y="' + (TOP + 40) + '" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="' + (this.size === 1 ? 12 : 14) + '" font-weight="700" fill="#1e293b">' + S.label(v) + '</text>';
+      // numbers sit just above the barrel so the plunger never covers them
+      if (major) labels += '<text x="' + x.toFixed(2) + '" y="' + (TOP - 9) + '" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="' + (this.size === 1 ? 13 : 15) + '" font-weight="800" fill="#1e293b">' + (v === 0 ? '0' : S.label(v)) + '</text>';
     }
     this.host.innerHTML =
       '<div class="syr-scroll"><svg class="syringe" viewBox="0 0 900 172" tabindex="0" role="slider" aria-label="' + this.size + ' mL syringe. Drag the plunger or use the arrow keys" aria-valuemin="0" aria-valuemax="' + S.cap + '">' +
@@ -57,7 +58,7 @@
       // barrel
       '<rect x="104" y="' + (TOP - 2) + '" width="' + (LEN + 26) + '" height="' + (BOT - TOP + 4) + '" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>' +
       '<rect class="syr-liquid" x="' + X0 + '" y="' + TOP + '" width="0" height="' + (BOT - TOP) + '" fill="' + this.tint + '" opacity=".38"/>' +
-      ticks +
+      labels +
       '<text x="' + X0 + '" y="' + (BOT + 22) + '" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700" fill="#475569">' + this.size + ' mL</text>' +
       // flange
       '<rect x="' + (X0 + LEN + 16) + '" y="30" width="10" height="112" rx="3" fill="#cbd5e1" stroke="#94a3b8"/>' +
@@ -67,7 +68,11 @@
       '<rect class="syr-thumb" x="0" y="44" width="12" height="84" rx="4" fill="#cbd5e1" stroke="#94a3b8"/>' +
       '<rect class="syr-stopper" x="0" y="' + (TOP + 1) + '" width="18" height="' + (BOT - TOP - 2) + '" rx="3" fill="#1f2937"/>' +
       '<line class="syr-ring" x1="0" y1="' + (TOP + 1) + '" x2="0" y2="' + (BOT - 1) + '" stroke="#ef4444" stroke-width="2"/>' +
-      '</g></svg></div>';
+      '</g>' +
+      // graduations are printed on the barrel: drawn last, with a light halo so they show over the stopper
+      '<g class="syr-ticks">' + ticks + '</g>' +
+      '<g class="syr-ticks-halo" opacity=".55">' + ticks.replace(/stroke="#1e293b" stroke-width="([\d.]+)"/g, 'stroke="#ffffff" stroke-width="0.6"') + '</g>' +
+      '</svg></div>';
     var svg = this.host.querySelector('svg');
     this.svg = svg;
     function toVol(evt) {

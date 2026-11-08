@@ -20,12 +20,12 @@
   /* ---------------------------------------------------------------- progress */
   var KEY = 'cshealthed-pharm-v1';
   var store = (function () {
-    var data = { known: {}, calc: { att: 0, cor: 0 }, draw: { att: 0, cor: 0 }, scen: {}, exam: null };
+    var data = { known: {}, calc: { att: 0, cor: 0 }, draw: { att: 0, cor: 0 }, scen: {}, drips: {}, exam: null };
     try { var raw = localStorage.getItem(KEY); if (raw) data = Object.assign(data, JSON.parse(raw)); } catch (e) { /* storage unavailable */ }
     function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { /* ignore */ } }
     return {
       data: data, save: save,
-      reset: function () { data.known = {}; data.calc = { att: 0, cor: 0 }; data.draw = { att: 0, cor: 0 }; data.scen = {}; data.exam = null; save(); }
+      reset: function () { data.known = {}; data.calc = { att: 0, cor: 0 }; data.draw = { att: 0, cor: 0 }; data.scen = {}; data.drips = {}; data.exam = null; save(); }
     };
   })();
   function pct(o) { return o.att ? Math.round((o.cor / o.att) * 100) + '%' : '—'; }
@@ -37,6 +37,7 @@
     syringe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2l4 4M17 7l3-3M19 9 8.7 19.3a1 1 0 0 1-1.4 0l-2.6-2.6a1 1 0 0 1 0-1.4L15 5"/><path d="M9 11l4 4M5 19l-3 3M14 4l6 6"/></svg>',
     scenario: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4M3 17V7a1 1 0 0 1 1-1h10v11M14 9h4l3 4v4h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M7 9v4M5 11h4"/></svg>',
     exam: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>',
+    drip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="9" rx="2"/><path d="M12 11v2M10 13h4v5h-4zM12 18v4"/><path d="M12 15.2v.6"/></svg>',
     book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z"/><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/></svg>',
     refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>'
   };
@@ -55,6 +56,7 @@
       ['cards', 'Flashcards', 'Pick the drugs and facts to study: class, indications, contraindications, doses and more.', known + ' of ' + total + ' cards mastered', '#7b4bc4', 'cards'],
       ['calc', 'Medication Math', 'Conversions, weight-based doses, volume to give, drip rates and infusions with worked solutions.', 'Accuracy ' + pct(store.data.calc), '#1e88e5', 'calc'],
       ['drawup', 'Draw-Up Lab', 'Read a medication label, choose a syringe and pull the plunger to exactly the right volume.', 'Accuracy ' + pct(store.data.draw), '#e0262b', 'syringe'],
+      ['drips', 'Drip Lab', 'Mix medication drips into an IV bag, calculate the rate, then roll the clamp until the drops in the chamber match.', Object.keys(store.data.drips || {}).length + ' of ' + window.PharmDripCases.length + ' drips completed', '#2563eb', 'drip'],
       ['scenarios', 'Practice Scenarios', 'Ten patient cases that combine drug decisions, calculations and draw-ups.', done + ' of ' + SCN.length + ' completed', '#f08a1c', 'scenario'],
       ['exam', 'Pharmacology Exam', '20 mixed questions: drug knowledge, medication math and draw-ups. Pass mark 80%.', store.data.exam != null ? 'Best ' + store.data.exam + '%' : 'Not attempted', '#1b2a5b', 'exam'],
       ['drugs', 'Drug Reference', D.DRUGS.length + ' paramedic medications with full monographs and labels.', D.DRUGS.length + ' drugs', '#3a9b3f', 'book']
@@ -491,6 +493,137 @@
     render();
   }
 
+  /* ================================================================ DRIP LAB */
+  var DRIPS = window.PharmDripCases, DripSet = window.DripSet;
+  var FLUID_TINT = { magnesium: '#a5f3fc', amiodarone: '#c7d2fe', txa: '#e7e5e4', ketamine: '#e5e7eb' };
+
+  function dripPlan(c) {
+    var d = c.drug ? D.byId(c.drug) : null, med = d ? C.volumeFor(d, c.dose, c.unit) : null, gtt, steps;
+    if (c.mlhr) {
+      gtt = Math.round(c.mlhr * c.set / 60);
+      steps = ['gtt/min = ' + C.frac('mL/hr × drop factor', '60 min'), '= ' + C.frac(c.mlhr + ' mL/hr × ' + c.set + ' gtt/mL', '60') + ' = <b>' + gtt + ' gtt/min</b>', 'With a 60 gtt/mL microdrip set, gtt/min always equals mL/hr.'];
+    } else {
+      var exact = c.bagVol * c.set / c.minutes;
+      gtt = Math.round(exact);
+      steps = ['gtt/min = ' + C.frac('volume (mL) × drop factor (gtt/mL)', 'time (min)'), '= ' + C.frac(c.bagVol + ' mL × ' + c.set + ' gtt/mL', c.minutes + ' min') + ' = ' + C.n(Math.round(exact * 100) / 100) + ' → <b>' + gtt + ' gtt/min</b>'];
+      if (d) steps.push('Use the bag volume (' + c.bagVol + ' mL). The few mL of drug you added are not counted.');
+    }
+    var order = d ? 'Mix ' + shortName(d).toLowerCase() + ' ' + C.n(c.dose) + ' ' + c.unit + ' in ' + c.bagVol + ' mL ' + c.fluid + '; infuse over ' + c.minutes + ' min'
+      : 'Infuse ' + c.bagVol + ' mL ' + c.fluid + (c.mlhr ? ' at ' + c.mlhr + ' mL/hr' : ' over ' + c.minutes + ' min');
+    return { d: d, med: med, gtt: gtt, gttSteps: steps, order: order, plan: d ? ['vol', 'draw', 'inject', 'gtt', 'clamp'] : ['gtt', 'clamp'] };
+  }
+
+  function viewDrips() {
+    main.innerHTML = pageHead('#2563eb', '<a href="#home">Home</a> / Drip Lab', 'Drip Lab', 'Mix and run gravity IV drips. For medication drips you calculate the dose, draw it up, add it to the bag, calculate the drip rate, then roll the clamp until the drops in the chamber match.') +
+      '<section class="section"><div class="wrap"><div class="scn-grid">' + DRIPS.map(function (c) {
+        var cat = D.CATS[c.cat], best = (store.data.drips || {})[c.id];
+        return '<a class="scn-card" href="#dr-' + c.id + '" style="--c:' + cat.color + '"><div class="scn-meta"><span style="color:' + cat.color + '">' + (c.drug ? 'Mixed medication drip' : 'IV fluid') + '</span><span>' + c.level + '</span></div><h3>' + esc(c.title) + '</h3><p>' + esc(c.setting) + '</p>' +
+          '<div class="scn-meta"><span>' + c.set + ' gtt/mL set · ' + (c.drug ? '5' : '2') + ' steps</span><span>' + (best != null ? 'Best ' + best + '%' : 'Not started') + '</span></div></a>';
+      }).join('') + '</div></div></section>';
+  }
+
+  function viewDripCase(id) {
+    var c = DRIPS.filter(function (x) { return x.id === id; })[0];
+    if (!c) return notFound();
+    var cat = D.CATS[c.cat], P = dripPlan(c), i = 0, results = [];
+    main.innerHTML = pageHead(cat.color, '<a href="#home">Home</a> / <a href="#drips">Drip Lab</a> / ' + esc(c.title), esc(c.title), esc(c.setting)) +
+      '<div class="wrap drip-layout"><aside class="panel drip-side"><div class="kicker" style="color:' + cat.color + '">Patient</div><div class="vitals">' +
+      Object.keys(c.vitals).map(function (k) { return '<div class="vital"><b>' + esc(k) + '</b><span>' + esc(c.vitals[k]) + '</span></div>'; }).join('') + '</div>' +
+      '<div class="order-card" style="margin-top:12px"><span class="lbl">Order</span><span class="ord" style="font-size:1.05rem">' + esc(P.order) + '</span></div>' +
+      '<div id="drip-host" style="margin-top:12px"></div></aside>' +
+      '<div><div class="panel"><div class="stepper" id="stepper" style="margin:0">' + P.plan.map(function () { return '<i></i>'; }).join('') + '</div></div>' +
+      '<div class="panel" style="margin-top:18px" id="step-host"></div></div></div>';
+    var drip = new DripSet($('#drip-host'), { set: c.set, bag: { fluid: c.fluid, vol: c.bagVol }, locked: true });
+    cleanup.push(function () { drip.destroy(); });
+
+    function stepper() { $all('#stepper i').forEach(function (el, k) { el.className = k < results.length ? (results[k] ? 'done-ok' : 'done-bad') : k === i ? 'cur' : ''; }); }
+    function head(t) { return '<div class="kicker" style="color:' + cat.color + '">Step ' + (i + 1) + ' of ' + P.plan.length + ' · ' + t + '</div>'; }
+    function nextBtn(label) { return '<div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn btn-primary" id="step-next">' + (label || (i === P.plan.length - 1 ? 'Finish' : 'Next step →')) + '</button></div>'; }
+    function wireNext() { $('#step-next').addEventListener('click', function () { i++; render(); }); $('#step-next').focus({ preventScroll: true }); }
+    function numStep(title, q, answer, unit, tol, explainSteps) {
+      var host = $('#step-host');
+      host.innerHTML = head(title) + '<h3 style="font-size:1.12rem;margin-top:6px">' + q + '</h3>' +
+        (P.d && title === 'Medication math' ? '<div style="margin:10px 0">' + L.medCard(P.d) + '</div>' : '') +
+        '<form class="ans-row" id="num-form" autocomplete="off"><input id="num-in" type="text" inputmode="decimal" placeholder="Answer" aria-label="Your answer"><span class="unit-tag">' + unit + '</span><button class="btn btn-primary" type="submit">Check</button></form><div id="step-fb"></div>';
+      $('#num-in').focus({ preventScroll: true });
+      $('#num-form').addEventListener('submit', function (e) {
+        e.preventDefault(); if (results.length > i) return;
+        var v = parseFloat($('#num-in').value.replace(/,/g, ''));
+        if (isNaN(v)) { $('#step-fb').innerHTML = '<p class="lf-mark bad">Enter a number.</p>'; return; }
+        var ok = Math.abs(v - answer) <= tol + 1e-9; results.push(ok); $('#num-in').disabled = true;
+        $('#step-fb').innerHTML = '<div class="explain"><div class="verdict ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ Correct' : '✗ Not quite — the answer is ' + C.n(answer) + ' ' + unit) + '</div><ol>' + explainSteps.map(function (s) { return '<li>' + s + '</li>'; }).join('') + '</ol>' + nextBtn() + '</div>';
+        stepper(); wireNext();
+      });
+    }
+    function render() {
+      stepper();
+      if (i >= P.plan.length) return finish();
+      var kind = P.plan[i], host = $('#step-host');
+      if (kind === 'vol') {
+        numStep('Medication math', 'How many mL of ' + esc(shortName(P.d).toLowerCase()) + ' do you need for ' + C.n(c.dose) + ' ' + c.unit + '?' + (c.note ? ' <span class="hint">' + esc(c.note) + '</span>' : ''), P.med.vol, 'mL', Math.max(0.011, P.med.vol * 0.01), P.med.steps);
+      } else if (kind === 'draw') {
+        host.innerHTML = head('Draw it up') + '<h3 style="font-size:1.12rem;margin-top:6px">Draw up ' + esc(shortName(P.d).toLowerCase()) + ' ' + C.n(c.dose) + ' ' + c.unit + ' to add to the bag.</h3><div id="draw-host"></div>';
+        DrawUp($('#draw-host'), { drug: c.drug, dose: c.dose, unit: c.unit, route: '— add to IV bag' }, {
+          nextLabel: 'Next: add it to the bag →',
+          onResult: function (r) { results.push(r.ok); stepper(); },
+          onNext: function () { i++; render(); }
+        });
+      } else if (kind === 'inject') {
+        host.innerHTML = head('Add it to the bag') + '<h3 style="font-size:1.12rem;margin-top:6px">Clean the medication port, then inject the drug into the bag.</h3>' +
+          '<p class="muted">Use the bag’s medication (injection) port — not the spike port that connects to the tubing.</p>' +
+          '<button class="btn btn-navy" id="inject-btn">💉 Inject into the medication port</button><div id="inject-q"></div>';
+        $('#inject-btn').addEventListener('click', function () {
+          this.disabled = true; this.textContent = '✓ Added to the bag';
+          drip.addMedication(shortName(P.d) + ' ' + C.n(c.dose) + ' ' + c.unit, 'in ' + c.bagVol + ' mL ' + c.fluid.replace('0.9% Sodium Chloride', 'NS').replace('5% Dextrose', 'D5W'), FLUID_TINT[c.drug]);
+          var opts = ['Gently invert the bag to mix, then label it with the drug, dose, date/time and your initials', 'Shake it hard — labeling is optional on a short transport', 'Start the infusion immediately; the drug mixes in the chamber', 'Add an extra 10% of the dose to make up for the tubing'];
+          $('#inject-q').innerHTML = '<h3 style="font-size:1.05rem;margin-top:16px">What must you do now?</h3><div class="options">' + opts.map(function (o, k) { return '<button class="option" data-k="' + k + '"><span class="key">' + (k + 1) + '</span>' + esc(o) + '</button>'; }).join('') + '</div><div id="step-fb"></div>';
+          $all('#inject-q .option').forEach(function (b) {
+            b.addEventListener('click', function () {
+              if (results.length > i) return;
+              var k = +b.dataset.k, ok = k === 0; results.push(ok);
+              $all('#inject-q .option').forEach(function (x) { x.disabled = true; var kk = +x.dataset.k; if (kk === 0) x.classList.add('correct'); else if (kk === k) x.classList.add('wrong'); });
+              $('#step-fb').innerHTML = '<div class="explain"><div class="verdict ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ Correct' : '✗ Not quite') + '</div><p style="margin:0">Mix gently so the drug is evenly distributed (it can layer at the bottom), and always apply a medication-added label so everyone knows what is infusing. See the yellow label on the bag.</p>' + nextBtn() + '</div>';
+              stepper(); wireNext();
+            });
+          });
+        });
+      } else if (kind === 'gtt') {
+        numStep('Drip-rate math', 'You are using a <b>' + c.set + ' gtt/mL</b> set. ' + (c.mlhr ? 'To run <b>' + c.mlhr + ' mL/hr</b>' : 'To infuse <b>' + c.bagVol + ' mL over ' + c.minutes + ' minutes</b>') + ', what drip rate do you need? <span class="hint">Round to the nearest whole drop.</span>', P.gtt, 'gtt/min', 1, P.gttSteps);
+      } else {
+        drip.lock(false);
+        var tol = Math.max(2, Math.round(P.gtt * 0.04)), first = true;
+        host.innerHTML = head('Set the drip') + '<h3 style="font-size:1.12rem;margin-top:6px">Open the roller clamp until the drops fall at <b>' + P.gtt + ' gtt/min</b>.</h3>' +
+          '<ul class="tight"><li>Drag the clamp wheel or use the ▲/▼ buttons (▲▲/▼▼ for big steps).</li><li>Count the drops for 15 seconds and multiply by 4 — the ⏱ button times it for you.</li><li>' + P.gtt + ' gtt/min is about <b>' + Math.round(P.gtt / 4) + ' drops every 15 seconds</b>' + (P.gtt <= 60 ? ' (one drop every ' + C.n(Math.round(600 / P.gtt) / 10) + ' s)' : '') + '.</li></ul>' +
+          '<button class="btn btn-primary" id="clamp-check" style="margin-top:12px">Check my drip rate</button><div id="step-fb"></div>';
+        $('#clamp-check').addEventListener('click', function () {
+          var r = drip.rate(), ok = Math.abs(r - P.gtt) <= tol;
+          if (first) { results.push(ok); first = false; stepper(); }
+          $('#step-fb').innerHTML = '<div class="explain"><div class="verdict ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ Drip set correctly' : r === 0 ? '✗ The clamp is closed' : '✗ Not quite — the drip is running ' + (r > P.gtt ? 'too fast' : 'too slow')) + '</div>' +
+            '<table class="fb-table"><tr><th>Target</th><td><b>' + P.gtt + ' gtt/min</b> (± ' + tol + ')</td></tr><tr><th>Your drip</th><td>' + r + ' gtt/min ≈ ' + Math.round(r / 4) + ' drops per 15 s</td></tr></table>' +
+            (ok ? nextBtn('Finish') : '<p class="muted" style="margin:10px 0 0">Adjust the clamp and check again (your first attempt is what counts toward the score).</p>') + '</div>';
+          if (ok) { drip.lock(true); $('#clamp-check').hidden = true; wireNext(); }
+        });
+      }
+      window.scrollTo({ top: $('#step-host').getBoundingClientRect().top + window.scrollY - 90, behavior: 'smooth' });
+    }
+    function finish() {
+      var score = results.filter(Boolean).length, p = Math.round(score / results.length * 100);
+      store.data.drips = store.data.drips || {};
+      if (!(store.data.drips[c.id] >= p)) { store.data.drips[c.id] = p; store.save(); }
+      var nxt = DRIPS[(DRIPS.indexOf(c) + 1) % DRIPS.length];
+      $('#step-host').innerHTML = '<div class="result"><div class="ring" style="--p:' + p + ';--rc:' + (p >= 80 ? 'var(--ok)' : 'var(--red)') + '"><div>' + p + '%</div></div><h2>' + (p === 100 ? 'Drip running perfectly' : p >= 80 ? 'Well done' : 'Review and try again') + '</h2>' +
+        '<p class="muted">' + score + ' of ' + results.length + ' steps correct on the first attempt. The drip keeps running on the left so you can practice counting.</p>' +
+        '<div class="hero-cta" style="justify-content:center"><button class="btn btn-ghost" id="dr-retry">Run it again</button><a class="btn btn-primary" href="#dr-' + nxt.id + '">Next: ' + esc(nxt.title) + ' →</a></div></div>';
+      $('#dr-retry').addEventListener('click', function () { route(); });
+    }
+    onKey(function (e) {
+      if (typing(e)) return;
+      var opts = $all('#step-host .option:not(:disabled)');
+      if (opts.length && /^[1-4]$/.test(e.key)) { var b = opts[+e.key - 1]; if (b) b.click(); }
+    });
+    render();
+  }
+
   /* ================================================================ EXAM */
   var CURATED = [
     { q: 'A patient with chest pain took tadalafil (Cialis) 30 hours ago. Which medication is contraindicated?', options: ['Aspirin', 'Nitroglycerin', 'Oxygen', 'Ondansetron'], answer: 1, explain: 'Nitrates are contraindicated within 48 hours of tadalafil (24 hours for sildenafil/vardenafil) because of severe hypotension.' },
@@ -626,6 +759,8 @@
     else if (h === 'calc') viewCalc();
     else if (h === 'drawup') viewDrawup();
     else if (h === 'scenarios') viewScenarios();
+    else if (h === 'drips') viewDrips();
+    else if (h.indexOf('dr-') === 0) { nav = 'drips'; viewDripCase(h.slice(3)); }
     else if (h.indexOf('s-') === 0) { nav = 'scenarios'; viewScenario(h.slice(2)); }
     else if (h === 'exam') viewExam();
     else if (h === 'drugs') viewDrugs();
@@ -634,7 +769,7 @@
     $all('[data-nav]').forEach(function (a) { a.classList.toggle('active', a.dataset.nav === nav); });
     $('.site-nav').classList.remove('open');
     window.scrollTo(0, 0);
-    var t = { home: 'Pharmacology Trainer', cards: 'Flashcards', calc: 'Medication Math', drawup: 'Draw-Up Lab', scenarios: 'Scenarios', exam: 'Exam', drugs: 'Drug Reference' }[nav] || 'Pharmacology Trainer';
+    var t = { home: 'Pharmacology Trainer', cards: 'Flashcards', calc: 'Medication Math', drawup: 'Draw-Up Lab', drips: 'Drip Lab', scenarios: 'Scenarios', exam: 'Exam', drugs: 'Drug Reference' }[nav] || 'Pharmacology Trainer';
     document.title = t + ' · CSHealthED';
   }
   window.addEventListener('hashchange', route);

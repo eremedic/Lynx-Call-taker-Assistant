@@ -123,5 +123,49 @@
     }
   ];
 
+  /*
+   * Drip Lab cases. Mixed drips: calculate the drug volume → draw it up →
+   * inject into the bag → calculate gtt/min → set the roller clamp.
+   * Fluid-only cases skip the mixing steps. Rates assume the small added
+   * drug volume is ignored, as is standard.
+   */
+  var DRIP_CASES = [
+    { id: 'mag-asthma', title: 'Magnesium for severe asthma', cat: 'resp', level: 'Intermediate',
+      setting: 'A 19-year-old with a silent chest is not improving after nebulized albuterol and ipratropium. Medical direction orders magnesium sulfate 2 g IV over 20 minutes.',
+      vitals: { HR: '132', RR: '34', SpO2: '88%', Weight: '70 kg' },
+      drug: 'magnesium', dose: 2, unit: 'g', fluid: '0.9% Sodium Chloride', bagVol: 100, minutes: 20, set: 10,
+      note: 'Each vial is 1 g/2 mL (50%), so you will combine two vials.' },
+    { id: 'amio-vt', title: 'Amiodarone for stable VT', cat: 'arrest', level: 'Intermediate',
+      setting: 'A 66-year-old is in monomorphic VT at 170 with a pulse and a BP of 112/70. Protocol: amiodarone 150 mg in 100 mL D5W over 10 minutes.',
+      vitals: { HR: '170', BP: '112/70', Rhythm: 'Monomorphic VT' },
+      drug: 'amiodarone', dose: 150, unit: 'mg', fluid: '5% Dextrose', bagVol: 100, minutes: 10, set: 10 },
+    { id: 'txa-trauma', title: 'TXA for hemorrhage', cat: 'trauma', level: 'Core',
+      setting: 'A 28-year-old with a gunshot wound to the thigh has a tourniquet in place. The injury was 40 minutes ago. Protocol: TXA 1 g in 100 mL NS over 10 minutes.',
+      vitals: { HR: '128', BP: '88/56', Weight: '85 kg' },
+      drug: 'txa', dose: 1, unit: 'g', fluid: '0.9% Sodium Chloride', bagVol: 100, minutes: 10, set: 15 },
+    { id: 'mag-eclampsia', title: 'Magnesium for eclampsia', cat: 'neuro', level: 'Advanced',
+      setting: 'A 32-week pregnant patient had a generalized seizure and is now post-ictal with a BP of 172/108. Medical direction orders magnesium sulfate 4 g in 100 mL over 20 minutes.',
+      vitals: { BP: '172/108', HR: '104', SpO2: '96%' },
+      drug: 'magnesium', dose: 4, unit: 'g', fluid: '0.9% Sodium Chloride', bagVol: 100, minutes: 20, set: 10,
+      note: 'Each vial is 1 g/2 mL (50%), so you will combine four vials.' },
+    { id: 'ketamine-pain', title: 'Diluted ketamine for pain', cat: 'pain', level: 'Advanced',
+      setting: 'An 80 kg patient with a femur fracture has severe pain. To reduce dysphoria, protocol dilutes ketamine 20 mg in 100 mL NS and runs it over 10 minutes.',
+      vitals: { HR: '112', BP: '146/90', Pain: '9/10', Weight: '80 kg' },
+      drug: 'ketamine', dose: 20, unit: 'mg', fluid: '0.9% Sodium Chloride', bagVol: 100, minutes: 10, set: 10 },
+    { id: 'ns-bolus', title: 'Fluid bolus for dehydration', cat: 'endo', level: 'Core',
+      setting: 'A 74-year-old with 3 days of vomiting is weak and tachycardic. Protocol: 250 mL NS bolus over 30 minutes, then reassess.',
+      vitals: { HR: '118', BP: '96/60', 'Cap refill': '4 s' },
+      fluid: '0.9% Sodium Chloride', bagVol: 250, minutes: 30, set: 15 },
+    { id: 'd10-hypo', title: 'D10 for hypoglycemia', cat: 'endo', level: 'Core',
+      setting: 'An unresponsive diabetic has a glucose of 34 mg/dL. Protocol: D10 100 mL (10 g) over 10 minutes, then recheck.',
+      vitals: { BGL: '34 mg/dL', HR: '102', GCS: '9' },
+      fluid: 'Dextrose 10%', bagVol: 100, minutes: 10, set: 10 },
+    { id: 'kvo', title: 'Keep the vein open', cat: 'acs', level: 'Core',
+      setting: 'A stable chest-pain patient needs a saline lock converted to a KVO infusion at 30 mL/hr. You only have a gravity microdrip set.',
+      vitals: { HR: '84', BP: '138/82' },
+      fluid: '0.9% Sodium Chloride', bagVol: 250, mlhr: 30, set: 60 }
+  ];
+
   global.PharmScenarios = SCENARIOS;
+  global.PharmDripCases = DRIP_CASES;
 })(window);
