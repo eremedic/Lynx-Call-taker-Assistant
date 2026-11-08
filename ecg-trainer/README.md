@@ -23,24 +23,30 @@ A stand-alone course for after the 3-lead modules:
 
 1. Why acquire a 12-lead (and when)
 2. Electrode placement: V1–V6 chest diagram and landmarks
-3. The twelve views: the standard 3 × 4 + rhythm-strip layout with colour-coded territories (inferior, lateral, septal, anterior) and their usual arteries
+3. The twelve views: the standard 3 × 4 + rhythm-strip layout with color-coded territories (inferior, lateral, septal, anterior) and their usual arteries
 4. A systematic 12-lead read
 5. Axis: the quadrant method with an interactive hexaxial dial (drag the axis and watch Leads I, aVF and II change)
 6. The ST segment and STEMI criteria: an annotated J-point measurement, contiguous leads, reciprocal changes, V4R/V7–V9 and STEMI mimics
-7. Case library: normal, inferior, anterior and lateral STEMI, posterior MI, RBBB, LBBB, LVH, pericarditis and hyperkalaemia. Each case has an **ST map** that boxes the leads with measured ST elevation or depression.
+7. Case library: normal, inferior, anterior and lateral STEMI, posterior MI, RBBB, LBBB, LVH, pericarditis and hyperkalemia. Each case has an **ST map** that boxes the leads with measured ST elevation or depression.
 
 The 12-lead quiz (10 questions) mixes interpretation, STEMI territory and axis questions. The 12-lead tracings come from `js/ecg12-engine.js`, which models each wave as a 3-D cardiac vector, so limb and precordial leads (and their reciprocal changes) stay consistent.
 
 Each rhythm page includes:
 
 - A realistic strip on standard ECG paper (25 mm/s, 10 mm/mV) with 3-second marks
-- **Lead I / II / III / all three leads**. Waveforms are modelled as cardiac vectors, so the leads are physiologically consistent (II = I + III)
+- **Lead I / II / III / all three leads**. Waveforms are modeled as cardiac vectors, so the leads are physiologically consistent (II = I + III)
 - **Live monitor** view with sweep, heart-rate display and an optional QRS tone
 - **Calipers**: drag across the strip to measure seconds, small boxes and the equivalent rate
-- **New strip**: every strip is generated fresh (rate, timing and morphology vary), so students can't memorise images
+- **New strip**: every strip is generated fresh (rate, timing and morphology vary), so students can't memorize images
 - Five-step criteria (rate, regularity, P waves, PR, QRS), a description, recognition tips and prehospital considerations
 
 Quizzes cover each module (10 questions) plus the final exam (20). They use multiple-choice identification with an optional rate estimate, then show a full explanation. The pass mark is 80%. Progress and best scores are saved in the browser's `localStorage`.
+
+### Practice Lab (`#lab`)
+
+Unlimited, randomized interpretation practice. Choose 3-lead rhythm strips, 12-lead ECGs or a mix, and filter rhythm groups. Every tracing is a new "patient": rates, amplitudes, T waves, R-wave progression and PR vary. Optional real-world artifact (muscle tremor, 60 Hz interference, baseline wander) is added at random, and 12-leads come with different underlying rhythms (sinus, bradycardia, tachycardia, atrial fibrillation, first-degree block).
+
+Students fill in a worksheet (rate, rhythm, P waves, QRS and interpretation for strips; rate, rhythm, axis and main finding for 12-leads). Each field is checked against the values measured from the tracing, and session and all-time stats are kept.
 
 ## Run locally
 
@@ -62,7 +68,7 @@ Then go to http://localhost:8080.
 ```
 ecg-trainer/
 ├── index.html            page shell, header/footer branding
-├── css/styles.css        CSHealthED theme (navy / teal / red + module colours)
+├── css/styles.css        CSHealthED theme (navy / teal / red + module colors)
 ├── js/ecg-engine.js      waveform synthesis: rhythm generators → Lead I/II/III signals
 ├── js/ecg-render.js      ECG-paper renderer, animated monitor, calipers
 ├── js/content.js         modules, rhythm criteria, tips, prehospital notes

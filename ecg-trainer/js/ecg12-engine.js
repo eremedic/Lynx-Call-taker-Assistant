@@ -140,17 +140,40 @@
     var h = H(rng);
     var P = PATTERNS[pattern](h);
     if (opts.axis != null) P.waves[1].d = axisDir(opts.axis, -0.42);
+    // underlying rhythm: sinus | brady | tach | firstDeg | afib
+    var rhythm = opts.rhythm || 'sinus', afib = rhythm === 'afib';
+    if (rhythm === 'brady') P.rate = [44, 56];
+    else if (rhythm === 'tach') P.rate = [102, 128];
+    else if (rhythm === 'afib') P.rate = [72, 130];
+    if (opts.vary) {
+      var qs = h.r(0.72, 1.3);
+      P.waves.forEach(function (w) { w.a *= qs; });
+      P.t.a *= h.r(0.7, 1.25);
+      P.p.a *= h.r(0.75, 1.2);
+      var md = P.waves[1].d;
+      P.waves[1].d = norm([md[0], md[1], md[2] + h.r(-0.18, 0.18)]); // R-wave progression differs between patients
+      P.pr += h.r(-0.02, 0.025);
+    }
+    if (rhythm === 'firstDeg') P.pr = h.r(0.24, 0.32);
+    var art = opts.artifact ? {
+      tremor: rng() < 0.25 ? 0.01 + rng() * 0.025 : 0,
+      mains: rng() < 0.1 ? 0.008 + rng() * 0.01 : 0,
+      wander: rng() < 0.35 ? 0.03 + rng() * 0.06 : 0
+    } : null;
+    var fw = [];
+    if (afib) for (var fi = 0; fi < 5; fi++) fw.push({ f: 4.5 + rng() * 4, p: rng() * 6.28, m: 0.2 + rng() * 0.5, mp: rng() * 6.28 });
+    var fAmp = h.r(0.04, 0.08), fDir = norm([0.25, 0.7, 0.65]);
     var dur = opts.duration || 10;
     var rate = h.r(P.rate[0], P.rate[1]), RR = 60 / rate;
     var n = Math.ceil(dur * FS) + 1;
     var waves = [], plats = [], beats = [];
     var t = h.r(0.25, 0.6);
     while (t < dur + 0.6) {
-      var rr = RR * (1 + (rng() - 0.5) * 0.04);
+      var rr = afib ? Math.max(0.36, RR * h.r(0.58, 1.45)) : RR * (1 + (rng() - 0.5) * 0.04);
       beats.push(t);
       var pOn = t - P.pr;
-      waves.push({ c: pOn + P.p.w / 2, sL: P.p.w * 0.26, sR: P.p.w * 0.22, a: P.p.a, d: norm(P.p.d) });
-      if (P.ta) plats.push({ t1: pOn + P.p.w, t2: t - 0.005, up: 0.02, down: 0.01, a: P.ta.a, d: norm(P.ta.d) });
+      if (!afib) waves.push({ c: pOn + P.p.w / 2, sL: P.p.w * 0.26, sR: P.p.w * 0.22, a: P.p.a, d: norm(P.p.d) });
+      if (P.ta && !afib) plats.push({ t1: pOn + P.p.w, t2: t - 0.005, up: 0.02, down: 0.01, a: P.ta.a, d: norm(P.ta.d) });
       P.waves.forEach(function (w) { waves.push({ c: t + w.t, sL: w.sL, sR: w.sR, a: w.a, d: norm(w.d) }); });
       var qt = Math.max(0.3, Math.min(0.44, 0.4 * Math.sqrt(rr)));
       var tPeak = t + qt - 0.075 - (P.t.early || 0);
@@ -184,8 +207,29 @@
           s[i] += k * f;
         }
       });
+      if (afib) {
+        var fk = fAmp * dot(fDir, v) * g;
+        for (var a = 0; a < n; a++) {
+          var ft = a / FS, fv = 0;
+          for (var c = 0; c < fw.length; c++) fv += (0.6 + 0.4 * Math.sin(2 * Math.PI * fw[c].m * ft + fw[c].mp)) * Math.sin(2 * Math.PI * fw[c].f * ft + fw[c].p);
+          s[a] += fk * fv / 2.5;
+        }
+      }
       var wf = 0.1 + rng() * 0.15, wp = rng() * 6.28, wa = 0.008 + rng() * 0.012;
       for (var j = 0; j < n; j++) s[j] += wa * Math.sin(2 * Math.PI * wf * j / FS + wp) + 0.004 * (rng() + rng() - 1);
+      if (art) {
+        if (art.wander) { var rf = 0.18 + rng() * 0.15, rp = rng() * 6.28; for (var w2 = 0; w2 < n; w2++) s[w2] += art.wander * Math.sin(2 * Math.PI * rf * w2 / FS + rp); }
+        if (art.tremor) {
+          var tc = [];
+          for (var c3 = 0; c3 < 5; c3++) tc.push({ f: 18 + rng() * 30, p: rng() * 6.28 });
+          for (var u = 0; u < n; u++) {
+            var tt2 = u / FS, sum = 0;
+            for (var c4 = 0; c4 < tc.length; c4++) sum += Math.sin(2 * Math.PI * tc[c4].f * tt2 + tc[c4].p);
+            s[u] += art.tremor * sum / 2.2;
+          }
+        }
+        if (art.mains) for (var m = 0; m < n; m++) s[m] += art.mains * Math.sin(2 * Math.PI * 60 * m / FS);
+      }
       leads[L] = s;
     });
 
@@ -212,7 +256,14 @@
     }
     var axis = Math.round(Math.atan2(net('aVF'), net('I')) / DEG);
 
-    return { fs: FS, duration: dur, leads: leads, spikes: [], qrsTimes: beats, rate: Math.round(rate), st: st, axis: axis, pattern: pattern, seed: seed, qrsDur: P.qrs };
+    var rr2 = [];
+    for (var b2 = 1; b2 < beats.length; b2++) if (beats[b2] < dur) rr2.push(beats[b2] - beats[b2 - 1]);
+    var mRate = rr2.length ? Math.round(60 / (rr2.reduce(function (x, y) { return x + y; }, 0) / rr2.length)) : Math.round(rate);
+    var label = afib ? 'Atrial fibrillation' + (mRate > 100 ? ' with rapid ventricular response' : '') :
+      rhythm === 'firstDeg' ? 'Sinus rhythm with 1st-degree AV block' :
+      mRate < 60 ? 'Sinus bradycardia' : mRate > 100 ? 'Sinus tachycardia' : 'Normal sinus rhythm';
+    return { fs: FS, duration: dur, leads: leads, spikes: [], qrsTimes: beats, rate: mRate, st: st, axis: axis, pattern: pattern, seed: seed, qrsDur: P.qrs,
+      rhythm: rhythm, rhythmLabel: label, regular: !afib, pr: afib ? null : P.pr, artifact: art && (art.tremor || art.mains || art.wander) ? art : null };
   }
 
   /* ---------------- renderer: standard 3 × 4 + rhythm strip ---------------- */

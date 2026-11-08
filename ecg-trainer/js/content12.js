@@ -24,7 +24,7 @@
       name: 'Inferior STEMI', short: 'Inferior', group: 'STEMI', territory: 'inferior',
       findings: ['ST elevation in II, III and aVF (often III > II)', 'Reciprocal ST depression in aVL (and often I)', 'Hyperacute T waves in the inferior leads'],
       tips: ['ST elevation greater in III than II, with depression in I, suggests the right coronary artery.', 'Look for reciprocal depression in aVL — it is often the earliest and most reliable clue.'],
-      care: ['Obtain right-sided leads (V4R): ST elevation ≥ 1 mm suggests right ventricular involvement.', 'With RV involvement or hypotension, use nitrates with great caution or not at all; patients are preload dependent — consider fluid boluses per protocol.', 'Watch for bradycardia and AV blocks (the RCA supplies the SA and AV nodes in most people).', 'Activate the STEMI system, transmit the ECG and transport to a PCI-capable centre per protocol.']
+      care: ['Obtain right-sided leads (V4R): ST elevation ≥ 1 mm suggests right ventricular involvement.', 'With RV involvement or hypotension, use nitrates with great caution or not at all; patients are preload dependent — consider fluid boluses per protocol.', 'Watch for bradycardia and AV blocks (the RCA supplies the SA and AV nodes in most people).', 'Activate the STEMI system, transmit the ECG and transport to a PCI-capable center per protocol.']
     },
     anterior: {
       name: 'Anterior (Anteroseptal) STEMI', short: 'Anterior', group: 'STEMI', territory: 'anterior',
@@ -41,7 +41,7 @@
     posterior: {
       name: 'Posterior MI', short: 'Posterior', group: 'STEMI', territory: 'posterior',
       findings: ['Horizontal ST depression in V1–V3 (the posterior wall is seen “in a mirror”)', 'Tall, broad R waves in V1–V2 with upright T waves', 'Often accompanies inferior or lateral STEMI'],
-      tips: ['ST depression in V1–V3 is posterior STEMI until proven otherwise — not simply “ischaemia”.', 'Flip the tracing over and look at V1–V3 from behind: depression becomes elevation, tall R becomes a Q wave.'],
+      tips: ['ST depression in V1–V3 is posterior STEMI until proven otherwise — not simply “ischemia”.', 'Flip the tracing over and look at V1–V3 from behind: depression becomes elevation, tall R becomes a Q wave.'],
       care: ['Obtain posterior leads V7–V9 (left back at the 5th intercostal space): ST elevation ≥ 0.5 mm confirms posterior STEMI.', 'Activate the STEMI system per protocol.']
     },
     rbbb: {
@@ -59,7 +59,7 @@
     lvh: {
       name: 'Left Ventricular Hypertrophy', short: 'LVH', group: 'Other',
       findings: ['Very large QRS voltages: S in V1 + R in V5 or V6 > 35 mm (Sokolow–Lyon)', 'Possible strain pattern: asymmetric ST depression and T inversion in I, aVL, V5–V6', 'ST elevation in V1–V3 may be present (STEMI mimic)'],
-      tips: ['Large voltage alone is common in young, thin patients — voltage criteria are less reliable under age 35.', 'LVH strain mimics lateral ischaemia; LVH ST elevation in V1–V3 mimics anterior STEMI.'],
+      tips: ['Large voltage alone is common in young, thin patients — voltage criteria are less reliable under age 35.', 'LVH strain mimics lateral ischemia; LVH ST elevation in V1–V3 mimics anterior STEMI.'],
       care: ['Common with long-standing hypertension and aortic stenosis.', 'When in doubt with chest pain, transmit and consult medical direction.']
     },
     pericarditis: {
@@ -69,10 +69,10 @@
       care: ['When it is uncertain whether it is STEMI or pericarditis, treat the patient as a possible STEMI and consult medical direction.', 'Watch for pericardial effusion and tamponade (hypotension, JVD, muffled heart sounds).']
     },
     hyperk: {
-      name: 'Hyperkalaemia', short: 'Hyper-K', group: 'Other',
+      name: 'Hyperkalemia', short: 'Hyper-K', group: 'Other',
       findings: ['Tall, narrow, peaked (“tented”) T waves', 'Flattened or absent P waves, prolonged PR', 'QRS widening as potassium rises — progressing to a sine-wave pattern, VF or asystole'],
-      tips: ['Think hyperkalaemia in renal failure / dialysis patients, crush injury, DKA and certain medications.', 'Peaked T waves have a narrow base — hyperacute STEMI T waves are broad-based.'],
-      care: ['Treatment per protocol may include calcium, sodium bicarbonate and nebulised salbutamol/albuterol.', 'Monitor closely for bradycardia and wide-complex rhythms.']
+      tips: ['Think hyperkalemia in renal failure / dialysis patients, crush injury, DKA and certain medications.', 'Peaked T waves have a narrow base — hyperacute STEMI T waves are broad-based.'],
+      care: ['Treatment per protocol may include calcium, sodium bicarbonate and nebulized albuterol.', 'Monitor closely for bradycardia and wide-complex rhythms.']
     }
   };
 

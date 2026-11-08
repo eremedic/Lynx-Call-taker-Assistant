@@ -29,13 +29,13 @@
     {
       id: 'junctional', num: 4, title: 'Junctional Rhythms', color: '#f08a1c', icon: 'junction',
       tagline: 'The AV junction takes over: inverted, absent or retrograde P waves.',
-      intro: 'When the AV junction paces the heart, the atria are depolarised <b>backwards (retrograde)</b>. In Lead II that produces an <b>inverted P wave</b> with a <b>short PR (&lt; 0.12 s)</b>, a P wave <b>hidden in the QRS</b>, or an inverted P <b>after</b> the QRS. The QRS stays <b>narrow</b>. The junction’s intrinsic rate is <b>40–60/min</b>; the name of the rhythm depends on the rate.',
+      intro: 'When the AV junction paces the heart, the atria are depolarized <b>backwards (retrograde)</b>. In Lead II that produces an <b>inverted P wave</b> with a <b>short PR (&lt; 0.12 s)</b>, a P wave <b>hidden in the QRS</b>, or an inverted P <b>after</b> the QRS. The QRS stays <b>narrow</b>. The junction’s intrinsic rate is <b>40–60/min</b>; the name of the rhythm depends on the rate.',
       rhythms: ['pjc', 'junctEscape', 'accelJunct', 'junctTach']
     },
     {
       id: 'ventricular', num: 5, title: 'Ventricular Rhythms', color: '#e53935', icon: 'bolt',
       tagline: 'Wide-complex beats and the lethal arrest rhythms.',
-      intro: 'Impulses that start in the ventricles spread slowly cell-to-cell, so the QRS is <b>wide (≥ 0.12 s)</b> and bizarre, with a <b>T wave pointing opposite</b> to the QRS. There is <b>no related P wave</b>. This module includes the cardiac-arrest rhythms — recognise them fast, then <b>check the patient, not just the monitor</b>.',
+      intro: 'Impulses that start in the ventricles spread slowly cell-to-cell, so the QRS is <b>wide (≥ 0.12 s)</b> and bizarre, with a <b>T wave pointing opposite</b> to the QRS. There is <b>no related P wave</b>. This module includes the cardiac-arrest rhythms — recognize them fast, then <b>check the patient, not just the monitor</b>.',
       rhythms: ['pvc', 'bigeminy', 'multifocal', 'idio', 'aivr', 'vt', 'torsades', 'vf', 'asystole']
     },
     {
@@ -46,7 +46,7 @@
     },
     {
       id: 'paced', num: 7, title: 'Pacemaker Rhythms', color: '#16838f', icon: 'pacer',
-      tagline: 'Recognising paced rhythms and pacemaker malfunction.',
+      tagline: 'Recognizing paced rhythms and pacemaker malfunction.',
       intro: 'A pacemaker produces a sharp, narrow vertical <b>pacer spike</b>. A spike followed by a P wave means atrial capture; a spike followed by a <b>wide QRS</b> means ventricular capture. A paced QRS is wide because the impulse starts in the ventricle. Learn to confirm <b>capture</b> (every spike is followed by a complex) and to spot <b>failure to capture</b>.',
       rhythms: ['vpaced', 'avpaced', 'failCapture']
     },
@@ -79,7 +79,7 @@
     stach: {
       name: 'Sinus Tachycardia', short: 'ST', module: 'sinus',
       criteria: C('101–150/min (rarely higher in adults)', 'Regular', 'Upright, uniform; may merge with preceding T wave at fast rates', '0.12–0.20 s (may shorten)', '< 0.12 s'),
-      desc: 'A sinus rhythm faster than 100/min. Almost always a response to something: pain, fever, anxiety, exercise, hypovolaemia, hypoxia, sepsis, PE, stimulants.',
+      desc: 'A sinus rhythm faster than 100/min. Almost always a response to something: pain, fever, anxiety, exercise, hypovolemia, hypoxia, sepsis, PE, stimulants.',
       tips: ['Rate usually ≤ 150 in adults (max ≈ 220 − age). Faster than 150 with no visible P waves? Think SVT.', 'Onset and offset are gradual, not abrupt.'],
       care: ['Treat the underlying cause — never cardiovert or give adenosine for sinus tachycardia.', 'Consider fluid loss, bleeding, sepsis, hypoxia, pain and toxicology.']
     },
@@ -93,7 +93,7 @@
     sarrest: {
       name: 'Sinus Arrest / Pause', short: 'Arrest', module: 'sinus',
       criteria: C('Underlying sinus rate, often slow overall', 'Irregular — a sudden pause', 'Normal before every QRS; absent during the pause', '0.12–0.20 s, constant', '< 0.12 s'),
-      desc: 'The SA node fails to fire, producing a pause in which there is no P wave and no QRS. The pause is not an exact multiple of the normal P–P interval (if it is, the term is sinus exit block). Causes include sick sinus syndrome, vagal stimulation, ischaemia, hyperkalaemia and medications.',
+      desc: 'The SA node fails to fire, producing a pause in which there is no P wave and no QRS. The pause is not an exact multiple of the normal P–P interval (if it is, the term is sinus exit block). Causes include sick sinus syndrome, vagal stimulation, ischemia, hyperkalemia and medications.',
       tips: ['Measure the pause with calipers and compare it to the P–P interval.', 'After the pause the rhythm may resume from the SA node or from an escape pacemaker.'],
       care: ['Assess perfusion and symptoms (syncope, dizziness).', 'Symptomatic pauses are treated like symptomatic bradycardia per protocol; prepare for pacing if frequent or prolonged.']
     },
@@ -125,12 +125,12 @@
       criteria: C('Atrial 250–350/min; ventricular depends on conduction (2:1 ≈ 150)', 'Usually regular (irregular with variable block)', 'No P waves — “sawtooth” flutter (F) waves, best seen in II and III', 'Not measurable', '< 0.12 s'),
       desc: 'A rapid re-entry circuit in the right atrium generates flutter waves at about 300/min. The AV node blocks some impulses, so the ventricular rate is a fraction of the atrial rate (2:1, 3:1, 4:1 or variable).',
       tips: ['A regular narrow-complex rhythm at exactly ~150/min should make you think 2:1 flutter — look for a hidden F wave.', 'Lead I often shows the flutter waves poorly; Leads II and III show them best.'],
-      care: ['Stable: monitor, 12-lead, rate control per protocol and medical direction.', 'Unstable (hypotension, altered mental status, shock, ischaemic chest pain, acute heart failure): synchronized cardioversion.']
+      care: ['Stable: monitor, 12-lead, rate control per protocol and medical direction.', 'Unstable (hypotension, altered mental status, shock, ischemic chest pain, acute heart failure): synchronized cardioversion.']
     },
     afib: {
       name: 'Atrial Fibrillation', short: 'A-Fib', module: 'atrial',
       criteria: C('Atrial > 350/min; ventricular varies (controlled < 100, RVR > 100)', 'Irregularly irregular', 'None — chaotic fibrillatory (f) waves or a wavy baseline', 'None', '< 0.12 s'),
-      desc: 'Chaotic electrical activity throughout the atria with no organised contraction. The AV node conducts impulses randomly, producing an irregularly irregular ventricular response. Increases the risk of clot formation and stroke.',
+      desc: 'Chaotic electrical activity throughout the atria with no organized contraction. The AV node conducts impulses randomly, producing an irregularly irregular ventricular response. Increases the risk of clot formation and stroke.',
       tips: ['Irregularly irregular + no P waves = atrial fibrillation until proven otherwise.', 'Use the 6-second method for rate — the 300 and 1500 methods are inaccurate when the rhythm is irregular.'],
       care: ['Ask about onset, anticoagulants and stroke symptoms.', 'Stable with RVR: rate control per protocol/medical direction.', 'Unstable: synchronized cardioversion.']
     },
@@ -139,7 +139,7 @@
       criteria: C('150–250/min', 'Regular', 'Usually not visible (buried in QRS or T)', 'Not measurable', '< 0.12 s'),
       desc: 'A rapid, regular, narrow-complex tachycardia arising above the ventricles — most often an AV-nodal re-entry circuit (AVNRT). Typically starts and stops abruptly (paroxysmal).',
       tips: ['Very regular, very fast, narrow — and no visible P waves.', 'Sinus tachycardia rarely exceeds 150/min at rest and changes rate gradually; SVT is fixed.'],
-      care: ['Stable: vagal manoeuvres (e.g., modified Valsalva), then adenosine rapid IV push with flush per protocol.', 'Unstable: synchronized cardioversion.', 'Record a strip during any intervention — conversion is diagnostic.']
+      care: ['Stable: vagal maneuvers (e.g., modified Valsalva), then adenosine rapid IV push with flush per protocol.', 'Unstable: synchronized cardioversion.', 'Record a strip during any intervention — conversion is diagnostic.']
     },
 
     /* ---------------- JUNCTIONAL ---------------- */
@@ -148,7 +148,7 @@
       criteria: C('Underlying rate', 'Irregular — early beats', 'Early beat has an inverted P before, no P, or inverted P after the QRS', '< 0.12 s if P precedes QRS', '< 0.12 s'),
       desc: 'A premature junctional contraction is an early impulse from the AV junction that travels forward to the ventricles and backward into the atria.',
       tips: ['Early narrow beat + inverted, absent or retrograde P wave.', 'A PAC has an upright (but different) P wave; a PJC has an inverted or absent one.'],
-      care: ['Usually benign; consider digoxin toxicity, ischaemia, hypoxia and stimulants.', 'Monitor frequency.']
+      care: ['Usually benign; consider digoxin toxicity, ischemia, hypoxia and stimulants.', 'Monitor frequency.']
     },
     junctEscape: {
       name: 'Junctional Escape Rhythm', short: 'JR', module: 'junctional',
@@ -160,7 +160,7 @@
     accelJunct: {
       name: 'Accelerated Junctional Rhythm', short: 'AJR', module: 'junctional',
       criteria: C('61–100/min', 'Regular', 'Inverted before, absent, or inverted after the QRS', '< 0.12 s if P precedes QRS', '< 0.12 s'),
-      desc: 'The AV junction fires faster than its intrinsic rate (61–100/min). Seen with digoxin toxicity, ischaemia, myocarditis and after cardiac surgery.',
+      desc: 'The AV junction fires faster than its intrinsic rate (61–100/min). Seen with digoxin toxicity, ischemia, myocarditis and after cardiac surgery.',
       tips: ['Same morphology as a junctional rhythm — the rate is what changes the name.'],
       care: ['Usually well tolerated; assess perfusion and search for a cause (e.g., digoxin).']
     },
@@ -178,7 +178,7 @@
       criteria: C('Underlying rate', 'Irregular — early beats', 'None before the PVC', 'None for the PVC', 'PVC ≥ 0.12 s, wide and bizarre, T wave opposite'),
       desc: 'A premature ventricular contraction is an early impulse from an irritable ventricular focus. All PVCs from one focus look the same (unifocal). A full compensatory pause usually follows because the SA node is not reset.',
       tips: ['Early + wide + no P wave = PVC.', 'Measure: the R–R across the PVC equals two normal R–R intervals (compensatory pause).', 'Two in a row = couplet; three or more = a run of VT.'],
-      care: ['Look for causes: hypoxia, ischaemia/ACS, electrolytes (K⁺, Mg²⁺), stimulants, drugs.', 'Frequent, multifocal, couplets or R-on-T PVCs are warning signs — oxygenate if hypoxic, 12-lead, monitor closely.']
+      care: ['Look for causes: hypoxia, ischemia/ACS, electrolytes (K⁺, Mg²⁺), stimulants, drugs.', 'Frequent, multifocal, couplets or R-on-T PVCs are warning signs — oxygenate if hypoxic, 12-lead, monitor closely.']
     },
     bigeminy: {
       name: 'Ventricular Bigeminy / Trigeminy', short: 'Bigeminy', module: 'ventricular',
@@ -218,16 +218,16 @@
     torsades: {
       name: 'Polymorphic VT (Torsades de Pointes)', short: 'TdP', module: 'ventricular',
       criteria: C('150–300/min', 'Irregular', 'None', 'None', 'Wide; amplitude grows and shrinks, appearing to twist around the baseline'),
-      desc: '“Twisting of the points” — a polymorphic VT associated with a prolonged QT interval (drugs, hypomagnesaemia, hypokalaemia, congenital long QT).',
+      desc: '“Twisting of the points” — a polymorphic VT associated with a prolonged QT interval (drugs, hypomagnesemia, hypokalemia, congenital long QT).',
       tips: ['Look for the spindle pattern: complexes gradually grow, shrink, and change polarity.'],
       care: ['Pulseless: defibrillate (unsynchronized) and CPR.', 'Magnesium sulfate per protocol.', 'With a pulse but unstable: defibrillation doses are used — synchronization is unreliable with polymorphic complexes.']
     },
     vf: {
       name: 'Ventricular Fibrillation', short: 'VF', module: 'ventricular',
       criteria: C('Not measurable', 'Chaotic', 'None', 'None', 'None — irregular chaotic waves (coarse or fine)'),
-      desc: 'Chaotic electrical activity of the ventricles with no organised depolarisation and no cardiac output. The patient is in cardiac arrest.',
+      desc: 'Chaotic electrical activity of the ventricles with no organized depolarization and no cardiac output. The patient is in cardiac arrest.',
       tips: ['No identifiable P, QRS or T waves.', 'Fine VF can mimic asystole — check another lead and increase gain.', 'Rule out artifact: a conscious, talking patient is not in VF.'],
-      care: ['Confirm pulselessness, start high-quality CPR, defibrillate as soon as possible.', 'Epinephrine and antiarrhythmics (amiodarone or lidocaine) per protocol; minimise interruptions.']
+      care: ['Confirm pulselessness, start high-quality CPR, defibrillate as soon as possible.', 'Epinephrine and antiarrhythmics (amiodarone or lidocaine) per protocol; minimize interruptions.']
     },
     asystole: {
       name: 'Asystole', short: 'Asystole', module: 'ventricular',
@@ -243,7 +243,7 @@
       criteria: C('Underlying rate', 'Regular', 'Upright, one before every QRS', '> 0.20 s and constant', '< 0.12 s (usually)'),
       desc: 'Every impulse is conducted, but each one is delayed at the AV node. Technically a delay, not a true block.',
       tips: ['A long, consistent PR interval (more than one big box) — everything else is normal.', 'Name the underlying rhythm too: “Sinus rhythm with first-degree AV block.”'],
-      care: ['Usually no treatment; may be caused by medications, ischaemia, increased vagal tone.', 'Monitor for progression.']
+      care: ['Usually no treatment; may be caused by medications, ischemia, increased vagal tone.', 'Monitor for progression.']
     },
     wenck: {
       name: 'Second-Degree AV Block Type I (Wenckebach)', short: '2° Type I', module: 'blocks',
@@ -287,14 +287,14 @@
       criteria: C('Pacemaker set rate', 'Regular', 'Atrial spike followed by a P wave', 'Programmed AV delay (≈ 0.16 s)', 'Wide, preceded by a ventricular spike'),
       desc: 'A dual-chamber pacemaker paces the atria and then, after a programmed delay, the ventricles — mimicking the normal sequence of contraction.',
       tips: ['Two spikes per beat: atrial spike → P wave, ventricular spike → wide QRS.'],
-      care: ['Confirm pulses; ask about the device and carry the device ID card to hospital if available.']
+      care: ['Confirm pulses; ask about the device and bring the device ID card to the hospital if available.']
     },
     failCapture: {
       name: 'Pacemaker Failure to Capture', short: 'FTC', module: 'paced',
       criteria: C('Variable — depends on how many spikes capture', 'Irregular', 'Variable', 'Variable', 'Wide on captured beats; some spikes are not followed by a QRS'),
-      desc: 'The pacemaker fires (a spike is seen) but the myocardium does not depolarise. Causes include lead displacement or fracture, battery depletion, myocardial ischaemia, hyperkalaemia and drug effects.',
+      desc: 'The pacemaker fires (a spike is seen) but the myocardium does not depolarize. Causes include lead displacement or fracture, battery depletion, myocardial ischemia, hyperkalemia and drug effects.',
       tips: ['Find a spike that is not followed by a complex — that is a non-captured beat.', 'Compare with failure to pace (no spike at all when one is expected).'],
-      care: ['Assess for symptomatic bradycardia — transcutaneous pacing per protocol.', 'Place pads away from the generator (at least several centimetres).']
+      care: ['Assess for symptomatic bradycardia — transcutaneous pacing per protocol.', 'Place pads away from the generator (at least several centimeters).']
     }
   };
 

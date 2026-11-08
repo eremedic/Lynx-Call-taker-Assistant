@@ -1,7 +1,7 @@
 /*
  * CSHealthED ECG Trainer — waveform engine
  *
- * Every wave (P, Q, R, S, T, flutter/fibrillation activity) is modelled as a
+ * Every wave (P, Q, R, S, T, flutter/fibrillation activity) is modeled as a
  * cardiac vector: an amplitude, a direction in the frontal plane (axis, in
  * degrees) and a shape in time. A limb lead "sees" the projection of that
  * vector onto its own axis (Lead I = 0°, Lead II = 60°, Lead III = 120°), so
@@ -45,9 +45,20 @@
     this.qrsTimes = [];
     this.pTimes = [];
     this.meta = {};
+    // per-patient variation and artifact (only when generate() is asked for it)
+    var v = CUR.vary;
+    this.qScale = v ? 0.72 + rng() * 0.55 : 1;
+    this.tScale = v ? 0.6 + rng() * 0.75 : 1;
+    this.pScale = v ? 0.75 + rng() * 0.5 : 1;
+    this.art = CUR.artifact ? {
+      tremor: rng() < 0.28 ? 0.012 + rng() * 0.03 : 0,
+      mains: rng() < 0.12 ? 0.008 + rng() * 0.012 : 0,
+      wander: rng() < 0.4 ? 0.04 + rng() * 0.07 : 0
+    } : null;
   }
+  var CUR = {};
 
-  // Asymmetric Gaussian wave: centre (s), left/right widths (s), amplitude (mV), axis (deg)
+  // Asymmetric Gaussian wave: center (s), left/right widths (s), amplitude (mV), axis (deg)
   Strip.prototype.wave = function (c, sL, sR, amp, axis) {
     this.waves.push({ c: c, sL: sL, sR: sR || sL, a: amp, ax: axis });
   };
@@ -59,7 +70,7 @@
   // P wave beginning at `start`
   Strip.prototype.addP = function (start, o) {
     o = o || {};
-    var amp = o.amp != null ? o.amp : 0.17;
+    var amp = (o.amp != null ? o.amp : 0.17) * this.pScale;
     var axis = o.axis != null ? o.axis : 55;
     var w = o.width || 0.1;
     var c = start + w / 2;
@@ -79,8 +90,8 @@
     var type = o.type || 'narrow';
     var ax = o.axis != null ? o.axis : 60;
     var rr = o.rr || 0.85;
-    var g = o.gain || 1;
-    var tAmp = o.tAmp != null ? o.tAmp : 1;
+    var g = (o.gain || 1) * this.qScale;
+    var tAmp = (o.tAmp != null ? o.tAmp : 1) * this.tScale;
     var qt;
     if (type === 'narrow') {
       qt = clamp(0.4 * Math.sqrt(rr), 0.24, 0.46);
@@ -139,6 +150,21 @@
       for (var j = 0; j < n; j++) {
         var t = j / FS;
         s[j] += wa * Math.sin(2 * Math.PI * wf * t + wp) + nf * (rng() + rng() - 1);
+      }
+      var A = self.art;
+      if (A) {
+        if (A.wander) { var rf = 0.18 + rng() * 0.15, rp = rng() * 6.28, ra = A.wander * (lead === 'I' ? 0.5 : 1); for (var w = 0; w < n; w++) s[w] += ra * Math.sin(2 * Math.PI * rf * w / FS + rp); }
+        if (A.tremor) {
+          var tc = [];
+          for (var c = 0; c < 6; c++) tc.push({ f: 18 + rng() * 30, p: rng() * 6.28 });
+          var bf = 0.3 + rng() * 0.5, bp = rng() * 6.28, ta = A.tremor * (0.6 + rng() * 0.8);
+          for (var u = 0; u < n; u++) {
+            var tt = u / FS, env = Math.max(0, Math.sin(2 * Math.PI * bf * tt + bp)) * 0.8 + 0.2, sum = 0;
+            for (var c2 = 0; c2 < tc.length; c2++) sum += Math.sin(2 * Math.PI * tc[c2].f * tt + tc[c2].p);
+            s[u] += ta * env * sum / 2.4 + ta * 0.4 * (rng() - 0.5);
+          }
+        }
+        if (A.mains) for (var m = 0; m < n; m++) s[m] += A.mains * Math.sin(2 * Math.PI * 60 * m / FS);
       }
       out[lead] = s;
     });
@@ -546,6 +572,7 @@
       t += PP * (1 + (rng() - 0.5) * 0.02);
     }
     st.meta.rate = (rate * (n - 1)) / n;
+    st.meta.wide = wide;
     st.meta.note = 'Constant PR ≈ ' + pr.toFixed(2) + ' s · ' + n + ':' + (n - 1) + ' conduction' + (wide ? ' · wide QRS (common with type II)' : '');
     return st;
   };
@@ -585,6 +612,7 @@
       q += RR * (1 + (rng() - 0.5) * 0.02);
     }
     st.meta.rate = vRate;
+    st.meta.wide = ventEscape;
     st.meta.note = 'Atrial rate ≈ ' + Math.round(aRate) + '/min · ' + (ventEscape ? 'ventricular' : 'junctional') + ' escape ≈ ' + Math.round(vRate) + '/min';
     return st;
   };
@@ -638,18 +666,24 @@
   };
 
   /* ------------------------------------------------------------------ */
-  function generate(rhythmId, seed, duration) {
+  // opts.vary: per-patient amplitude/T-wave variation; opts.artifact: random real-world artifact
+  function generate(rhythmId, seed, duration, opts) {
     var gen = G[rhythmId];
     if (!gen) throw new Error('Unknown rhythm generator: ' + rhythmId);
     var rng = mulberry32(seed);
-    var st = gen(rng, duration || 6.2);
+    CUR = opts || {};
+    var st;
+    try { st = gen(rng, duration || 6.2); } finally { CUR = {}; }
     var sig = st.render();
+    sig.artifact = st.art && (st.art.tremor || st.art.mains || st.art.wander) ? st.art : null;
     // measured rate from the first 6 seconds (the classic 6-second method) and overall
     var q = sig.qrsTimes.filter(function (t) { return t >= 0 && t < sig.duration; });
     var rrs = [];
     for (var i = 1; i < q.length; i++) rrs.push(q[i] - q[i - 1]);
     var mean = rrs.length ? rrs.reduce(function (a, b) { return a + b; }, 0) / rrs.length : 0;
     sig.measuredRate = mean ? Math.round(60 / mean) : 0;
+    var sd = rrs.length > 1 ? Math.sqrt(rrs.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / rrs.length) : 0;
+    sig.regular = rrs.length >= 2 && sd / mean < 0.07;
     sig.sixSecondCount = sig.qrsTimes.filter(function (t) { return t >= 0 && t < 6; }).length;
     sig.id = rhythmId;
     sig.seed = seed;
