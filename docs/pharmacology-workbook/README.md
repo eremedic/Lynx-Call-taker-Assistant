@@ -3,6 +3,7 @@
 A student workbook covering drug math, IV fluids and infusion pumps for paramedic programs.
 
 - `Medical-Math-Workbook.pdf` — the book: full-bleed front and back covers, title and copyright pages, contents with page numbers, 12 chapters (about 230 practice problems), US Letter.
+- `Medical-Math-Workbook.docx` — editable Word version: all text, tables, formulas and problems are editable; diagrams are placed as images. Click Yes when Word asks to update fields, to fill in the table of contents.
 - `Medical-Math-Workbook.html` — the same workbook as a web page (open in any browser).
 
 ## Contents
