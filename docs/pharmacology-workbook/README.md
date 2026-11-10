@@ -2,7 +2,7 @@
 
 A student workbook covering drug math, IV fluids and infusion pumps for paramedic programs.
 
-- `Paramedic-Pharmacology-Workbook.pdf` — print-ready, US Letter, one chapter per page break (about 230 practice problems).
+- `Paramedic-Pharmacology-Workbook.pdf` — the book: full-bleed front and back covers, title and copyright pages, contents with page numbers, 12 chapters (about 230 practice problems), US Letter.
 - `Paramedic-Pharmacology-Workbook.html` — the same workbook as a web page (open in any browser).
 
 ## Contents

@@ -10,7 +10,7 @@
 <meta name="description" content="Drug math, IV fluids and infusion pumps for paramedic students: concepts, formulas, worked examples and practice problems with an answer key.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: one reading column (~880px) of chapters; each chapter opens with a label-style band.
    Formula cards look like Rx labels, worked examples are step tables, practice problems have
@@ -35,9 +35,9 @@
   --fluid-strong: #4FA9B8;
   --cell: #F3D9C9;
   --cell-line: #B26B48;
-  --f-display: "Barlow Semi Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
-  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --f-display: "Aptos", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-body: "Aptos", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "Aptos", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --step--1: 0.84rem;
   --step-0: 1rem;
   --step-1: 1.2rem;
@@ -83,7 +83,7 @@ body {
 }
 .wrap { max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
 h1, h2, h3, h4 { font-family: var(--f-display); line-height: 1.12; text-wrap: balance; margin: 0; }
-h2 { font-size: var(--step-3); font-weight: 700; letter-spacing: 0.005em; }
+h2 { font-size: var(--step-3); font-weight: 700; letter-spacing: -0.015em; }
 h3 { font-size: var(--step-2); font-weight: 600; margin-top: 8px; }
 h4 { font-size: var(--step-1); font-weight: 600; }
 p { margin: 0; max-width: 68ch; }
@@ -92,42 +92,81 @@ li + li { margin-top: 4px; }
 a { color: var(--accent); text-underline-offset: 3px; }
 a:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 strong { font-weight: 600; }
-code, .mono { font-family: var(--f-mono); font-size: 0.93em; }
+code, .mono { font-family: var(--f-body); font-variant-numeric: tabular-nums; font-weight: 500; }
 .num { font-variant-numeric: tabular-nums; }
 .eyebrow { font-family: var(--f-display); text-transform: uppercase; letter-spacing: 0.12em; font-size: var(--step--1); font-weight: 600; color: var(--accent); }
 .muted { color: var(--muted); }
 .small { font-size: var(--step--1); }
 
-/* ---------- cover ---------- */
-.cover {
-  background: var(--sheet);
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-  overflow: hidden;
+/* ---------- book cover: one deliberate dark look in both themes ---------- */
+.bookcover {
+  --bc-ink: #F3F8F9; --bc-dim: #A9C6CC; --bc-cyan: #62D2DF; --bc-amber: #F4B451;
+  position: relative; overflow: hidden; isolation: isolate;
+  background: radial-gradient(120% 85% at 88% 92%, #17606F 0%, #0C303A 52%, #071C22 100%);
+  background-color: #0B2A33;
+  color: var(--bc-ink);
+  border-radius: 8px;
+  min-height: 700px;
+  padding: 56px 44px 40px 76px;
+  display: flex; flex-direction: column; gap: 26px;
+  font-family: var(--f-body);
 }
-.cover-main { padding: 40px 36px; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-.cover h1 { font-size: var(--step-4); font-weight: 700; letter-spacing: -0.005em; }
-.cover h1 span { display: block; color: var(--accent); }
-.cover .lede { font-size: var(--step-1); color: var(--muted); max-width: 40ch; line-height: 1.45; }
-.cover-art { background: var(--accent-soft); display: flex; align-items: center; justify-content: center; padding: 24px; min-width: 0; }
-.cover-art svg { width: 100%; max-width: 260px; height: auto; }
-.student { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: end; margin-top: 8px; max-width: 420px; }
-.student span { font-family: var(--f-display); text-transform: uppercase; letter-spacing: 0.1em; font-size: var(--step--1); color: var(--muted); font-weight: 600; }
-.student i { border-bottom: 1.5px solid var(--rule-strong); height: 1.4em; }
+.bc-ticks { position: absolute; left: 0; top: 0; bottom: 0; width: 40px; z-index: -1;
+  background-image:
+    repeating-linear-gradient(to bottom, rgba(243,248,249,.55) 0 2px, transparent 2px 60px),
+    repeating-linear-gradient(to bottom, rgba(243,248,249,.28) 0 1px, transparent 1px 12px);
+  background-size: 34px 100%, 18px 100%; background-repeat: repeat-y; background-position: 0 30px, 0 30px;
+  border-right: 1px solid rgba(243,248,249,.18); }
+.bc-art { position: absolute; right: 24px; bottom: 120px; height: 58%; width: auto; max-width: 46%; z-index: -1; }
+.bc-art text { fill: var(--bc-ink); font-family: var(--f-body); }
+.bc-top { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 0.78rem; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; color: var(--bc-cyan); }
+.bc-top span:last-child { color: var(--bc-dim); }
+.bookcover h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(2.7rem, 7.2vw, 5rem); line-height: 0.96; letter-spacing: -0.03em; color: var(--bc-ink); margin: 0; max-width: 9ch; text-wrap: balance; }
+.bookcover h1 em { font-style: normal; display: block; color: var(--bc-amber); }
+.bc-sub { font-size: 1.2rem; line-height: 1.45; color: var(--bc-dim); max-width: 26ch; }
+.bc-topics { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; max-width: 260px; }
+.bc-topics li { margin: 0; padding: 7px 0; border-top: 1px solid rgba(243,248,249,.18); font-weight: 500; font-size: 0.98rem; display: flex; gap: 12px; align-items: baseline; }
+.bc-topics li b { color: var(--bc-cyan); font-weight: 600; font-variant-numeric: tabular-nums; font-size: 0.8rem; width: 3.2em; }
+.bc-bottom { margin-top: auto; display: grid; gap: 18px; }
+.bc-formulas { max-width: 50%; font-size: 0.86rem; color: var(--bc-cyan); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 6px 22px; opacity: .9; }
+.bc-stats { display: flex; flex-wrap: wrap; gap: 14px 34px; border-top: 1px solid rgba(243,248,249,.25); padding-top: 16px; }
+.bc-stats div { display: grid; gap: 2px; }
+.bc-stats b { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; color: var(--bc-ink); line-height: 1; font-variant-numeric: tabular-nums; }
+.bc-stats span { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--bc-dim); font-weight: 600; }
+@media (max-width: 720px) {
+  .bookcover { padding: 36px 20px 28px 52px; min-height: 0; }
+  .bc-ticks { width: 30px; }
+  .bc-art { opacity: .25; max-width: 80%; height: 60%; bottom: 140px; }
+  .bc-formulas { max-width: none; }
+  .bc-stats b { font-size: 1.5rem; }
+}
+
+/* ---------- print front matter ---------- */
+.title-page { flex-direction: column; justify-content: space-between; height: 9.3in; break-after: page; }
+.title-page h1 { font-family: var(--f-display); font-weight: 800; font-size: 3.4rem; line-height: 1; letter-spacing: -0.03em; }
+.title-page h1 em { font-style: normal; color: var(--accent); display: block; }
+.title-page .lede { font-size: 1.25rem; color: var(--muted); max-width: 34ch; margin-top: 14px; }
+.owner { display: grid; gap: 14px; max-width: 5.4in; }
+.owner h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
+.owner .row { display: grid; grid-template-columns: 7.5em 1fr; align-items: end; gap: 10px; }
+.owner .row span { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 600; }
+.owner .row i { border-bottom: 1.5px solid var(--rule-strong); height: 1.6em; }
+.copyright-page { flex-direction: column; justify-content: flex-end; gap: 14px; height: 9.3in; break-after: page; font-size: 0.86rem; color: var(--muted); }
+.copyright-page p { max-width: 62ch; }
+.copyright-page strong { color: var(--ink); }
 
 /* ---------- contents ---------- */
 .toc { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; padding: 0; list-style: none; max-width: none; counter-reset: ch; }
 .toc li { margin: 0; border-top: 1px solid var(--rule); }
-.toc a { display: grid; grid-template-columns: 2.4em 1fr; gap: 8px; padding: 10px 0; text-decoration: none; color: var(--ink); }
+.toc a { display: grid; grid-template-columns: 2.4em 1fr auto; gap: 8px; padding: 10px 0; text-decoration: none; color: var(--ink); }
 .toc a:hover { color: var(--accent); }
-.toc b { font-family: var(--f-mono); font-weight: 500; color: var(--accent); }
+.toc b { font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
+.toc .pg { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 2em; text-align: right; }
 
 /* ---------- chapters ---------- */
 .chapter { display: flex; flex-direction: column; gap: 22px; }
 .ch-head { display: grid; grid-template-columns: auto 1fr; gap: 4px 18px; align-items: end; padding-bottom: 14px; border-bottom: 3px solid var(--ink); }
-.ch-num { grid-row: span 2; font-family: var(--f-display); font-weight: 700; font-size: 4.2rem; line-height: 0.82; color: var(--accent); font-variant-numeric: tabular-nums; }
+.ch-num { grid-row: span 2; font-family: var(--f-display); font-weight: 800; font-size: 4.2rem; line-height: 0.82; letter-spacing: -0.04em; color: var(--accent); font-variant-numeric: tabular-nums; }
 .ch-head p { color: var(--muted); }
 .objectives { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 16px 20px; display: grid; gap: 8px; align-content: start; }
 .objectives h4 { font-size: var(--step-0); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
@@ -141,7 +180,7 @@ code, .mono { font-family: var(--f-mono); font-size: 0.93em; }
 }
 .formula-tag { background: var(--accent); color: var(--accent-ink); font-family: var(--f-display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; font-size: var(--step--1); padding: 6px 16px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .formula-body { padding: 18px 20px; display: grid; gap: 12px; }
-.eq { font-family: var(--f-mono); font-size: 1.15rem; font-weight: 500; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; overflow-x: auto; }
+.eq { font-family: var(--f-body); font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; overflow-x: auto; }
 .frac { display: inline-grid; text-align: center; vertical-align: middle; }
 .frac > span:first-child { border-bottom: 2px solid currentColor; padding: 0 6px 3px; }
 .frac > span:last-child { padding: 3px 6px 0; }
@@ -256,6 +295,7 @@ svg .f-rule { fill: var(--rule); }
 .seq li { counter-increment: s; display: grid; grid-template-columns: 2.4em minmax(0, 1fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--rule); margin: 0; }
 .seq li::before { content: counter(s); font-family: var(--f-display); font-weight: 700; font-size: 1.3rem; color: var(--accent-ink); background: var(--accent); width: 1.6em; height: 1.6em; border-radius: 50%; display: grid; place-items: center; line-height: 1; }
 
+.print-only { display: none; }
 .disclaimer { font-size: var(--step--1); color: var(--muted); border-top: 1px solid var(--rule); padding-top: 14px; }
 
 @media (max-width: 720px) {
@@ -279,7 +319,8 @@ svg .f-rule { fill: var(--rule); }
   :root { --paper: #FFFFFF; }
   body { padding: 0; font-size: 10.5pt; }
   .wrap { max-width: none; gap: 28px; }
-  .cover { min-height: 9.2in; border: 0; }
+  .bookcover { display: none; }
+  .print-only { display: flex; }
   .chapter { break-before: page; }
   .example, .formula, figure, .note, .bag, .problems li, .refcard > div, table, .objectives { break-inside: avoid; }
   .practice { break-inside: auto; }
@@ -290,45 +331,91 @@ svg .f-rule { fill: var(--rule); }
 <div class="wrap">
 
 <!-- ===================== COVER ===================== -->
-<header class="cover" id="top">
-  <div class="cover-main">
-    <div class="eyebrow">Paramedic Program · Pharmacology</div>
-    <h1>Paramedic Pharmacology <span>Workbook</span></h1>
-    <p class="lede">Drug math, IV fluids and infusion pumps, explained step by step with formulas, worked examples and practice problems.</p>
-    <div class="student">
-      <span>Name</span><i></i>
-      <span>Cohort</span><i></i>
-      <span>Instructor</span><i></i>
+<header class="bookcover" id="top">
+  <div class="bc-ticks" aria-hidden="true"></div>
+  <svg class="bc-art" viewBox="0 0 420 760" aria-hidden="true">
+    <defs>
+      <clipPath id="bagClip"><path d="M120 80 Q120 64 136 64 H364 Q380 64 380 80 V372 Q380 418 318 436 H182 Q120 418 120 372 Z"/></clipPath>
+      <linearGradient id="fluidG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#62D2DF" stop-opacity=".95"/><stop offset="1" stop-color="#2C97A8" stop-opacity=".95"/></linearGradient>
+    </defs>
+    <circle cx="250" cy="30" r="14" fill="none" stroke="#F3F8F9" stroke-opacity=".7" stroke-width="3"/>
+    <path d="M232 44 H268 V64 H232 Z" fill="#F3F8F9" fill-opacity=".12" stroke="#F3F8F9" stroke-opacity=".8" stroke-width="3"/>
+    <path d="M120 80 Q120 64 136 64 H364 Q380 64 380 80 V372 Q380 418 318 436 H182 Q120 418 120 372 Z" fill="#F3F8F9" fill-opacity=".05"/>
+    <g clip-path="url(#bagClip)">
+      <rect x="110" y="196" width="280" height="260" fill="url(#fluidG)"/>
+      <path d="M110 198 Q160 188 210 198 T310 198 T410 198 V206 H110 Z" fill="#F3F8F9" fill-opacity=".25"/>
+    </g>
+    <path d="M120 80 Q120 64 136 64 H364 Q380 64 380 80 V372 Q380 418 318 436 H182 Q120 418 120 372 Z" fill="none" stroke="#F3F8F9" stroke-opacity=".9" stroke-width="3"/>
+    <g stroke="#F3F8F9" stroke-width="2" stroke-opacity=".85">
+      <line x1="330" y1="110" x2="364" y2="110"/><line x1="346" y1="138" x2="364" y2="138"/>
+      <line x1="330" y1="166" x2="364" y2="166"/><line x1="346" y1="194" x2="364" y2="194"/>
+      <line x1="330" y1="222" x2="364" y2="222"/><line x1="346" y1="250" x2="364" y2="250"/>
+      <line x1="330" y1="278" x2="364" y2="278"/><line x1="346" y1="306" x2="364" y2="306"/>
+      <line x1="330" y1="334" x2="364" y2="334"/><line x1="346" y1="362" x2="364" y2="362"/>
+    </g>
+    <g font-size="13" font-weight="600" text-anchor="end" fill-opacity=".9">
+      <text x="324" y="115">100</text><text x="324" y="171">300</text><text x="324" y="227">500</text><text x="324" y="283">700</text><text x="324" y="339">900</text>
+    </g>
+    <text x="146" y="112" font-size="30" font-weight="800" letter-spacing="-1">0.9%</text>
+    <text x="146" y="134" font-size="12.5" font-weight="600" letter-spacing="1.5" fill-opacity=".8">SODIUM CHLORIDE</text>
+    <text x="146" y="152" font-size="12.5" font-weight="500" letter-spacing="1.5" fill-opacity=".7">1000 mL · USP</text>
+    <rect x="236" y="436" width="28" height="34" fill="#F3F8F9" fill-opacity=".12" stroke="#F3F8F9" stroke-opacity=".85" stroke-width="3"/>
+    <path d="M230 470 H270 V482 H230 Z" fill="#F3F8F9" fill-opacity=".85"/>
+    <rect x="216" y="482" width="68" height="128" rx="16" fill="#F3F8F9" fill-opacity=".06" stroke="#F3F8F9" stroke-opacity=".9" stroke-width="3"/>
+    <path d="M219 570 H281 V594 Q281 607 268 607 H232 Q219 607 219 594 Z" fill="url(#fluidG)"/>
+    <path d="M250 482 V500" stroke="#F3F8F9" stroke-width="3"/>
+    <path d="M250 510 c-10 13 -10 22 0 22 c10 0 10 -9 0 -22 Z" fill="#F4B451"/>
+    <path d="M250 610 V650 Q250 700 190 712 Q100 730 70 790" fill="none" stroke="#62D2DF" stroke-width="7" stroke-linecap="round"/>
+    <rect x="234" y="640" width="32" height="40" rx="5" fill="#F4B451"/>
+    <circle cx="250" cy="660" r="8" fill="#0B2A33"/>
+  </svg>
+  <div class="bc-top"><span>Paramedic Education Series</span><span>First Edition · 2026</span></div>
+  <div style="display:grid;gap:18px">
+    <h1>Paramedic Pharmacology <em>Workbook</em></h1>
+    <p class="bc-sub">Drug math, IV fluids and infusion pumps, step by step.</p>
+  </div>
+  <ol class="bc-topics">
+    <li><b>01</b>Medication safety</li>
+    <li><b>02</b>Conversions</li>
+    <li><b>03</b>IV fluids</li>
+    <li><b>04</b>Dose &amp; volume</li>
+    <li><b>05</b>Weight-based dosing</li>
+    <li><b>06–07</b>Drip rates</li>
+    <li><b>08</b>Concentrations</li>
+    <li><b>09</b>Infusion pumps</li>
+  </ol>
+  <div class="bc-bottom">
+    <div class="bc-formulas"><span>mL = D ÷ H × Q</span><span>gtt/min = mL × gtt/mL ÷ min</span><span>mL/hr = dose/min × 60 ÷ conc</span><span>mg/mL = % × 10</span></div>
+    <div class="bc-stats">
+      <div><b>230+</b><span>Practice problems</span></div>
+      <div><b>100</b><span>Mixed review</span></div>
+      <div><b>12</b><span>Chapters</span></div>
+      <div><b>Full</b><span>Worked answer key</span></div>
     </div>
   </div>
-  <div class="cover-art" aria-hidden="true">
-    <svg viewBox="0 0 220 360">
-      <!-- IV bag -->
-      <rect x="92" y="6" width="36" height="14" rx="7" class="f-sheet s-ink" stroke-width="2.5"/>
-      <path d="M40 22 H180 Q190 22 190 32 V176 Q190 206 150 214 H70 Q30 206 30 176 V32 Q30 22 40 22 Z" class="f-sheet s-ink" stroke-width="2.5"/>
-      <path d="M33 92 H187 V176 Q187 203 150 211 H70 Q33 203 33 176 Z" class="f-fluid"/>
-      <g class="t-mono" font-size="10">
-        <line x1="150" y1="60" x2="182" y2="60" class="s-ink" stroke-width="1.5"/><text x="146" y="63" text-anchor="end">200</text>
-        <line x1="162" y1="80" x2="182" y2="80" class="s-ink" stroke-width="1.5"/>
-        <line x1="150" y1="100" x2="182" y2="100" class="s-ink" stroke-width="1.5"/><text x="146" y="103" text-anchor="end">400</text>
-        <line x1="162" y1="120" x2="182" y2="120" class="s-ink" stroke-width="1.5"/>
-        <line x1="150" y1="140" x2="182" y2="140" class="s-ink" stroke-width="1.5"/><text x="146" y="143" text-anchor="end">600</text>
-        <line x1="162" y1="160" x2="182" y2="160" class="s-ink" stroke-width="1.5"/>
-        <line x1="150" y1="180" x2="182" y2="180" class="s-ink" stroke-width="1.5"/><text x="146" y="183" text-anchor="end">800</text>
-      </g>
-      <text x="56" y="58" class="t-disp" font-size="22">0.9%</text>
-      <text x="56" y="76" class="t-disp t-muted" font-size="12">NaCl · 1000 mL</text>
-      <!-- port, spike, drip chamber -->
-      <rect x="100" y="212" width="20" height="20" class="f-sheet s-ink" stroke-width="2.5"/>
-      <path d="M96 236 H124 V244 Q124 248 120 248 H100 Q96 248 96 244 Z" class="f-ink"/>
-      <rect x="92" y="248" width="36" height="68" rx="8" class="f-sheet s-ink" stroke-width="2.5"/>
-      <path d="M95 292 H125 V308 Q125 313 120 313 H100 Q95 313 95 308 Z" class="f-fluid"/>
-      <path d="M110 248 V258" class="s-ink" stroke-width="2.5"/>
-      <path d="M110 266 c-5 7 -5 12 0 12 c5 0 5 -5 0 -12 Z" class="f-accent"/>
-      <path d="M110 316 V356" class="s-ink" stroke-width="3"/>
-    </svg>
-  </div>
 </header>
+
+<section class="print-only title-page">
+  <div style="display:grid;gap:8px">
+    <div class="eyebrow">Paramedic Education Series · First Edition</div>
+    <h1>Paramedic Pharmacology <em>Workbook</em></h1>
+    <p class="lede">Drug math, IV fluids and infusion pumps, explained step by step with formulas, worked examples and practice problems.</p>
+  </div>
+  <div class="owner">
+    <h4>This workbook belongs to</h4>
+    <div class="row"><span>Name</span><i></i></div>
+    <div class="row"><span>Program</span><i></i></div>
+    <div class="row"><span>Cohort</span><i></i></div>
+    <div class="row"><span>Instructor</span><i></i></div>
+  </div>
+</section>
+<section class="print-only copyright-page">
+  <p><strong>Paramedic Pharmacology Workbook</strong>, First Edition, 2026.</p>
+  <p><strong>For educational use.</strong> This workbook is a study resource for paramedic students. Drug concentrations, doses and fluid volumes are teaching examples that reflect common EMS practice and resuscitation guidance current at the time of writing. They are not orders.</p>
+  <p>Always follow your local protocols, your medical director, the product labeling, and the manufacturer's instructions for your equipment. Check every vial and bag label against the order before you draw up or hang a medication.</p>
+  <p>Equipment shown, including the infusion pump, is generic and does not represent any manufacturer's product.</p>
+</section>
+
 
 <section class="chapter" style="gap:16px">
   <div class="grid-2">
@@ -344,18 +431,18 @@ svg .f-rule { fill: var(--rule); }
   </div>
   <h3>Contents</h3>
   <ol class="toc">
-    <li><a href="#ch1"><b>01</b><span>Medication safety foundations</span></a></li>
-    <li><a href="#ch2"><b>02</b><span>The metric system and conversions</span></a></li>
-    <li><a href="#ch3"><b>03</b><span>IV fluids in the paramedic scope</span></a></li>
-    <li><a href="#ch4"><b>04</b><span>Dose and volume: how much to draw up</span></a></li>
-    <li><a href="#ch5"><b>05</b><span>Weight-based calculations</span></a></li>
-    <li><a href="#ch6"><b>06</b><span>Drip rates I: volume over time</span></a></li>
-    <li><a href="#ch7"><b>07</b><span>Drip rates II: concentration infusions</span></a></li>
-    <li><a href="#ch8"><b>08</b><span>Percent and ratio concentrations</span></a></li>
-    <li><a href="#ch9"><b>09</b><span>IV infusion pumps</span></a></li>
-    <li><a href="#ch10"><b>10</b><span>Putting it all together: 100 mixed problems</span></a></li>
-    <li><a href="#ref"><b>11</b><span>Formula reference card</span></a></li>
-    <li><a href="#answer-key"><b>12</b><span>Answer key with worked solutions</span></a></li>
+    <li><a href="#ch1"><b>01</b><span>Medication safety foundations</span><span class="pg" data-for="ch1">4</span></a></li>
+    <li><a href="#ch2"><b>02</b><span>The metric system and conversions</span><span class="pg" data-for="ch2">7</span></a></li>
+    <li><a href="#ch3"><b>03</b><span>IV fluids in the paramedic scope</span><span class="pg" data-for="ch3">11</span></a></li>
+    <li><a href="#ch4"><b>04</b><span>Dose and volume: how much to draw up</span><span class="pg" data-for="ch4">20</span></a></li>
+    <li><a href="#ch5"><b>05</b><span>Weight-based calculations</span><span class="pg" data-for="ch5">25</span></a></li>
+    <li><a href="#ch6"><b>06</b><span>Drip rates I: volume over time</span><span class="pg" data-for="ch6">31</span></a></li>
+    <li><a href="#ch7"><b>07</b><span>Drip rates II: concentration infusions</span><span class="pg" data-for="ch7">35</span></a></li>
+    <li><a href="#ch8"><b>08</b><span>Percent and ratio concentrations</span><span class="pg" data-for="ch8">41</span></a></li>
+    <li><a href="#ch9"><b>09</b><span>IV infusion pumps</span><span class="pg" data-for="ch9">46</span></a></li>
+    <li><a href="#ch10"><b>10</b><span>Putting it all together: 100 mixed problems</span><span class="pg" data-for="ch10">54</span></a></li>
+    <li><a href="#ref"><b>11</b><span>Formula reference card</span><span class="pg" data-for="ref">61</span></a></li>
+    <li><a href="#answer-key"><b>12</b><span>Answer key with worked solutions</span><span class="pg" data-for="answer-key">63</span></a></li>
   </ol>
 </section>
 
@@ -1176,16 +1263,14 @@ svg .f-rule { fill: var(--rule); }
       <li><b>6.3</b><div>100 mL over 20 minutes, 10 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
       <li><b>6.4</b><div>KVO at 30 mL/hr with a 60 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
       <li><b>6.5</b><div>250 mL bolus over 15 minutes with a 10 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
-      <li><b>6.6</b><div>How long will 1,000 mL last at 125 mL/hr? <span class="blank"></span> hr</div></li>
-      <li><b>6.7</b><div>A 20 gtt/mL set is running at 25 gtt/min. What is the rate in mL/hr? <span class="blank"></span> mL/hr</div></li>
-      <li><b>6.8</b><div>500 mL over 2 hours, 15 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
-      <li><b>6.9</b><div>1,000 mL over 6 hours, 20 gtt/mL set. <span class="blank"></span> gtt/min · <span class="blank"></span> mL/hr</div></li>
-      <li><b>6.10</b><div>150 mL/hr ordered, 10 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
-      <li><b>6.11</b><div>75 mL/hr ordered, 15 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
-      <li><b>6.12</b><div>100 mL over 30 minutes, 20 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
-      <li><b>6.13</b><div>A 15 gtt/mL set is running at 40 gtt/min. <span class="blank"></span> mL/hr</div></li>
-      <li><b>6.14</b><div>How long will 250 mL last at 50 mL/hr? <span class="blank"></span> hr</div></li>
-      <li><b>6.15</b><div>250 mL over 1 hour with a 60 gtt/mL set. <span class="blank"></span> gtt/min. Is that practical?</div></li>
+      <li><b>6.6</b><div>A 20 gtt/mL set is running at 25 gtt/min. What is the rate in mL/hr? <span class="blank"></span> mL/hr</div></li>
+      <li><b>6.7</b><div>500 mL over 2 hours, 15 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
+      <li><b>6.8</b><div>1,000 mL over 6 hours, 20 gtt/mL set. <span class="blank"></span> gtt/min · <span class="blank"></span> mL/hr</div></li>
+      <li><b>6.9</b><div>150 mL/hr ordered, 10 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
+      <li><b>6.10</b><div>75 mL/hr ordered, 15 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
+      <li><b>6.11</b><div>100 mL over 30 minutes, 20 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
+      <li><b>6.12</b><div>A 15 gtt/mL set is running at 40 gtt/min. <span class="blank"></span> mL/hr</div></li>
+      <li><b>6.13</b><div>250 mL over 1 hour with a 60 gtt/mL set. <span class="blank"></span> gtt/min. Is that practical?</div></li>
     </ol>
   </div>
 </section>
@@ -1673,12 +1758,11 @@ svg .f-rule { fill: var(--rule); }
       <li><b>9.3</b><div>The pump alarms "downstream occlusion" right after the patient bends their elbow. What do you check first?<span class="work"></span></div></li>
       <li><b>9.4</b><div>You program magnesium as a secondary, but the primary NS chamber is the one dripping. Name two likely causes.<span class="work"></span></div></li>
       <li><b>9.5</b><div>Norepinephrine 4 mg/250 mL at 6 mcg/min is ordered. The pump in dose mode shows 22.5 mL/hr. Is that correct? Show your check.<span class="work"></span></div></li>
-      <li><b>9.6</b><div>A 500 mL bag is running at 75 mL/hr with 320 mL left. Your transport is 3.5 hours. Will it last? <span class="blank"></span><span class="work"></span></div></li>
-      <li><b>9.7</b><div>Dopamine 1,600 mcg/mL, 70 kg, 8 mcg/kg/min. The pump shows 21 mL/hr. Correct? <span class="blank"></span></div></li>
-      <li><b>9.8</b><div>A 1,000 mL bag is hung for a 500 mL bolus. VTBI? <span class="blank"></span> mL</div></li>
-      <li><b>9.9</b><div>Rate 125 mL/hr, VTBI 1,000 mL, volume infused 375 mL. Time remaining? <span class="blank"></span> hr</div></li>
-      <li><b>9.10</b><div>Right after you hang a new bag, the pump alarms "upstream occlusion." What do you check?<span class="work"></span></div></li>
-      <li><b>9.11</b><div>You receive epinephrine 4 mcg/mL running at 45 mL/hr. The order is 10 mcg/min. Does it match? <span class="blank"></span></div></li>
+      <li><b>9.6</b><div>Dopamine 1,600 mcg/mL, 70 kg, 8 mcg/kg/min. The pump shows 21 mL/hr. Correct? <span class="blank"></span></div></li>
+      <li><b>9.7</b><div>A 1,000 mL bag is hung for a 500 mL bolus. VTBI? <span class="blank"></span> mL</div></li>
+      <li><b>9.8</b><div>Amiodarone 1.8 mg/mL, order 1 mg/min. The pump shows 3.3 mL/hr. Correct? <span class="blank"></span></div></li>
+      <li><b>9.9</b><div>Right after you hang a new bag, the pump alarms "upstream occlusion." What do you check?<span class="work"></span></div></li>
+      <li><b>9.10</b><div>You receive epinephrine 4 mcg/mL running at 45 mL/hr. The order is 10 mcg/min. Does it match? <span class="blank"></span></div></li>
     </ol>
   </div>
 </section>
@@ -1716,7 +1800,7 @@ svg .f-rule { fill: var(--rule); }
     <div class="practice-head"><h3>Practice 10: Mixed review (100 problems)</h3><span class="small muted">Answers: <a href="#key10">Key 10</a></span></div>
     <ol class="problems wide">
       <li><b>10.1</b><div>70 kg adult, 20% TBSA. Parkland 4 mL/kg/%TBSA. Rate for the first 8 hours from injury? <span class="blank"></span> mL/hr</div></li>
-      <li><b>10.2</b><div>How long will 500 mL last at 200 mL/hr? <span class="blank"></span> hr</div></li>
+      <li><b>10.2</b><div>Infuse 500 mL over 3 hours on a pump. <span class="blank"></span> mL/hr</div></li>
       <li><b>10.3</b><div>A 60 gtt/mL set is running at 20 gtt/min. What is the rate? <span class="blank"></span> mL/hr</div></li>
       <li><b>10.4</b><div>Lidocaine 1 mg/min. Bag 2 g/500 mL, 60 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
       <li><b>10.5</b><div>Order: fentanyl 0.075 mg IV. On hand: 50 mcg/mL. How many mL? <span class="blank"></span> mL</div></li>
@@ -1737,7 +1821,7 @@ svg .f-rule { fill: var(--rule); }
       <li><b>10.20</b><div>A 500 mL bag is ordered to infuse 250 mL. VTBI? <span class="blank"></span> mL</div></li>
       <li><b>10.21</b><div>A 10 gtt/mL set is running at 30 gtt/min. What is the rate? <span class="blank"></span> mL/hr</div></li>
       <li><b>10.22</b><div>9 kg infant, hypoglycemic. D10 5 mL/kg. <span class="blank"></span> mL (how many grams?)</div></li>
-      <li><b>10.23</b><div>VTBI 1,000 mL, 400 mL infused, rate 150 mL/hr. Time remaining? <span class="blank"></span> hr</div></li>
+      <li><b>10.23</b><div>Pump in dose mode: dopamine 1,600 mcg/mL, 90 kg, 5 mcg/kg/min. Pump shows 16.9 mL/hr. Correct? <span class="blank"></span></div></li>
       <li><b>10.24</b><div>Norepinephrine 10 mcg/min. Bag 4 mg/250 mL. <span class="blank"></span> mL/hr</div></li>
       <li><b>10.25</b><div>Order: hydromorphone 750 mcg IV. On hand: 1 mg/mL. How many mL? <span class="blank"></span> mL</div></li>
       <li><b>10.26</b><div>Epinephrine 1:10,000, order 0.5 mg IV. <span class="blank"></span> mL</div></li>
@@ -1774,7 +1858,7 @@ svg .f-rule { fill: var(--rule); }
       <li><b>10.57</b><div>Order: naloxone 0.4 mg IM. On hand: 0.4 mg/mL. How many mL? <span class="blank"></span> mL</div></li>
       <li><b>10.58</b><div>How many grams of NaCl are in 250 mL of 0.9% NS? <span class="blank"></span> g</div></li>
       <li><b>10.59</b><div>Infuse 250 mL over 2 hours with a 60 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
-      <li><b>10.60</b><div>How long will 1,000 mL last at 150 mL/hr? <span class="blank"></span></div></li>
+      <li><b>10.60</b><div>Infuse a 250 mL bolus over 20 minutes with a 10 gtt/mL set. <span class="blank"></span> gtt/min</div></li>
       <li><b>10.61</b><div>66 lb child, 20 mL/kg NS bolus. <span class="blank"></span> mL</div></li>
       <li><b>10.62</b><div>Order: dexamethasone 10 mg IV. On hand: 4 mg/mL. How many mL? <span class="blank"></span> mL</div></li>
       <li><b>10.63</b><div>Calcium gluconate 10%, order 2 g. <span class="blank"></span> mL</div></li>
@@ -1960,16 +2044,14 @@ svg .f-rule { fill: var(--rule); }
         <li><b>6.3</b><div>(100 × 10) ÷ 20 = <span class="answer">50 gtt/min</span></div></li>
         <li><b>6.4</b><div>Microdrip: gtt/min = mL/hr → <span class="answer">30 gtt/min</span></div></li>
         <li><b>6.5</b><div>(250 × 10) ÷ 15 = 166.7 → <span class="answer">167 gtt/min</span>. Too fast to count: use a pump or run wide open and watch the bag.</div></li>
-        <li><b>6.6</b><div>1,000 ÷ 125 = <span class="answer">8 hr</span></div></li>
-        <li><b>6.7</b><div>25 gtt/min ÷ 20 gtt/mL = 1.25 mL/min × 60 = <span class="answer">75 mL/hr</span></div></li>
-        <li><b>6.8</b><div>(500 × 15) ÷ 120 = 62.5 → <span class="answer">63 gtt/min</span></div></li>
-        <li><b>6.9</b><div>(1,000 × 20) ÷ 360 = 55.6 → <span class="answer">56 gtt/min</span>; 1,000 ÷ 6 = 166.7 → <span class="answer">167 mL/hr</span></div></li>
-        <li><b>6.10</b><div>150 ÷ 6 = <span class="answer">25 gtt/min</span></div></li>
-        <li><b>6.11</b><div>75 ÷ 4 = 18.75 → <span class="answer">19 gtt/min</span></div></li>
-        <li><b>6.12</b><div>(100 × 20) ÷ 30 = 66.7 → <span class="answer">67 gtt/min</span></div></li>
-        <li><b>6.13</b><div>40 ÷ 15 = 2.67 mL/min × 60 = <span class="answer">160 mL/hr</span></div></li>
-        <li><b>6.14</b><div>250 ÷ 50 = <span class="answer">5 hr</span></div></li>
-        <li><b>6.15</b><div>(250 × 60) ÷ 60 = <span class="answer">250 gtt/min</span>: too fast to count. Use a macrodrip set (10 gtt/mL → 42 gtt/min) or a pump.</div></li>
+        <li><b>6.6</b><div>25 gtt/min ÷ 20 gtt/mL = 1.25 mL/min × 60 = <span class="answer">75 mL/hr</span></div></li>
+        <li><b>6.7</b><div>(500 × 15) ÷ 120 = 62.5 → <span class="answer">63 gtt/min</span></div></li>
+        <li><b>6.8</b><div>(1,000 × 20) ÷ 360 = 55.6 → <span class="answer">56 gtt/min</span>; 1,000 ÷ 6 = 166.7 → <span class="answer">167 mL/hr</span></div></li>
+        <li><b>6.9</b><div>150 ÷ 6 = <span class="answer">25 gtt/min</span></div></li>
+        <li><b>6.10</b><div>75 ÷ 4 = 18.75 → <span class="answer">19 gtt/min</span></div></li>
+        <li><b>6.11</b><div>(100 × 20) ÷ 30 = 66.7 → <span class="answer">67 gtt/min</span></div></li>
+        <li><b>6.12</b><div>40 ÷ 15 = 2.67 mL/min × 60 = <span class="answer">160 mL/hr</span></div></li>
+        <li><b>6.13</b><div>(250 × 60) ÷ 60 = <span class="answer">250 gtt/min</span>: too fast to count. Use a macrodrip set (10 gtt/mL → 42 gtt/min) or a pump.</div></li>
       </ol>
     </div>
     <div class="key-block" id="key7">
@@ -2024,19 +2106,18 @@ svg .f-rule { fill: var(--rule); }
         <li><b>9.3</b><div>The patient side: straighten the arm, look for a closed clamp or kink, then check the IV site for infiltration.</div></li>
         <li><b>9.4</b><div>Secondary clamp closed; secondary bag not hung higher than the primary (also: connected below the pump).</div></li>
         <li><b>9.5</b><div>6 ÷ 16 = 0.375 mL/min × 60 = <span class="answer">22.5 mL/hr: correct</span></div></li>
-        <li><b>9.6</b><div>320 ÷ 75 = 4.27 hr. <span class="answer">Yes</span>, with about 45 minutes of margin. Bring a spare bag anyway.</div></li>
-        <li><b>9.7</b><div>8 × 70 × 60 ÷ 1,600 = 21 → <span class="answer">Correct</span></div></li>
-        <li><b>9.8</b><div>Volume ordered, not the bag: <span class="answer">500 mL</span></div></li>
-        <li><b>9.9</b><div>(1,000 − 375) ÷ 125 = <span class="answer">5 hr</span></div></li>
-        <li><b>9.10</b><div>The bag side: roller clamp above the pump, spike fully seated, tubing kinked above the pump.</div></li>
-        <li><b>9.11</b><div>45 × 4 ÷ 60 = 3 mcg/min. <span class="answer">No: 3 mcg/min running</span>; 10 mcg/min needs 150 mL/hr. Clarify before transport.</div></li>
+        <li><b>9.6</b><div>8 × 70 × 60 ÷ 1,600 = 21 → <span class="answer">Correct</span></div></li>
+        <li><b>9.7</b><div>Volume ordered, not the bag: <span class="answer">500 mL</span></div></li>
+        <li><b>9.8</b><div>1 ÷ 1.8 × 60 = 33.3 mL/hr. <span class="answer">Incorrect: decimal error, 10× too slow</span>. Reprogram.</div></li>
+        <li><b>9.9</b><div>The bag side: roller clamp above the pump, spike fully seated, tubing kinked above the pump.</div></li>
+        <li><b>9.10</b><div>45 × 4 ÷ 60 = 3 mcg/min. <span class="answer">No: 3 mcg/min running</span>; 10 mcg/min needs 150 mL/hr. Clarify before transport.</div></li>
       </ol>
     </div>
     <div class="key-block wide" id="key10">
       <h4>Practice 10 · Putting it all together</h4>
       <ol>
         <li><b>10.1</b><div>4 × 70 × 20 = 5,600; half = 2,800 ÷ 8 = <span class="answer">350 mL/hr</span> <span class="topic">IV fluids</span></div></li>
-        <li><b>10.2</b><div>500 ÷ 200 = <span class="answer">2.5 hr</span> <span class="topic">Drip rate (volume)</span></div></li>
+        <li><b>10.2</b><div>500 ÷ 3 = 166.67 → <span class="answer">166.7 mL/hr</span> <span class="topic">Drip rate (volume)</span></div></li>
         <li><b>10.3</b><div>20 ÷ 60 = 0.33 mL/min × 60 = <span class="answer">20 mL/hr</span> <span class="topic">Drip rate (volume)</span></div></li>
         <li><b>10.4</b><div>4 mg/mL; 1 ÷ 4 × 60 = <span class="answer">15 gtt/min</span> <span class="topic">Drip rate (concentration)</span></div></li>
         <li><b>10.5</b><div>0.075 mg = 75 mcg; 75 ÷ 50 × 1 = <span class="answer">1.5 mL</span> <span class="topic">Dose & volume</span></div></li>
@@ -2057,7 +2138,7 @@ svg .f-rule { fill: var(--rule); }
         <li><b>10.20</b><div><span class="answer">250 mL</span> <span class="topic">Infusion pumps</span></div></li>
         <li><b>10.21</b><div>30 ÷ 10 = 3 mL/min × 60 = <span class="answer">180 mL/hr</span> <span class="topic">Drip rate (volume)</span></div></li>
         <li><b>10.22</b><div>5 × 9 = <span class="answer">45 mL</span> = 4.5 g <span class="topic">Weight-based</span></div></li>
-        <li><b>10.23</b><div>600 ÷ 150 = <span class="answer">4 hr</span> <span class="topic">Infusion pumps</span></div></li>
+        <li><b>10.23</b><div>5 × 90 × 60 ÷ 1,600 = 16.875 → <span class="answer">Correct</span> <span class="topic">Infusion pumps</span></div></li>
         <li><b>10.24</b><div>16 mcg/mL; 10 ÷ 16 × 60 = <span class="answer">37.5 mL/hr</span> <span class="topic">Drip rate (concentration)</span></div></li>
         <li><b>10.25</b><div>750 mcg = 0.75 mg; 0.75 ÷ 1 × 1 = <span class="answer">0.75 mL</span> <span class="topic">Dose & volume</span></div></li>
         <li><b>10.26</b><div>0.1 mg/mL; 0.5 ÷ 0.1 = <span class="answer">5 mL</span> <span class="topic">Percent & concentration</span></div></li>
@@ -2094,7 +2175,7 @@ svg .f-rule { fill: var(--rule); }
         <li><b>10.57</b><div>0.4 ÷ 0.4 × 1 = <span class="answer">1 mL</span> <span class="topic">Dose & volume</span></div></li>
         <li><b>10.58</b><div>0.9 × 2.5 = <span class="answer">2.25 g</span> <span class="topic">Percent & concentration</span></div></li>
         <li><b>10.59</b><div>(250 × 60) ÷ 120 = <span class="answer">125 gtt/min</span> <span class="topic">Drip rate (volume)</span></div></li>
-        <li><b>10.60</b><div>1,000 ÷ 150 = 6.67 hr = <span class="answer">6 hr 40 min</span> <span class="topic">Drip rate (volume)</span></div></li>
+        <li><b>10.60</b><div>(250 × 10) ÷ 20 = <span class="answer">125 gtt/min</span> <span class="topic">Drip rate (volume)</span></div></li>
         <li><b>10.61</b><div>66 ÷ 2.2 = 30 kg × 20 = <span class="answer">600 mL</span> <span class="topic">Weight-based</span></div></li>
         <li><b>10.62</b><div>10 ÷ 4 × 1 = <span class="answer">2.5 mL</span> <span class="topic">Dose & volume</span></div></li>
         <li><b>10.63</b><div>100 mg/mL; 2,000 ÷ 100 = <span class="answer">20 mL</span> <span class="topic">Percent & concentration</span></div></li>
