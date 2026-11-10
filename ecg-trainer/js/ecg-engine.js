@@ -55,6 +55,8 @@
       mains: rng() < 0.12 ? 0.008 + rng() * 0.012 : 0,
       wander: rng() < 0.4 ? 0.04 + rng() * 0.07 : 0
     } : null;
+    // 'force' guarantees visible artifact (used by the course's artifact lesson)
+    if (this.art && CUR.artifact === 'force' && !this.art.tremor && !this.art.mains) this.art[rng() < 0.6 ? 'tremor' : 'mains'] = 0.02 + rng() * 0.015;
   }
   var CUR = {};
 

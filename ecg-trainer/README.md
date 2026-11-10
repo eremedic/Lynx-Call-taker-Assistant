@@ -17,6 +17,36 @@ It is a static website (HTML, CSS and plain JavaScript, with no build step and n
 | 7 · Pacemaker | Ventricular paced, AV sequential paced, failure to capture |
 | 8 · Final exam | 20 mixed rhythms from every module |
 
+### Self-paced course: Basic ECG Interpretation (`#course`)
+
+A guided course on its own **Course** tab, with 9 units and 33 lessons taken in order:
+
+1. The heart's electrical system
+2. ECG paper, waves and leads
+3. The systematic approach and rate
+4. Sinus rhythms
+5. Atrial rhythms
+6. Junctional rhythms
+7. Ventricular rhythms
+8. AV blocks
+9. Pacemaker rhythms
+
+Each lesson includes:
+
+- **Narration.** Lessons are read aloud with the browser's speech synthesis, with play/pause, skip and speed controls. The paragraph being read is highlighted, and rhythm explorers switch strips as the narration reaches each rhythm.
+- **Interactive strips.**
+- **Knowledge checks.**
+- **Practice ECGs.** Unit 3 has rate practice. Each rhythm unit ends with an unlimited strip-identification practice lesson.
+
+How a student moves through the course:
+
+- A lesson is complete once its knowledge checks are answered (or, for a practice lesson, three strips are identified).
+- Each unit ends with a quiz: 8 concept questions, or 4 concept questions plus 6 rhythm strips. Passing it with 80% unlocks the next unit.
+- After all 9 unit quizzes are passed, a 25-question final exam unlocks: 10 concept questions and 15 strips.
+- Passing the exam gives a printable certificate of completion.
+
+Progress is stored in `localStorage` under `cshealthed-ecg-course-v1`.
+
 ### Separate course: Basic 12-Lead ECG (`#twelve`)
 
 A stand-alone course for after the 3-lead modules:
@@ -72,6 +102,7 @@ ecg-trainer/
 ├── js/ecg-engine.js      waveform synthesis: rhythm generators → Lead I/II/III signals
 ├── js/ecg-render.js      ECG-paper renderer, animated monitor, calipers
 ├── js/content.js         modules, rhythm criteria, tips, prehospital notes
+├── js/course.js          self-paced course: units, lessons, knowledge checks, question banks
 ├── js/ecg12-engine.js    12-lead synthesis (3-D vectors), 12-lead layout renderer, ST measurement
 ├── js/content12.js       12-lead course cases, findings and axis categories
 ├── js/app.js             routing, lessons, quizzes, reference, progress
