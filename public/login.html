@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sign in · AmbuIntake</title>
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <title>Sign in · Patient Intake</title>
+  <link rel="icon" href="img/favicon-64.png" type="image/png">
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
   <div class="login-wrap">
     <div class="card login-card">
-      <div class="brand" style="color: var(--ink-900)"><div class="brand-mark" style="color:#fff">AI</div><div><span class="wordmark"><span class="ai">A</span>mbu<span class="ai">I</span>ntake</span> <small id="org-name" style="color: var(--ink-500)">Call-Taker Assistant</small></div></div>
+      <div class="card-brand"><img class="card-logo" src="img/cshealthed-logo.webp" alt="CSHealthED, Healthcare Education Software" width="280" height="252"><div class="card-product">Patient Intake</div><small id="org-name" style="color: var(--ink-500)">Call-Taker Assistant</small></div>
 
       <div id="server-banner" class="alert alert-warning server-banner" role="alert" hidden></div>
 
@@ -30,7 +31,7 @@
         <details class="small muted" style="margin-top: 12px">
           <summary style="cursor: pointer">First time signing in, or forgot your password?</summary>
           <p style="margin: 8px 0 0"><strong>Call takers:</strong> ask an administrator to reset your password.</p>
-          <p style="margin: 6px 0 0"><strong>This is not your Supabase or Netlify login.</strong> AmbuIntake has its own accounts. The first administrator's username is <code>admin</code> unless you set <code>ADMIN_USERNAME</code>.</p>
+          <p style="margin: 6px 0 0"><strong>This is not your Supabase or Netlify login.</strong> Patient Intake has its own accounts. The first administrator's username is <code>admin</code> unless you set <code>ADMIN_USERNAME</code>.</p>
           <p style="margin: 6px 0 0"><strong>Administrator locked out (Netlify):</strong> in Netlify → Environment variables set <code>ADMIN_PASSWORD</code> to a new password and add <code>ADMIN_RESET</code> = <code>true</code>, then redeploy. Sign in as <code>admin</code> with that password, choose a new one, and delete <code>ADMIN_RESET</code>.</p>
           <p style="margin: 6px 0 0"><strong>Running it yourself:</strong> run <code>npm run reset-password -- admin</code> in a terminal in the project folder.</p>
         </details>

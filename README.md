@@ -1,12 +1,12 @@
-# AmbuIntake — AI call-taker assistant
+# Patient Intake — AI call-taker assistant
 
-Real-time decision support for ambulance call takers. While the caller is on the phone, AmbuIntake listens to (or reads) the conversation, picks out clinical details, prompts the call taker with the next question to ask, and continuously evaluates whether the transport meets **CMS medical-necessity** requirements for ambulance transport.
+Real-time decision support for ambulance call takers. While the caller is on the phone, Patient Intake listens to (or reads) the conversation, picks out clinical details, prompts the call taker with the next question to ask, and continuously evaluates whether the transport meets **CMS medical-necessity** requirements for ambulance transport.
 
 An **admin dashboard** lets supervisors add, edit, reorder, and deactivate questions, so anything the built-in bank or the AI misses can be added without touching code.
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/eremedic/Lynx-Call-taker-Assistant?quickstart=1)
 
-> **Decision support only.** AmbuIntake does not make coverage determinations. Final decisions must rest on complete documentation, 42 CFR 410.40, the Medicare Benefit Policy Manual (Pub. 100-02) Ch. 10, and your MAC's local coverage policies.
+> **Decision support only.** Patient Intake does not make coverage determinations. Final decisions must rest on complete documentation, 42 CFR 410.40, the Medicare Benefit Policy Manual (Pub. 100-02) Ch. 10, and your MAC's local coverage policies.
 
 ## Features
 
@@ -25,7 +25,7 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 - **Pickup facility.** Clicking **Facility name** opens a pop-out. Choose a saved facility from the drop-down, or enter a new one: name, address, callback phone, caller name, caller email. New facilities are saved for everyone's next call, and edits to a saved facility update it. Choosing a facility fills the address, callback number, caller and email on the call, and the call taker can still change them.
 - **Destination facility.** A second picker uses the same saved list, so a hospital or dialysis center can be a pickup on one call and a destination on another. Choosing it fills the destination address. New destinations are saved the same way. The PCS, narrative and call record show the facility name with the address.
 - **Import payers and facilities from another system.** **⇪ Import** on **Admin → Payers & Brokers** and **Admin → Facilities** reads a **CSV or Excel (.xlsx)** export with column names in the first row, from dispatch, billing or scheduling software such as TraumaSoft. Up to 5,000 rows.
-  - **Column matching:** AmbuIntake matches columns to fields automatically (for example "Location Name", "Address 1", "City", "Zip"), and every match can be changed. Street, line 2, city, state and ZIP become one address. **Download a sample file** shows the layout.
+  - **Column matching:** Patient Intake matches columns to fields automatically (for example "Location Name", "Address 1", "City", "Zip"), and every match can be changed. Street, line 2, city, state and ZIP become one address. **Download a sample file** shows the layout.
   - **Preview:** every row is marked **New**, **Update**, **No change**, **Skip** (a duplicate in the file) or **Problem** before anything is saved.
   - **Matching existing records:** rows match by the other system's ID, or by name, so re-importing an updated export updates the same records instead of duplicating them. Empty cells never erase existing details. A bad email or website is left out with a warning instead of blocking the row.
   - **Payers:** a type containing "broker" (or NEMT) makes a transport broker. Its parent payer is looked up by name or ID, including payers in the same file. Imported payers always get the medical-necessity review and default prior-authorization rules ("varies" for non-emergency), so review them after importing.
@@ -45,6 +45,7 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 - **Notes are kept** with the call record. They appear in the admin call view and in the copied narrative.
 
 **Logic Builder** (Admin → Logic Builder)
+- **Only questions placed in logic are asked.** A call shows a question only when it is on an **active** flow that applies to the call, and switched on in the Question Bank. The **Question Bank** is where questions are added and switched on or off; each one shows which flow it's in, or "Not in any flow: not asked". A starter flow, **Standard intake questions**, holds every question the bank had at upgrade time, so calls keep working. Edit it to remove questions or link answers, or build your own flows.
 - **Resizable boxes.** Drag the grip in a box's bottom-right corner to make it wider or taller (extra height goes to its text). Double-click the grip for the default size. Sizes are saved with the flow.
 - **Full screen.** **⛶ Full screen**, in the toolbar or the canvas corner, gives the canvas the whole screen. Press Esc or **Exit full screen** to return.
 - **Easy-to-read question list.** The left panel has two tabs. **Questions** (the default) shows the whole question bank in large type, grouped by category, with a search box and a category filter. Each question shows its type and answer type, an **+ Add** button, and a green **✓ On canvas** tag once it's been added; **Show** jumps to it. **Start & outcomes** holds the tree-start boxes and outcome boxes.
@@ -59,7 +60,7 @@ An **admin dashboard** lets supervisors add, edit, reorder, and deactivate quest
 
 **Accounts and sign-in** (`/login.html`)
 - **Two roles.** *Call Taker* uses the console. *Administrator* also manages questions, users, settings, and the audit log.
-- **Passwords set by an administrator.** When adding a user or resetting a password, the administrator either types the password, and chooses whether the user must change it at first sign-in, or lets AmbuIntake generate a temporary one, which is shown once and must be changed at first sign-in. Passwords need at least 10 characters with letters and numbers, and can't contain the username.
+- **Passwords set by an administrator.** When adding a user or resetting a password, the administrator either types the password, and chooses whether the user must change it at first sign-in, or lets Patient Intake generate a temporary one, which is shown once and must be changed at first sign-in. Passwords need at least 10 characters with letters and numbers, and can't contain the username.
 - **Lockout.** Five failed sign-ins lock the account for 15 minutes. An administrator password reset clears the lock.
 - **Sessions** last 12 hours. Deactivating an account or resetting its password signs that user out everywhere. Accounts are deactivated, never deleted, so the audit trail stays intact.
 
@@ -135,7 +136,7 @@ On Netlify, the pages in `public/` are served as a static site. The API runs as 
 
 **Optional: create the tables yourself.** Instead of letting the app do it, open Supabase → **SQL Editor** and run [`supabase/schema.sql`](supabase/schema.sql) and then [`supabase/seed.sql`](supabase/seed.sql). Both are safe to run again, and they give exactly the database the app would create. User accounts aren't in these files: the first administrator is still created from `ADMIN_USERNAME` / `ADMIN_PASSWORD` the first time the app starts.
 
-AmbuIntake creates its own tables the first time it starts. They go in a separate **`ambuintake`** schema, so they never touch your other Supabase tables. Row-level security is turned on, so Supabase's public `anon` and `authenticated` API keys can't read them.
+Patient Intake creates its own tables the first time it starts. They go in a separate **`ambuintake`** schema, so they never touch your other Supabase tables. Row-level security is turned on, so Supabase's public `anon` and `authenticated` API keys can't read them.
 
 ### 2. Create the Netlify site
 1. In Netlify, choose **Add new site → Import an existing project → GitHub**, then pick this repository and the branch to deploy.
@@ -159,7 +160,7 @@ AmbuIntake creates its own tables the first time it starts. They go in a separat
 `NODE_VERSION` (22) is already set in `netlify.toml`.
 
 ### 4. Deploy and sign in
-1. Click **Deploy**. On the first visit, AmbuIntake creates its tables in Supabase and the administrator account. That first load can take a few seconds.
+1. Click **Deploy**. On the first visit, Patient Intake creates its tables in Supabase and the administrator account. That first load can take a few seconds.
 2. Open your site, sign in with `ADMIN_USERNAME` / `ADMIN_PASSWORD`, and choose a new password.
 3. Go to **Admin → Settings** and enter your ambulance service's name (it's printed on PCS forms). Then add call takers under **Admin → Users**.
 4. Optional: add your domain under **Domain management**. Netlify sets up HTTPS automatically.
@@ -168,7 +169,7 @@ AmbuIntake creates its own tables the first time it starts. They go in a separat
 
 Each Netlify deploy records its version (the short commit ID). The **status page** (`/status.html`) shows "Deployed version: abc1234 from main", and so does the user menu (click your name). Compare it with the latest commit on GitHub. If it's older, Netlify hasn't published the new code: open **Netlify → Deploys** and check that the newest deploy says **Published**, not Failed, Canceled or "Locked".
 
-Pages, scripts and styles are served with `Cache-Control: no-cache`, so a reload always picks up a new deploy. Pages left open during a deploy show **"A new version of AmbuIntake is available. Reload now"**.
+Pages, scripts and styles are served with `Cache-Control: no-cache`, so a reload always picks up a new deploy. Pages left open during a deploy show **"A new version of Patient Intake is available. Reload now"**.
 
 ### 5. If something isn't working: open `/status.html`
 
@@ -197,7 +198,7 @@ npm start
 ```
 
 Then open http://localhost:3000.
-- **Database:** without `DATABASE_URL`, AmbuIntake uses an embedded Postgres database stored in `data/pglite`, so there's nothing to install. With `DATABASE_URL`, it uses that database instead, for example your Supabase project.
+- **Database:** without `DATABASE_URL`, Patient Intake uses an embedded Postgres database stored in `data/pglite`, so there's nothing to install. With `DATABASE_URL`, it uses that database instead, for example your Supabase project.
 - **Administrator:** on first run an administrator account is created. Its temporary password is printed in the terminal, or it's the value of `ADMIN_PASSWORD` if you set one. A new password is required at first sign-in.
 
 ### Configuration (local)
@@ -288,7 +289,7 @@ Call records and transcripts contain protected health information. Before produc
 - Review the audit log regularly, and export it to your long-term retention system.
 - Only enable AI analysis under a Business Associate Agreement that covers the AI provider.
 - Set backup and retention policies for the database. On Supabase, check your plan's backups and point-in-time recovery.
-- Never use Supabase's service-role or anon keys in the browser. AmbuIntake doesn't need them: the server connects directly with `DATABASE_URL`.
+- Never use Supabase's service-role or anon keys in the browser. Patient Intake doesn't need them: the server connects directly with `DATABASE_URL`.
 
 ## Roadmap ideas
 

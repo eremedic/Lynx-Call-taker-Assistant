@@ -28,7 +28,7 @@ if (reset?.error) console.warn(reset.error);
 else if (reset) console.log(`ADMIN_RESET: administrator "${reset.username}" now uses ADMIN_PASSWORD. Remove ADMIN_RESET after signing in.`);
 
 createApp({ db, staticDir: publicDir }).listen(port, () => {
-  console.log(`AmbuIntake running at http://localhost:${port}`);
+  console.log(`Patient Intake running at http://localhost:${port}`);
   console.log(`  Sign in:            http://localhost:${port}/login.html`);
   console.log(`  Call-taker console: http://localhost:${port}/`);
   console.log(`  Admin dashboard:    http://localhost:${port}/admin.html`);

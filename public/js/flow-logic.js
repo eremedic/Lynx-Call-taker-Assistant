@@ -247,8 +247,10 @@ export function runFlows(flows, { answers = {}, callType, payer, level } = {}) {
   const gates = new Map();
   const outcomes = [];
   const trees = [];
+  const placed = new Set(); // every question that is on an applicable flow
   for (const flow of flows || []) {
     if (!flowApplies(flow, { callType, payer })) continue;
+    for (const n of flow.graph?.nodes || []) if (n.type === 'question') placed.add(n.code);
     const r = runFlow(flow, answers, { payer, level, callType });
     for (const [code, on] of r.gates) gates.set(code, (gates.get(code) || false) || on);
     for (const node of r.outcomes) outcomes.push({ flow: { id: flow.id, name: flow.name }, node });
@@ -265,5 +267,5 @@ export function runFlows(flows, { answers = {}, callType, payer, level } = {}) {
     }
   }
   const hidden = new Set([...gates].filter(([, on]) => !on).map(([code]) => code));
-  return { hidden, outcomes, trees };
+  return { hidden, outcomes, trees, placed };
 }

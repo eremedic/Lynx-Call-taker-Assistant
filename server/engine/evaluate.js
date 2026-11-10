@@ -59,7 +59,7 @@ function applyPriorAuthPolicy(q, policy) {
   return policy === 'required' ? { ...q, required: true } : q;
 }
 
-export function evaluateCall({ callType = 'non_emergency', questions = [], answers = {}, transcript = '', payer = null, brokers = [], flows = [], allQuestions = false, level = '' }) {
+export function evaluateCall({ callType = 'non_emergency', questions = [], answers = {}, transcript = '', payer = null, brokers = [], flows = [], allQuestions = false, level = '', logicOnly = false }) {
   const policy = payer?.prior_auth?.[callType] || null;
   const skipNecessity = skipsNecessity(payer);
   const active = questions
@@ -76,6 +76,8 @@ export function evaluateCall({ callType = 'non_emergency', questions = [], answe
   // Logic Builder flows can hold a question back until earlier answers call for it.
   const rules = runFlows(flows, { answers, callType, payer, level });
   const visible = active.filter((q) => {
+    // logicOnly: only questions placed in an active Logic Builder flow are asked.
+    if (logicOnly && !rules.placed.has(q.code)) return false;
     if (rules.hidden.has(q.code)) return false;
     if (q.depends_on_code && !sameAnswer(answers[q.depends_on_code], q.depends_on_answer)) return false;
     const hasTriggers = (q.triggers || []).length > 0;

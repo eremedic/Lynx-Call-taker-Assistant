@@ -561,3 +561,27 @@ test('admins import payer lists; brokers link to payers in the same file; the ne
   assert.ok(ev.visibleCodes.includes('BED_GET_UP'));
   assert.ok((await auditActions()).includes('payer.imported'));
 });
+
+test('calls ask only questions placed in an active Logic Builder flow', async () => {
+  const flows = (await admin('/api/admin/flows')).data;
+  const starter = flows.find((f) => f.name === 'Standard intake questions');
+  assert.ok(starter && starter.active, 'a starter flow holds the question bank');
+  assert.ok(starter.graph.nodes.some((n) => n.code === 'BED_GET_UP'));
+
+  const body = { callType: 'non_emergency', payer: 'medicare', allQuestions: true, logicOnly: true };
+  assert.ok((await taker('/api/evaluate', { method: 'POST', body })).data.visibleCodes.includes('BED_GET_UP'));
+
+  // A new question in the bank is not asked until it is placed in a flow.
+  await admin('/api/admin/questions', { method: 'POST', body: { code: 'LOGIC_ONLY_Q', category: 'Transport Details', text: 'Is there a working elevator at pickup?', answer_type: 'yes_no', criterion: 'info' } });
+  assert.ok(!(await taker('/api/evaluate', { method: 'POST', body })).data.visibleCodes.includes('LOGIC_ONLY_Q'));
+  const created = (await admin('/api/admin/flows', { method: 'POST', body: { name: 'Elevator', active: true, graph: { nodes: [{ id: 'n1', type: 'question', code: 'LOGIC_ONLY_Q', x: 0, y: 0 }], edges: [] } } })).data;
+  assert.ok((await taker('/api/evaluate', { method: 'POST', body })).data.visibleCodes.includes('LOGIC_ONLY_Q'));
+  // Switching the question off in the bank hides it even when placed.
+  const q = (await admin('/api/admin/questions')).data.find((x) => x.code === 'LOGIC_ONLY_Q');
+  await admin(`/api/admin/questions/${q.id}`, { method: 'PUT', body: { active: false } });
+  assert.ok(!(await taker('/api/evaluate', { method: 'POST', body })).data.visibleCodes.includes('LOGIC_ONLY_Q'));
+  // Switching the flow off takes its questions off calls.
+  await admin(`/api/admin/questions/${q.id}`, { method: 'PUT', body: { active: true } });
+  await admin(`/api/admin/flows/${created.id}`, { method: 'PUT', body: { active: false } });
+  assert.ok(!(await taker('/api/evaluate', { method: 'POST', body })).data.visibleCodes.includes('LOGIC_ONLY_Q'));
+});

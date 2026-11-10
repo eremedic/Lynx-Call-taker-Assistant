@@ -1,7 +1,7 @@
 {
-  "name": "ambuintake",
+  "name": "patient-intake",
   "version": "1.0.0",
-  "description": "AmbuIntake — AI call-taker assistant for ambulance transport medical necessity (CMS), with an admin question-bank dashboard",
+  "description": "Patient Intake by CSHealthED: ambulance transport intake with CMS medical-necessity questions, a logic builder and an admin dashboard",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",

@@ -8,10 +8,10 @@ async function request(path, options = {}) {
   try {
     res = await fetch(path, { credentials: 'same-origin', ...options });
   } catch {
-    throw Object.assign(new Error('Can\'t reach the AmbuIntake server. Check your connection.'), { server: true });
+    throw Object.assign(new Error('Can\'t reach the Patient Intake server. Check your connection.'), { server: true });
   }
   const data = await res.json().catch(() => null);
-  if (!data) throw Object.assign(new Error(`The AmbuIntake server isn't responding properly (HTTP ${res.status}).`), { server: true });
+  if (!data) throw Object.assign(new Error(`The Patient Intake server isn't responding properly (HTTP ${res.status}).`), { server: true });
   if (!res.ok) throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { server: res.status >= 500 });
   return data;
 }

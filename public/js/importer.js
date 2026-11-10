@@ -1,6 +1,6 @@
 // Admin → Import payers / facilities from another system's export.
 // Reads CSV/TSV and Excel (.xlsx) files in the browser, matches the file's
-// columns to AmbuIntake fields (guessing from the column names), previews
+// columns to Patient Intake fields (guessing from the column names), previews
 // every row with the server's verdict, then imports.
 import { api, esc, toast } from './common.js';
 
@@ -258,7 +258,7 @@ function downloadTemplate() {
   const csv = cfg.template.map((r) => r.map((c) => (/[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-  a.download = `ambuintake-${imp.kind}-sample.csv`;
+  a.download = `patient-intake-${imp.kind}-sample.csv`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }

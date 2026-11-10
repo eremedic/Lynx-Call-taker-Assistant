@@ -201,9 +201,16 @@ async function loadOverview() {
 
 // -------------------------------------------------------------- questions
 async function loadQuestions() {
-  const list = await guarded(() => api('/api/admin/questions'));
+  const [list, flows] = await Promise.all([guarded(() => api('/api/admin/questions')), api('/api/admin/flows').catch(() => null)]);
   if (!list) return;
   state.questions = list;
+  // Which active flows each question is placed in (calls only ask those).
+  if (flows) {
+    state.placement = new Map();
+    for (const f of flows.filter((x) => x.active)) {
+      for (const n of f.graph.nodes) if (n.type === 'question') state.placement.set(n.code, [...(state.placement.get(n.code) || []), f.name]);
+    }
+  }
   const cats = [...new Set([...state.config.categories, ...list.map((q) => q.category)])];
   const selected = $('#q-category').value;
   $('#q-category').innerHTML = `<option value="">All categories</option>${cats.map((c) => `<option ${c === selected ? 'selected' : ''}>${esc(c)}</option>`).join('')}`;
@@ -221,6 +228,8 @@ function renderQuestions() {
     if (status === 'active' && !q.active) return false;
     if (status === 'inactive' && q.active) return false;
     if (status === 'custom' && q.is_system) return false;
+    if (status === 'in_logic' && !state.placement?.has(q.code)) return false;
+    if (status === 'not_in_logic' && state.placement?.has(q.code)) return false;
     if (!term) return true;
     return [q.code, q.text, q.category, q.guidance, ...q.triggers, ...q.detect_yes, ...q.detect_no].join(' ').toLowerCase().includes(term);
   });
@@ -237,6 +246,9 @@ function renderQuestions() {
           ${q.triggers.length ? `<span class="chip chip-violet" title="${esc(q.triggers.join(', '))}">Conditional</span>` : ''}
           ${q.call_types.length ? `<span class="chip">${esc(q.call_types.map((t) => state.config.callTypes[t]?.split(' ')[0]).join(', '))}</span>` : ''}
           ${q.payers.length ? `<span class="chip chip-green">${esc(q.payers.map(payerName).join(', '))}</span>` : ''}
+          ${!state.placement ? '' : state.placement.has(q.code)
+            ? `<span class="chip chip-violet" title="${esc(state.placement.get(q.code).join(', '))}">⧓ In logic: ${esc(state.placement.get(q.code).join(', '))}</span>`
+            : '<span class="chip chip-amber" title="Add it to an active flow in the Logic Builder to have it asked on calls">Not in any flow: not asked</span>'}
         </div>
       </td>
       <td class="nowrap">${esc(TYPE_LABELS[q.answer_type])}</td>

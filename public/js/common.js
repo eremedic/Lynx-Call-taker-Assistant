@@ -9,11 +9,11 @@ export async function api(path, { method = 'GET', body } = {}) {
       credentials: 'same-origin',
     });
   } catch {
-    throw new Error('Can\'t reach the AmbuIntake server. Check your connection; see status.html for details.');
+    throw new Error('Can\'t reach the Patient Intake server. Check your connection; see status.html for details.');
   }
   if (res.status === 204) return null;
   const data = await res.json().catch(() => null);
-  if (!data) throw Object.assign(new Error(`The AmbuIntake server isn't responding properly (HTTP ${res.status}). See status.html.`), { status: res.status });
+  if (!data) throw Object.assign(new Error(`The Patient Intake server isn't responding properly (HTTP ${res.status}). See status.html.`), { status: res.status });
   if (!res.ok) {
     if (data.code === 'AUTH_REQUIRED') redirectToLogin();
     if (data.code === 'PASSWORD_CHANGE_REQUIRED') redirectToLogin({ change: true });
@@ -28,7 +28,7 @@ export async function api(path, { method = 'GET', body } = {}) {
 // Replaces the page with a clear explanation when it can't load (for example
 // the server can't reach the database), instead of leaving dead buttons.
 export function showLoadFailure(err) {
-  console.error('[AmbuIntake] Page failed to load:', err);
+  console.error('[Patient Intake] Page failed to load:', err);
   if (document.getElementById('load-failure')) return;
   const box = document.createElement('div');
   box.id = 'load-failure';
@@ -36,7 +36,7 @@ export function showLoadFailure(err) {
   box.setAttribute('role', 'alert');
   box.innerHTML = `
     <div class="load-failure-card">
-      <h1>AmbuIntake couldn't load</h1>
+      <h1>Patient Intake couldn't load</h1>
       <p class="reason">${esc(err?.message || err || 'Unknown error.')}</p>
       <p>Nothing on this page will work until this is fixed. The system status page checks the server, the database connection and the settings, and says what to change.</p>
       <div class="actions">
@@ -77,7 +77,7 @@ export async function watchForUpdates({ isBusy = () => false, everyMs = 5 * 60 *
     bar.id = 'update-bar';
     bar.className = 'update-bar';
     bar.setAttribute('role', 'status');
-    bar.innerHTML = '<span>A new version of AmbuIntake is available.</span><button type="button" class="btn btn-sm">Reload now</button>';
+    bar.innerHTML = '<span>A new version of Patient Intake is available.</span><button type="button" class="btn btn-sm">Reload now</button>';
     bar.querySelector('button').addEventListener('click', () => {
       if (!isBusy() || confirm('Reload now? Unsaved changes to this call will be lost. Save the call first to keep them.')) location.reload();
     });

@@ -377,7 +377,7 @@ fieldset.group legend { font-size: 12px; font-weight: 700; color: var(--ink-700)
 .input:disabled, .select:disabled { background: var(--surface-2); color: var(--ink-500); cursor: not-allowed; }
 
 /* --------------------------------------------------------- wordmark */
-/* AmbuIntake: the A and I are emphasized so "AI" reads out of the name. */
+/* Product name in the top bar and on cards. */
 .wordmark { font-weight: 800; letter-spacing: .01em; }
 .wordmark .ai {
   font-size: 1.18em; font-weight: 900;
@@ -801,3 +801,11 @@ body.console-page .emergency-bar { flex: none; }
 .import-table tr.import-skip td, .import-table tr.import-unchanged td { color: var(--ink-500); }
 @media (max-width: 700px) { .import-mapping { grid-template-columns: 1fr; } }
 .import-warning { color: var(--amber-600); font-weight: 600; margin-top: 2px; }
+
+/* CSHealthED branding */
+.brand-logo { width: 40px; height: 40px; border-radius: 50%; background: #fff; padding: 2px; object-fit: contain; flex: none; box-shadow: 0 0 0 1px rgba(255, 255, 255, .25); }
+.topbar .wordmark { font-size: 16px; }
+.card-brand { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; margin-bottom: 8px; }
+.card-logo { width: 200px; height: auto; }
+.card-product { font-size: 20px; font-weight: 800; color: var(--navy-800); letter-spacing: .01em; margin-top: 4px; }
+.card-brand small { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-500); }

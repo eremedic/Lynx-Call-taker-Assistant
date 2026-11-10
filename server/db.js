@@ -42,7 +42,9 @@ const DEFAULT_SETTINGS = {
 //   6 - saved pickup facilities (schema only)
 //   7 - only private pay and facility pay may skip the necessity review
 //   8 - external IDs on payers and facilities, for imports (schema only)
-const SEED_VERSION = 8;
+//   9 - starter Logic Builder flow holding the question bank (calls now ask
+//       only questions placed in a flow)
+const SEED_VERSION = 9;
 const CONTENT_VERSION = 3; // last version that added built-in questions/payers
 const MIGRATION_LOCK = 724_310_001;
 
@@ -266,6 +268,8 @@ export async function migrate(db) {
         WHERE NOT requires_medical_necessity AND code NOT IN ('private_pay', 'facility_pay')`);
     }
 
+    if (Number(row?.value || 0) < 9) await addStarterFlow(t);
+
     // Built-in content is added once; later versions only change the schema.
     if (Number(row?.value || 0) < CONTENT_VERSION) {
       // One statement per table keeps the first start fast on serverless hosts.
@@ -276,6 +280,31 @@ export async function migrate(db) {
     }
     await settingsRepo(t).set('seed_version', SEED_VERSION);
   });
+}
+
+// Calls ask only the questions placed in a Logic Builder flow. So that calls
+// keep working after that change (and on a new install), one starter flow
+// holds every question in the bank, laid out in columns by category. Admins
+// edit it: remove questions, add lines, or build their own flows instead.
+export const STARTER_FLOW_NAME = 'Standard intake questions';
+async function addStarterFlow(t) {
+  const existing = await t.query(`SELECT id FROM ${S}.logic_flows WHERE name = $1`, [STARTER_FLOW_NAME]);
+  if (existing.length) return;
+  let qs = await t.query(`SELECT code, category FROM ${S}.questions ORDER BY sort_order, id`);
+  if (!qs.length) qs = SEED_QUESTIONS.map((q) => ({ code: q.code, category: q.category }));
+  const columns = [...new Set(qs.map((q) => q.category))];
+  const rowsInColumn = new Map();
+  const nodes = qs.map((q, i) => {
+    const col = columns.indexOf(q.category);
+    const row = rowsInColumn.get(col) || 0;
+    rowsInColumn.set(col, row + 1);
+    return { id: `n${i + 1}`, type: 'question', code: q.code, match: 'all', x: col * 300, y: row * 230 };
+  });
+  await t.query(`INSERT INTO ${S}.logic_flows (name, description, active, graph) VALUES ($1, $2, true, $3)`, [
+    STARTER_FLOW_NAME,
+    'Every question that was in the question bank. Remove what you don’t want asked, or connect answers to follow-up questions and outcomes.',
+    JSON.stringify({ nodes, edges: [] }),
+  ]);
 }
 
 // Inserts many rows in one statement; columns a row doesn't set use DEFAULT.

@@ -4,7 +4,7 @@ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 // Explains why the server function didn't answer with JSON.
 function unreachable(status) {
   if (status === 404) {
-    return 'The AmbuIntake server function is not deployed. In Netlify, open the latest deploy and check the "Functions" section of the deploy log for an "api" function. Make sure the site deploys the main branch and that the repository\'s netlify.toml is being used (Site configuration → Build & deploy: base directory empty).';
+    return 'The Patient Intake server function is not deployed. In Netlify, open the latest deploy and check the "Functions" section of the deploy log for an "api" function. Make sure the site deploys the main branch and that the repository\'s netlify.toml is being used (Site configuration → Build & deploy: base directory empty).';
   }
   if (status === 502 || status === 500) {
     return 'The server function crashed while starting. First, in Netlify → Deploys, make sure the newest deploy (from the main branch) is the one that is Published — older deploys had a startup bug. If it is, open Logs → Functions → api and look at the most recent red error lines.';

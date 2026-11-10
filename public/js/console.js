@@ -398,7 +398,8 @@ async function evaluate() {
     const result = await api('/api/evaluate', {
       method: 'POST',
       // The form lists every question that applies, not only those prompted by the conversation.
-      body: { callType: state.callType, payer: state.payer, answers: state.answers, allQuestions: true, level: state.details.requested_level || '' },
+      // Only questions placed in a Logic Builder flow are asked; the form lists all of them.
+      body: { callType: state.callType, payer: state.payer, answers: state.answers, allQuestions: true, logicOnly: true, level: state.details.requested_level || '' },
     });
     if (seq !== evalSeq) return; // a newer evaluation is in flight
     state.evaluation = result;
@@ -623,7 +624,7 @@ function renderChecklist() {
         </div>
       </div>`;
   }
-  $('#checklist').innerHTML = html || '<div class="empty">No questions apply yet.</div>';
+  $('#checklist').innerHTML = html || '<div class="empty">No questions are set up for this call yet. An administrator adds them in Admin → Logic Builder.</div>';
   $('#checklist-count').textContent = `${answered} of ${ev.visibleCodes.length} answered`;
 }
 
@@ -832,6 +833,7 @@ async function saveCall({ quiet = false } = {}) {
       answers: state.answers,
       transcript: state.transcript,
       allQuestions: true,
+      logicOnly: true,
     };
     const r = state.savedId
       ? await api(`/api/calls/${state.savedId}`, { method: 'PUT', body })

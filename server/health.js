@@ -59,7 +59,7 @@ export function explainDatabaseError(err) {
   if (code === '28P01' || /password authentication failed/i.test(msg)) return 'Wrong database password. Reset it in Supabase → Project Settings → Database, update DATABASE_URL, and redeploy. URL-encode symbols in the password (e.g. @ → %40).';
   if (/tenant or user not found/i.test(msg)) return 'Supabase did not recognize the user. With the pooler, the user name must be postgres.<project-ref> exactly as shown in Supabase → Connect.';
   if (code === '3D000') return 'That database does not exist. The connection string should end in /postgres.';
-  if (code === '42501') return 'The database user is not allowed to create the AmbuIntake tables. Use the "postgres" user from Supabase → Connect.';
+  if (code === '42501') return 'The database user is not allowed to create the Patient Intake tables. Use the "postgres" user from Supabase → Connect.';
   if (/certificate|self[- ]signed|unable to verify/i.test(msg)) return 'The SSL certificate check failed. Remove DATABASE_CA_CERT or paste Supabase\'s certificate in full.';
   if (/timeout|timed out/i.test(msg) || code === 'ETIMEDOUT') return 'The database did not answer in time. Check that the Supabase project is not paused (Supabase dashboard → your project → Restore), and that DATABASE_URL uses the Transaction pooler.';
   if (/terminated|ECONNRESET|socket hang up/i.test(msg)) return 'The connection to the database was dropped. If this keeps happening, check the Supabase project status.';

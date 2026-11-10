@@ -1,4 +1,4 @@
-// Netlify Function (modern "v2" format) serving AmbuIntake's API at /api/*.
+// Netlify Function (modern "v2" format) serving Patient Intake's API at /api/*.
 // Netlify serves the pages in public/ directly.
 //
 // The app is an Express server; Netlify hands this function a standard web
@@ -28,10 +28,10 @@ export function createHandler(connect, { checkHealth = (env) => diagnose({ env, 
     // that password even if the account was created earlier without it.
     const initial = await ensureInitialAdmin(db, { reissue: Boolean(process.env.ADMIN_PASSWORD) });
     const reset = await applyAdminReset(db);
-    if (reset?.error) console.warn(`[AmbuIntake] ${reset.error}`);
-    else if (reset) console.log(`[AmbuIntake] ADMIN_RESET: administrator "${reset.username}" ${reset.created ? 'created' : 'reset'} with ADMIN_PASSWORD. Remove ADMIN_RESET after signing in.`);
+    if (reset?.error) console.warn(`[Patient Intake] ${reset.error}`);
+    else if (reset) console.log(`[Patient Intake] ADMIN_RESET: administrator "${reset.username}" ${reset.created ? 'created' : 'reset'} with ADMIN_PASSWORD. Remove ADMIN_RESET after signing in.`);
     if (initial) {
-      console.log(`[AmbuIntake] First administrator "${initial.username}" created.${initial.password
+      console.log(`[Patient Intake] First administrator "${initial.username}" created.${initial.password
         ? ` Temporary password: ${initial.password} (set ADMIN_PASSWORD to choose it yourself).`
         : ' Use ADMIN_PASSWORD to sign in.'} A new password is required at first sign-in.`);
     }
@@ -46,7 +46,7 @@ export function createHandler(connect, { checkHealth = (env) => diagnose({ env, 
       try {
         return json(200, await checkHealth(process.env));
       } catch (err) {
-        console.error('[AmbuIntake] Health check failed:', err);
+        console.error('[Patient Intake] Health check failed:', err);
         return json(200, { ok: false, checks: [{ name: 'Health check', ok: false, detail: 'The self-check itself failed. See Netlify → Logs → Functions → api.' }] });
       }
     }
@@ -59,10 +59,10 @@ export function createHandler(connect, { checkHealth = (env) => diagnose({ env, 
     try {
       handle = await ready;
     } catch (err) {
-      console.error('[AmbuIntake] Startup failed:', err);
+      console.error('[Patient Intake] Startup failed:', err);
       const urlCheck = describeDatabaseUrl(process.env.DATABASE_URL);
       const hint = urlCheck.ok ? explainDatabaseError(err) : `DATABASE_URL: ${urlCheck.detail}`;
-      return json(503, { error: `AmbuIntake can't reach its database. ${hint} Open /status.html for a full check.`, code: 'DATABASE_UNAVAILABLE' });
+      return json(503, { error: `Patient Intake can't reach its database. ${hint} Open /status.html for a full check.`, code: 'DATABASE_UNAVAILABLE' });
     }
     return handle(event, context);
   };

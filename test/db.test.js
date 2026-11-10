@@ -14,7 +14,7 @@ test('setup is idempotent, safe to run concurrently, and data persists', async (
     await Promise.all([migrate(db), migrate(db)]); // e.g. two function containers starting at once
     assert.equal((await questionRepo(db).list()).length, 41);
     assert.equal((await payerRepo(db).list()).length, 6);
-    assert.equal((await settingsRepo(db).all()).seed_version, '8');
+    assert.equal((await settingsRepo(db).all()).seed_version, '9');
     await settingsRepo(db).set('org_name', 'Metro EMS');
     await db.close();
 
@@ -39,7 +39,7 @@ test('an existing database gains the secondary-payer column without re-adding re
   const cols = await db.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'ambuintake' AND table_name = 'calls'`);
   assert.ok(cols.some((c) => c.column_name === 'secondary_payer'));
   assert.equal((await questionRepo(db).list()).length, 40, 'removed built-in questions stay removed');
-  assert.equal((await settingsRepo(db).all()).seed_version, '8');
+  assert.equal((await settingsRepo(db).all()).seed_version, '9');
   await db.close();
 });
 
@@ -129,5 +129,17 @@ test('upgrading switches the necessity review back on for every payer but privat
   await migrate(db);
   const rows = await db.query('SELECT code, requires_medical_necessity AS r FROM ambuintake.payers ORDER BY code');
   for (const { code, r } of rows) assert.equal(r, !['private_pay', 'facility_pay'].includes(code), code);
+  await db.close();
+});
+
+test('upgrading adds the starter flow once, holding the question bank', async () => {
+  const db = await openDb({ memory: true });
+  const count = async () => (await db.query("SELECT COUNT(*)::int AS n FROM ambuintake.logic_flows WHERE name = 'Standard intake questions'"))[0].n;
+  assert.equal(await count(), 1);
+  await settingsRepo(db).set('seed_version', '8');
+  await migrate(db);
+  assert.equal(await count(), 1, 'not added twice');
+  const [flow] = await db.query("SELECT graph FROM ambuintake.logic_flows WHERE name = 'Standard intake questions'");
+  assert.equal(JSON.parse(flow.graph).nodes.length, (await questionRepo(db).list()).length);
   await db.close();
 });

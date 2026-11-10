@@ -1,4 +1,4 @@
-# AmbuIntake on Netlify
+# Patient Intake on Netlify
 #   - public/ is served as static pages
 #   - /api/* runs in the Netlify Function netlify/functions/api.mjs (its
 #     route is declared in the function itself: export const config)
