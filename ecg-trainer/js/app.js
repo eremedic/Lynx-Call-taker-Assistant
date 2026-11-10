@@ -395,13 +395,14 @@
       '</section>' +
 
       '<section class="panel lesson-section" id="s-leads"><h2><span class="n">4</span>3-lead placement and what each lead sees</h2>' +
-      '<div class="two-col"><div class="lead-diagram">' + leadSvg() + '</div><div>' +
+      leadImg() +
+      '<div class="two-col" style="margin-top:18px"><div>' +
       '<div class="lead-legend">' +
       '<div class="el"><span class="sw" style="background:#fff"></span><span><b>RA — white</b> (IEC: red) · right arm or below right clavicle</span></div>' +
       '<div class="el"><span class="sw" style="background:#222"></span><span><b>LA — black</b> (IEC: yellow) · left arm or below left clavicle</span></div>' +
       '<div class="el"><span class="sw" style="background:#e0262b;border-color:#e0262b"></span><span><b>LL — red</b> (IEC: green) · left lower torso or left leg</span></div></div>' +
-      '<p class="callout" style="margin-top:14px"><b>Memory aid (AHA colors):</b> “White on the right, smoke (black) over fire (red).”</p>' +
-      '<table class="criteria" style="margin-top:10px"><tr><th>Lead I</th><td>RA (−) → LA (+) · views the lateral wall</td></tr><tr><th>Lead II</th><td>RA (−) → LL (+) · parallels normal conduction: the clearest P waves and tallest R waves — the standard monitoring lead</td></tr><tr><th>Lead III</th><td>LA (−) → LL (+) · inferior view</td></tr></table>' +
+      '<p class="callout" style="margin-top:14px"><b>Memory aid (AHA colors):</b> “White on the right, smoke (black) over fire (red).”</p></div><div>' +
+      '<table class="criteria"><tr><th>Lead I</th><td>RA (−) → LA (+) · views the lateral wall</td></tr><tr><th>Lead II</th><td>RA (−) → LL (+) · parallels normal conduction: the clearest P waves and tallest R waves — the standard monitoring lead</td></tr><tr><th>Lead III</th><td>LA (−) → LL (+) · inferior view</td></tr></table>' +
       '</div></div>' +
       '<h3 style="margin-top:22px">See the same heartbeat through each lead</h3><p class="muted">The same electrical activity looks different depending on the lead’s angle. Note that the complexes in Lead II equal Lead I + Lead III (Einthoven’s law).</p>' +
       '<div id="lead-demo"></div>' +
@@ -511,22 +512,9 @@
     ctx.textAlign = 'left';
   }
 
-  function leadSvg() {
-    return '<svg viewBox="0 0 400 380" role="img" aria-label="Einthoven triangle showing 3-lead electrode placement">' +
-      '<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--svg-text)"/></marker></defs>' +
-      '<path d="M200 28c-30 0-46 22-46 48 0 18 8 32 20 40-46 6-92 20-108 56l-8 190h284l-8-190c-16-36-62-50-108-56 12-8 20-22 20-40 0-26-16-48-46-48z" style="fill:var(--chip);stroke:var(--input-border)" stroke-width="2"/>' +
-      '<path d="M200 182c-24 0-40 18-40 40 0 30 40 52 40 52s40-22 40-52c0-22-16-40-40-40z" fill="#ffd9d9" stroke="#e8a3a3" opacity=".8"/>' +
-      '<line x1="96" y1="150" x2="304" y2="150" style="stroke:var(--svg-text)" stroke-width="3" marker-end="url(#ar)"/>' +
-      '<line x1="96" y1="150" x2="296" y2="322" stroke="#1b7a8c" stroke-width="3" marker-end="url(#ar)"/>' +
-      '<line x1="304" y1="150" x2="304" y2="320" stroke="#7b4bc4" stroke-width="3" marker-end="url(#ar)"/>' +
-      '<text x="200" y="140" text-anchor="middle" font-family="Inter" font-weight="700" font-size="15" style="fill:var(--svg-text)">Lead I</text>' +
-      '<text x="180" y="262" text-anchor="middle" font-family="Inter" font-weight="700" font-size="15" fill="#1b7a8c" transform="rotate(40 180 262)">Lead II</text>' +
-      '<text x="318" y="240" font-family="Inter" font-weight="700" font-size="15" fill="#7b4bc4">Lead III</text>' +
-      '<circle cx="96" cy="150" r="17" fill="#fff" stroke="#55607a" stroke-width="3"/><text x="96" y="155" text-anchor="middle" font-family="Inter" font-weight="800" font-size="12" fill="#1b2a5b">RA</text>' +
-      '<circle cx="304" cy="150" r="17" fill="#222" stroke="#9aa4bb" stroke-width="2"/><text x="304" y="155" text-anchor="middle" font-family="Inter" font-weight="800" font-size="12" fill="#fff">LA</text>' +
-      '<circle cx="304" cy="336" r="17" fill="#e0262b" stroke="#b81d22" stroke-width="3"/><text x="304" y="341" text-anchor="middle" font-family="Inter" font-weight="800" font-size="12" fill="#fff">LL</text>' +
-      '<text x="62" y="128" font-family="Inter" font-weight="700" font-size="14" fill="#55607a">−</text><text x="330" y="128" font-family="Inter" font-weight="700" font-size="14" fill="#55607a">+</text>' +
-      '</svg>';
+  function leadImg() {
+    return '<figure class="lead-figure"><img src="assets/3-lead-placement.webp" width="1536" height="1024" loading="lazy" decoding="async" ' +
+      'alt="3-lead ECG limb lead placement: RA (white) below the right clavicle, LA (black) below the left clavicle and LL (red) on the lower left abdomen, forming Einthoven’s triangle. Lead I runs from RA (negative) to LA (positive) and views the lateral wall; Lead II runs from RA to LL and Lead III from LA to LL, both inferior views."></figure>';
   }
 
   /* ------------------------------------------------------------ QUIZ */
@@ -843,7 +831,7 @@
       if (t === 'callout' || t === 'note') return '<div class="callout narr' + (t === 'note' ? ' blue' : '') + '" id="' + id + '">' + d + '</div>';
       if (t === 'html') return '<div class="fig' + (b[2] ? ' narr' : '') + '" id="' + id + '">' + d + '</div>';
       if (t === 'anatomy') return '<div class="strip-wrap fig" style="max-width:760px;margin-left:auto;margin-right:auto"><canvas id="' + id + '" aria-label="One labeled cardiac cycle" role="img"></canvas></div>';
-      if (t === 'leadsvg') return '<div class="lead-diagram fig" style="max-width:340px;margin-left:auto;margin-right:auto">' + leadSvg() + '</div>';
+      if (t === 'leadsvg') return leadImg();
       if (t === 'strip') return '<figure class="lesson-strip"><div id="' + id + '"></div>' + (b[2] && b[2].caption ? '<figcaption class="narr" id="' + id + '-cap">' + esc(b[2].caption) + '</figcaption>' : '') + '</figure>';
       if (t === 'compare' || t === 'rhythms') {
         var ids = t === 'compare' ? d.map(function (x) { return x[0]; }) : d;
