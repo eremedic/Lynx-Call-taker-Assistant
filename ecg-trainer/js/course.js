@@ -5,7 +5,8 @@
  * Teaching blocks (narrated):
  *   ['p', html]  ['h', text]  ['list', [html, ...]]  ['callout', html]  ['note', html]
  *   ['html', html, speech]          static figure or table, narrated with `speech` if given
- *   ['anatomy'] / ['leadsvg']       figures drawn by the app
+ *   ['anatomy']                     labeled cardiac cycle drawn by the app
+ *   ['leadsvg', speech]             3-lead placement illustration, narrated with `speech`
  *   ['strip', rhythm, {lead, artifact, caption}]
  *   ['compare', [[rhythm, caption], ...]]   one strip, tabbed examples
  *   ['rhythms', [rhythm, ...]]      rhythm explorer: strip + criteria, tips and care
@@ -58,11 +59,6 @@
     '<div class="m"><b>6-second method</b>Count the QRS complexes in 6 seconds and multiply by 10. Works for regular and irregular rhythms.</div>' +
     '<div class="m"><b>Large-box (300) method</b>300 ÷ large boxes between two R waves. Sequence: 300, 150, 100, 75, 60, 50. Regular rhythms only.</div>' +
     '<div class="m"><b>Small-box (1500) method</b>1500 ÷ small boxes between two R waves. The most precise method for regular rhythms.</div></div>';
-  var LEADS = '<div class="lead-legend">' +
-    '<div class="el"><span class="sw" style="background:#fff"></span><span><b>RA — white</b> · right arm or below the right clavicle</span></div>' +
-    '<div class="el"><span class="sw" style="background:#222"></span><span><b>LA — black</b> · left arm or below the left clavicle</span></div>' +
-    '<div class="el"><span class="sw" style="background:#e0262b;border-color:#e0262b"></span><span><b>LL — red</b> · left lower torso or left leg</span></div></div>' +
-    '<table class="criteria" style="margin-top:12px"><tr><th>Lead I</th><td>RA (−) → LA (+)</td></tr><tr><th>Lead II</th><td>RA (−) → LL (+) · the standard monitoring lead</td></tr><tr><th>Lead III</th><td>LA (−) → LL (+)</td></tr></table>';
 
 
   var UNSTABLE = '<div class="normal-values">' +
@@ -201,8 +197,7 @@
         ] },
         { id: 'leads', title: '3-lead placement', min: 7, blocks: [
           ['p', 'A 3-lead monitor uses three electrodes to create three views of the heart: Leads I, II and III. Each lead has a positive and a negative electrode. A wave moving toward the positive electrode is drawn upright; a wave moving away is drawn downward.'],
-          ['leadsvg'],
-          ['html', LEADS, 'The white electrode goes on the right, below the clavicle. The black electrode goes on the left, below the clavicle. The red electrode goes on the left lower torso. Lead two runs from the right arm, negative, to the left leg, positive.'],
+          ['leadsvg', 'The white electrode goes on the right, below the clavicle. The black electrode goes on the left, below the clavicle. The red electrode goes on the left lower abdomen. Lead one runs from the right arm, negative, to the left arm, positive. Lead two runs from the right arm, negative, to the left leg, positive. Lead three runs from the left arm, negative, to the left leg, positive.'],
           ['callout', '<b>Memory aid:</b> “White on the right, smoke (black) over fire (red).”'],
           ['p', '<b>Lead II</b> runs in the same direction as normal conduction, so it usually shows the clearest P waves and tallest R waves. That makes it the standard monitoring lead. Switch leads whenever you are unsure — a finding that is hard to see in one lead may be obvious in another.'],
           ['strip', 'nsr', { lead: 'All', caption: 'The same heartbeat seen through Leads I, II and III.' }],

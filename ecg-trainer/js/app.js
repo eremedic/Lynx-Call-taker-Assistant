@@ -396,14 +396,8 @@
 
       '<section class="panel lesson-section" id="s-leads"><h2><span class="n">4</span>3-lead placement and what each lead sees</h2>' +
       leadImg() +
-      '<div class="two-col" style="margin-top:18px"><div>' +
-      '<div class="lead-legend">' +
-      '<div class="el"><span class="sw" style="background:#fff"></span><span><b>RA — white</b> (IEC: red) · right arm or below right clavicle</span></div>' +
-      '<div class="el"><span class="sw" style="background:#222"></span><span><b>LA — black</b> (IEC: yellow) · left arm or below left clavicle</span></div>' +
-      '<div class="el"><span class="sw" style="background:#e0262b;border-color:#e0262b"></span><span><b>LL — red</b> (IEC: green) · left lower torso or left leg</span></div></div>' +
-      '<p class="callout" style="margin-top:14px"><b>Memory aid (AHA colors):</b> “White on the right, smoke (black) over fire (red).”</p></div><div>' +
-      '<table class="criteria"><tr><th>Lead I</th><td>RA (−) → LA (+) · views the lateral wall</td></tr><tr><th>Lead II</th><td>RA (−) → LL (+) · parallels normal conduction: the clearest P waves and tallest R waves — the standard monitoring lead</td></tr><tr><th>Lead III</th><td>LA (−) → LL (+) · inferior view</td></tr></table>' +
-      '</div></div>' +
+      '<p class="callout" style="margin-top:18px"><b>Memory aid (AHA colors):</b> “White on the right, smoke (black) over fire (red).”</p>' +
+      '<p style="margin-top:14px"><b>Lead II</b> parallels normal conduction, so it shows the clearest P waves and tallest R waves — the standard monitoring lead.</p>' +
       '<h3 style="margin-top:22px">See the same heartbeat through each lead</h3><p class="muted">The same electrical activity looks different depending on the lead’s angle. Note that the complexes in Lead II equal Lead I + Lead III (Einthoven’s law).</p>' +
       '<div id="lead-demo"></div>' +
       '<div class="callout blue" style="margin-top:14px"><b>Remember:</b> a 3-lead ECG is for <b>rhythm</b> monitoring. It cannot rule out a STEMI — acquire a 12-lead ECG for chest pain or suspected ACS. Always confirm asystole in a second lead.</div>' +
@@ -831,7 +825,7 @@
       if (t === 'callout' || t === 'note') return '<div class="callout narr' + (t === 'note' ? ' blue' : '') + '" id="' + id + '">' + d + '</div>';
       if (t === 'html') return '<div class="fig' + (b[2] ? ' narr' : '') + '" id="' + id + '">' + d + '</div>';
       if (t === 'anatomy') return '<div class="strip-wrap fig" style="max-width:760px;margin-left:auto;margin-right:auto"><canvas id="' + id + '" aria-label="One labeled cardiac cycle" role="img"></canvas></div>';
-      if (t === 'leadsvg') return leadImg();
+      if (t === 'leadsvg') return '<div class="narr" id="' + id + '">' + leadImg() + '</div>';
       if (t === 'strip') return '<figure class="lesson-strip"><div id="' + id + '"></div>' + (b[2] && b[2].caption ? '<figcaption class="narr" id="' + id + '-cap">' + esc(b[2].caption) + '</figcaption>' : '') + '</figure>';
       if (t === 'compare' || t === 'rhythms') {
         var ids = t === 'compare' ? d.map(function (x) { return x[0]; }) : d;
@@ -885,6 +879,7 @@
       if (t === 'p' || t === 'h' || t === 'callout' || t === 'note') segs.push({ el: el, text: speechify(el.textContent) });
       else if (t === 'list') d.forEach(function (x, j) { var li2 = document.getElementById(id + '-' + j); segs.push({ el: li2, text: speechify(li2.textContent) }); });
       else if (t === 'html' && b[2]) segs.push({ el: el, text: speechify(b[2]) });
+      else if (t === 'leadsvg' && d) segs.push({ el: el, text: speechify(d) });
       else if (t === 'anatomy') { after.push(function () { drawWaveAnatomy(el); }); onResize(function () { drawWaveAnatomy(el); }); }
       else if (t === 'strip') {
         var o = b[2] || {};
