@@ -782,7 +782,7 @@
       '<section class="section"><div class="wrap">' +
       '<div class="panel course-summary"><div><div class="kicker">Your progress</div><div class="progress big" style="--c:var(--ok)"><i style="width:' + p + '%"></i></div>' +
       '<p class="muted" style="margin:8px 0 0">' + p + '% complete · about ' + Math.round(mins / 60 * 2) / 2 + ' hours of lessons · pass mark ' + PASS + '% on every quiz and the final exam</p></div>' +
-      '<ul class="course-features"><li><b>Narrated lessons</b> read aloud with the text highlighted</li><li><b>Knowledge checks</b> inside every lesson</li><li><b>Practice ECGs</b> — unlimited live strips</li><li><b>Unit quizzes</b> and a <b>final exam</b> with a certificate</li></ul></div>' +
+      '<ul class="course-features"><li><b>Narrated lessons</b> read aloud with the text highlighted</li><li><b>Knowledge checks</b> and <b>activities</b> — matching, sorting, calipers and drills</li><li><b>Practice ECGs</b> and <b>patient scenarios</b> in every rhythm unit</li><li><b>Unit quizzes</b> and a <b>final exam</b> with a certificate</li></ul></div>' +
       '<div class="unit-list">' + UNITS.map(function (u, i) {
         var open = unitOpen(u), done = lessonsDone(u), best = course.data.quiz[u.id];
         var pct = Math.round((done + (unitPassed(u) ? 1 : 0)) / (u.lessons.length + 1) * 100);
@@ -817,7 +817,7 @@
       '<section class="section"><div class="wrap"><div class="lesson-list">' + u.lessons.map(function (l, k) {
         var d = course.data.lessons[lkey(u, l)];
         return '<a class="lesson-row" href="#course-' + u.id + '-' + l.id + '" style="--c:' + u.color + '"><span class="dot' + (d ? ' done' : '') + '"></span>' +
-          '<span class="lr-title"><small>Lesson ' + (k + 1) + (l.practice ? ' · Practice ECGs' : ' · Narrated') + '</small>' + esc(l.title) + '</span><span class="lr-min">~' + (l.min || 5) + ' min</span></a>';
+          '<span class="lr-title"><small>Lesson ' + (k + 1) + (l.practice ? ' · Practice ECGs & scenarios' : ' · Narrated lesson & activities') + '</small>' + esc(l.title) + '</span><span class="lr-min">~' + (l.min || 5) + ' min</span></a>';
       }).join('') +
       '<' + (quizOpen(u) ? 'a href="#course-' + u.id + '-quiz"' : 'div') + ' class="lesson-row quiz' + (quizOpen(u) ? '' : ' locked') + '" style="--c:' + u.color + '"><span class="dot' + (unitPassed(u) ? ' done' : '') + '"></span>' +
       '<span class="lr-title"><small>Unit quiz · pass ' + PASS + '%</small>Unit ' + (i + 1) + ' quiz' + (best != null ? ' — best ' + best + '%' : '') + '</span><span class="lr-min">' + (quizOpen(u) ? (u.module ? '10 questions' : '8 questions') : lockIcon() + ' Finish the lessons') + '</span></' + (quizOpen(u) ? 'a' : 'div') + '>' +
@@ -825,31 +825,46 @@
   }
 
   /* ---------- lesson page ---------- */
+  var ACT_TYPES = { match: 1, order: 1, sort: 1, classify: 1, drill: 1, measure: 1, walk: 1, case: 1 };
+  function actFrame(id, tag, title, prompt) {
+    return '<section class="activity" id="' + id + '"><div class="act-head"><span class="act-tag">' + tag + '</span><b>' + esc(title) + '</b><span class="act-status"></span></div>' +
+      (prompt ? '<p class="act-prompt narr">' + esc(prompt) + '</p>' : '') + '<div class="act-body"></div><div class="act-fb"></div></section>';
+  }
   function viewCourseLesson(u, l) {
     if (!unitOpen(u)) return unitLocked(u);
     var i = unitIndex(u), li = u.lessons.indexOf(l), key = lkey(u, l), wasDone = !!course.data.lessons[key];
     var nextL = u.lessons[li + 1], prevL = u.lessons[li - 1];
-    var segs = [], after = [], need = { kc: 0, kcDone: 0, practice: l.practice ? 3 : 0, practiced: 0 };
+    var segs = [], after = [], tasks = [];
     var html = l.blocks.map(function (b, k) {
-      var id = 'cb' + k, t = b[0];
-      if (t === 'p') return '<p class="narr" id="' + id + '">' + b[1] + '</p>';
-      if (t === 'h') return '<h3 class="narr lesson-h" id="' + id + '">' + esc(b[1]) + '</h3>';
-      if (t === 'list') return '<ul class="lesson-list-ul">' + b[1].map(function (x, j) { return '<li class="narr" id="' + id + '-' + j + '">' + x + '</li>'; }).join('') + '</ul>';
-      if (t === 'callout' || t === 'note') return '<div class="callout narr' + (t === 'note' ? ' blue' : '') + '" id="' + id + '">' + b[1] + '</div>';
-      if (t === 'html') return '<div class="fig' + (b[2] ? ' narr' : '') + '" id="' + id + '">' + b[1] + '</div>';
+      var id = 'cb' + k, t = b[0], d = b[1];
+      if (t === 'p') return '<p class="narr" id="' + id + '">' + d + '</p>';
+      if (t === 'h') return '<h3 class="narr lesson-h" id="' + id + '">' + esc(d) + '</h3>';
+      if (t === 'list') return '<ul class="lesson-list-ul">' + d.map(function (x, j) { return '<li class="narr" id="' + id + '-' + j + '">' + x + '</li>'; }).join('') + '</ul>';
+      if (t === 'callout' || t === 'note') return '<div class="callout narr' + (t === 'note' ? ' blue' : '') + '" id="' + id + '">' + d + '</div>';
+      if (t === 'html') return '<div class="fig' + (b[2] ? ' narr' : '') + '" id="' + id + '">' + d + '</div>';
       if (t === 'anatomy') return '<div class="strip-wrap fig" style="max-width:760px;margin-left:auto;margin-right:auto"><canvas id="' + id + '" aria-label="One labeled cardiac cycle" role="img"></canvas></div>';
       if (t === 'leadsvg') return '<div class="lead-diagram fig" style="max-width:340px;margin-left:auto;margin-right:auto">' + leadSvg() + '</div>';
       if (t === 'strip') return '<figure class="lesson-strip"><div id="' + id + '"></div>' + (b[2] && b[2].caption ? '<figcaption class="narr" id="' + id + '-cap">' + esc(b[2].caption) + '</figcaption>' : '') + '</figure>';
       if (t === 'compare' || t === 'rhythms') {
-        var ids = t === 'compare' ? b[1].map(function (x) { return x[0]; }) : b[1];
+        var ids = t === 'compare' ? d.map(function (x) { return x[0]; }) : d;
         return '<div class="explorer" id="' + id + '"><div class="seg ex-tabs" role="tablist">' + ids.map(function (r, j) {
           return '<button role="tab" data-j="' + j + '" class="' + (j === 0 ? 'on' : '') + '">' + esc(t === 'compare' ? RHYTHMS[r].short || RHYTHMS[r].name : RHYTHMS[r].name) + '</button>';
         }).join('') + '</div><div class="ex-viewer"></div>' + (t === 'compare' ? '<p class="ex-cap narr"></p>' : '<div class="rx-card narr"></div>') + '</div>';
       }
-      if (t === 'rate') return '<div class="practice-box" id="' + id + '"><div class="pb-head"><b>Rate practice</b><span class="pb-score"></span></div><div class="rv"></div>' +
+      if (t === 'rate') return '<div class="practice-box" id="' + id + '"><div class="pb-head"><b>Rate practice (optional extra)</b><span class="pb-score"></span></div><div class="rv"></div>' +
         '<div class="inline-form"><label for="' + id + '-in"><b>Your rate:</b></label><input id="' + id + '-in" type="number" inputmode="numeric" min="0" max="350" placeholder="bpm"><button class="btn btn-navy" data-act="check">Check</button><button class="btn btn-ghost" data-act="new">New strip</button></div><div class="feedback"></div></div>';
       if (t === 'practice') return '<div class="practice-box" id="' + id + '"><div class="pb-head"><b>Practice ECGs</b><span class="pb-score"></span></div><div class="pv"></div><div class="options"></div><div class="pb-explain"></div></div>';
-      if (t === 'kc') { need.kc++; return '<div class="kc" id="' + id + '"><div class="kc-label">Knowledge check</div><h3>' + esc(b[1].q) + '</h3><div class="options"></div><div class="kc-fb"></div></div>'; }
+      if (t === 'kc') return '<div class="kc" id="' + id + '"><div class="kc-label">Knowledge check</div><h3>' + esc(d.q) + '</h3><div class="options"></div><div class="kc-fb"></div></div>';
+      if (t === 'match') return actFrame(id, 'Matching', d.title, d.prompt);
+      if (t === 'order') return actFrame(id, 'Put in order', d.title, d.prompt);
+      if (t === 'sort') return actFrame(id, 'Sorting', d.title, d.prompt);
+      if (t === 'classify') return actFrame(id, 'Strip activity', d.title, d.prompt);
+      if (t === 'drill') return actFrame(id, 'Calculation drill', d.title, d.kind === 'boxes' ? 'Convert between boxes and time. Get three right to complete the drill — then keep going as long as you like.' : 'Calculate each heart rate. Get three right to complete the drill — then keep going as long as you like.');
+      if (t === 'measure') return actFrame(id, 'Caliper activity', d.title, d.what === 'pr' ? 'Turn on Calipers, measure from the start of a P wave to the start of the QRS, and enter the PR interval in seconds. Complete two strips.' : 'Turn on Calipers, measure from one R wave to the next, and enter the R-to-R interval in seconds. Complete two strips.');
+      if (t === 'walk') return actFrame(id, 'Guided worksheet', 'Five steps, one strip', 'Answer each of the five questions about the strip, then name the rhythm and check your work.');
+      if (t === 'case') return '<section class="activity case" id="' + id + '"><div class="act-head"><span class="act-tag">Patient scenario</span><b>' + esc(d.title) + '</b><span class="act-status"></span></div>' +
+        '<p class="narr case-text">' + esc(d.text) + '</p><div class="vitals">' + Object.keys(d.vitals || {}).map(function (v) { return '<span class="chip"><b>' + esc(v) + '</b> ' + esc(d.vitals[v]) + '</span>'; }).join(' ') + '</div>' +
+        '<div class="case-strip"></div><div class="case-qs"></div></section>';
       return '';
     }).join('');
 
@@ -860,24 +875,35 @@
     main.innerHTML = pageHead(u.color, '<a href="#home">Home</a> / <a href="#course">Course</a> / <a href="#course-' + u.id + '">Unit ' + (i + 1) + '</a> / Lesson ' + (li + 1), esc(l.title), 'Unit ' + (i + 1) + ' · ' + esc(u.title) + ' · about ' + (l.min || 5) + ' minutes') +
       '<div class="wrap module-layout course-layout" style="--c:' + u.color + '"><nav class="rhythm-list lesson-side" aria-label="Lessons in this unit"><h4>Unit ' + (i + 1) + '</h4>' + listHtml + '</nav>' +
       '<div><div class="narr-bar no-print" id="narr-bar"></div><article class="panel lesson-body">' + html + '</article>' +
-      '<div class="lesson-foot panel"><div class="lf-need hint" id="lf-need"></div><div class="lf-btns">' +
+      '<div class="lesson-foot panel"><div class="lf-need" id="lf-need"></div><div class="lf-btns">' +
       (prevL ? '<a class="btn btn-ghost" href="#course-' + u.id + '-' + prevL.id + '">← Previous</a>' : '<a class="btn btn-ghost" href="#course-' + u.id + '">← Unit overview</a>') +
       '<button class="btn btn-primary" id="lesson-done">' + (nextL ? 'Complete lesson &amp; continue →' : 'Complete lesson → Unit quiz') + '</button></div></div></div></div>';
 
     segs.push({ el: $('.page-head h1'), text: speechify(l.title) });
+    function task(label, el) {
+      var tk = { label: label, done: false, el: el };
+      tasks.push(tk);
+      return function () {
+        if (tk.done) return;
+        tk.done = true;
+        var st = $('.act-status', el);
+        if (st) st.innerHTML = '<span class="badge">✓ Complete</span>';
+        sync();
+      };
+    }
 
     l.blocks.forEach(function (b, k) {
-      var id = 'cb' + k, t = b[0], el = document.getElementById(id);
+      var id = 'cb' + k, t = b[0], d = b[1], el = document.getElementById(id);
       if (t === 'p' || t === 'h' || t === 'callout' || t === 'note') segs.push({ el: el, text: speechify(el.textContent) });
-      else if (t === 'list') b[1].forEach(function (x, j) { var li2 = document.getElementById(id + '-' + j); segs.push({ el: li2, text: speechify(li2.textContent) }); });
+      else if (t === 'list') d.forEach(function (x, j) { var li2 = document.getElementById(id + '-' + j); segs.push({ el: li2, text: speechify(li2.textContent) }); });
       else if (t === 'html' && b[2]) segs.push({ el: el, text: speechify(b[2]) });
       else if (t === 'anatomy') { after.push(function () { drawWaveAnatomy(el); }); onResize(function () { drawWaveAnatomy(el); }); }
       else if (t === 'strip') {
         var o = b[2] || {};
-        StripViewer(el, { rhythm: b[1], lead: o.lead, genOpts: o.artifact ? { artifact: 'force' } : undefined });
+        StripViewer(el, { rhythm: d, lead: o.lead, genOpts: o.artifact ? { artifact: 'force' } : undefined });
         if (o.caption) { var cap = document.getElementById(id + '-cap'); segs.push({ el: cap, text: speechify(o.caption) }); }
       } else if (t === 'compare' || t === 'rhythms') {
-        var ids = t === 'compare' ? b[1].map(function (x) { return x[0]; }) : b[1];
+        var ids = t === 'compare' ? d.map(function (x) { return x[0]; }) : d;
         var v = StripViewer($('.ex-viewer', el), { rhythm: ids[0] });
         var cur = -1;
         var select = function (j) {
@@ -885,7 +911,7 @@
           cur = j;
           $all('.ex-tabs button', el).forEach(function (x, n) { x.classList.toggle('on', n === j); x.setAttribute('aria-selected', n === j); });
           if (j > 0 || v.sig().id !== ids[j]) v.set(ids[j]);
-          if (t === 'compare') $('.ex-cap', el).innerHTML = esc(b[1][j][1]);
+          if (t === 'compare') $('.ex-cap', el).innerHTML = esc(d[j][1]);
           else {
             var r = RHYTHMS[ids[j]];
             store.view(ids[j]);
@@ -897,23 +923,34 @@
         select(0);
         $('.ex-tabs', el).addEventListener('click', function (e) { var bt = e.target.closest('[data-j]'); if (bt) select(+bt.dataset.j); });
         ids.forEach(function (r, j) {
-          segs.push({ el: t === 'compare' ? $('.ex-cap', el) : $('.rx-card', el), top: el, text: t === 'compare' ? speechify(RHYTHMS[r].name + '. ' + b[1][j][1]) : rhythmSpeech(r), before: function () { select(j); } });
+          segs.push({ el: t === 'compare' ? $('.ex-cap', el) : $('.rx-card', el), top: el, text: t === 'compare' ? speechify(RHYTHMS[r].name + '. ' + d[j][1]) : rhythmSpeech(r), before: function () { select(j); } });
         });
       } else if (t === 'rate') ratePractice(el);
-      else if (t === 'practice') stripPractice(el, b[1], function () { need.practiced++; sync(); });
-      else if (t === 'kc') knowledgeCheck(el, b[1], key + '.' + k, function () { need.kcDone++; sync(); });
+      else if (t === 'practice') { var pdone = task('Identify 3 practice strips', el), n = 0; stripPractice(el, d, function () { n++; if (n >= 3) pdone(); }); }
+      else if (t === 'kc') knowledgeCheck(el, d, key + '.' + k, task('Knowledge check: ' + (d.q.length > 60 ? d.q.slice(0, 57) + '…' : d.q), el));
+      else if (ACT_TYPES[t]) {
+        var p = $('.act-prompt', el);
+        if (p) segs.push({ el: p, text: speechify((t === 'case' ? '' : 'Activity: ' + d.title + '. ') + p.textContent) });
+        if (t === 'case') segs.push({ el: $('.case-text', el), text: speechify(d.title + '. ' + d.text) });
+        var fin = task(t === 'case' ? d.title.replace(/^Scenario: /, 'Scenario: ') : d.title, el);
+        ({ match: matchActivity, order: orderActivity, sort: sortActivity, classify: classifyActivity, drill: drillActivity, measure: measureActivity, walk: walkActivity, case: caseActivity })[t](el, d, fin);
+      }
     });
     after.forEach(function (f) { f(); });
 
     function sync() {
-      var ok = wasDone || (need.kcDone >= need.kc && need.practiced >= need.practice);
-      var btn = $('#lesson-done');
-      btn.disabled = !ok;
-      var msgs = [];
-      if (need.kcDone < need.kc) msgs.push('answer the knowledge check' + (need.kc > 1 ? 's' : ''));
-      if (need.practiced < need.practice) msgs.push('identify ' + (need.practice - need.practiced) + ' more practice strip' + (need.practice - need.practiced === 1 ? '' : 's'));
-      $('#lf-need').textContent = ok ? (wasDone ? 'You have completed this lesson.' : 'Nice work — this lesson is ready to complete.') : 'To complete this lesson, ' + msgs.join(' and ') + '.';
+      var left = tasks.filter(function (x) { return !x.done; });
+      var ok = wasDone || !left.length;
+      $('#lesson-done').disabled = !ok;
+      var need = $('#lf-need');
+      if (ok) { need.innerHTML = '<span class="hint">' + (wasDone ? 'You have completed this lesson.' : 'Nice work — every activity is done.') + '</span>' + (wasDone && left.length ? '<span class="hint"> Activities left to try: ' + left.length + '.</span>' : ''); return; }
+      need.innerHTML = '<b>Still to do (' + left.length + ' of ' + tasks.length + '):</b><ul class="todo">' + left.map(function (x, n) { return '<li><a href="#" data-todo="' + tasks.indexOf(x) + '">' + esc(x.label) + '</a></li>'; }).join('') + '</ul>';
     }
+    $('#lf-need').addEventListener('click', function (e) {
+      var a = e.target.closest('[data-todo]'); if (!a) return;
+      e.preventDefault();
+      tasks[+a.dataset.todo].el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
     $('#lesson-done').addEventListener('click', function () {
       course.done(key);
       location.hash = nextL ? '#course-' + u.id + '-' + nextL.id : '#course-' + u.id + '-quiz';
@@ -921,6 +958,260 @@
     sync();
     var narr = Narrator($('#narr-bar'), segs);
     cleanup.push(narr.stop);
+  }
+
+  /* ---------- activities ---------- */
+  // Shared "check, retry, reveal" flow for matching, ordering and sorting.
+  function checkFlow(el, opts) {
+    var tries = 0, done = false, body = $('.act-body', el), fb = $('.act-fb', el);
+    body.insertAdjacentHTML('afterend', '<div class="act-btns"><button class="btn btn-navy btn-sm" data-a="check">Check answers</button><button class="btn btn-ghost btn-sm" data-a="show" hidden>Show answers</button></div>');
+    $('.act-btns', el).addEventListener('click', function (e) {
+      var b = e.target.closest('[data-a]'); if (!b || done) return;
+      if (b.dataset.a === 'show') { opts.reveal(); finish('Here are the correct answers. Review them, then carry on.', false); return; }
+      if (!opts.complete()) { fb.innerHTML = '<p class="lf-mark bad">Answer every item first.</p>'; return; }
+      var res = opts.mark(); tries++;
+      if (res.right === res.total) finish('✓ All ' + res.total + ' correct!', true);
+      else {
+        fb.innerHTML = '<p class="lf-mark bad">' + res.right + ' of ' + res.total + ' correct. Fix the items marked ✗ and check again.</p>';
+        if (tries >= 2) $('[data-a="show"]', el).hidden = false;
+      }
+    });
+    function finish(msg, ok) {
+      done = true;
+      $all('.act-btns button, select, .act-body button', el).forEach(function (x) { x.disabled = true; });
+      fb.innerHTML = '<p class="lf-mark ' + (ok ? 'ok' : 'na') + '">' + msg + '</p>';
+      opts.done();
+    }
+  }
+  function matchActivity(el, d, done) {
+    var answers = shuffle(d.pairs.map(function (p) { return p[1]; }));
+    $('.act-body', el).innerHTML = '<div class="m-grid">' + d.pairs.map(function (p, n) {
+      return '<div class="m-row" data-n="' + n + '"><span class="m-term">' + esc(p[0]) + '</span><select aria-label="' + esc(p[0]) + '"><option value="">Choose…</option>' +
+        answers.map(function (a) { return '<option>' + esc(a) + '</option>'; }).join('') + '</select><span class="m-mark" aria-hidden="true"></span></div>';
+    }).join('') + '</div>';
+    var rows = $all('.m-row', el);
+    function setMark(row, ok) { row.classList.toggle('ok', ok); row.classList.toggle('bad', !ok); $('.m-mark', row).textContent = ok ? '✓' : '✗'; }
+    checkFlow(el, {
+      complete: function () { return rows.every(function (r) { return $('select', r).value; }); },
+      mark: function () {
+        var right = 0;
+        rows.forEach(function (r) { var ok = $('select', r).value === d.pairs[+r.dataset.n][1]; if (ok) right++; setMark(r, ok); });
+        return { right: right, total: rows.length };
+      },
+      reveal: function () { rows.forEach(function (r) { $('select', r).value = d.pairs[+r.dataset.n][1]; setMark(r, true); }); },
+      done: done
+    });
+  }
+  function orderActivity(el, d, done) {
+    var items = d.items.slice(), list;
+    do { list = shuffle(items); } while (list.join('|') === items.join('|'));
+    var body = $('.act-body', el);
+    function render(marks) {
+      body.innerHTML = '<ol class="ord-list">' + list.map(function (x, n) {
+        var m = marks ? (x === items[n] ? ' ok' : ' bad') : '';
+        return '<li class="ord-item' + m + '"><span class="ord-n">' + (n + 1) + '</span><span class="ord-t">' + esc(x) + '</span>' +
+          '<button class="tool-btn" data-mv="-1" data-n="' + n + '" aria-label="Move ' + esc(x) + ' up"' + (n === 0 ? ' disabled' : '') + '>▲</button>' +
+          '<button class="tool-btn" data-mv="1" data-n="' + n + '" aria-label="Move ' + esc(x) + ' down"' + (n === list.length - 1 ? ' disabled' : '') + '>▼</button></li>';
+      }).join('') + '</ol>';
+    }
+    body.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-mv]'); if (!b || b.disabled) return;
+      var n = +b.dataset.n, m = n + +b.dataset.mv, t = list[n]; list[n] = list[m]; list[m] = t;
+      render(); var f = $('[data-n="' + m + '"][data-mv="' + b.dataset.mv + '"]', body) || $('[data-n="' + m + '"]', body); if (f) f.focus();
+    });
+    render();
+    checkFlow(el, {
+      complete: function () { return true; },
+      mark: function () { render(true); var r = list.filter(function (x, n) { return x === items[n]; }).length; return { right: r, total: items.length }; },
+      reveal: function () { list = items.slice(); render(true); },
+      done: done
+    });
+  }
+  function sortActivity(el, d, done) {
+    var items = shuffle(d.items.map(function (x, n) { return { t: x[0], b: x[1], n: n }; })), pick = {};
+    $('.act-body', el).innerHTML = '<div class="s-grid">' + items.map(function (x) {
+      return '<div class="s-row" data-n="' + x.n + '"><span class="s-text">' + esc(x.t) + '</span><div class="seg" role="group" aria-label="' + esc(x.t) + '">' +
+        d.buckets.map(function (bk, k) { return '<button data-k="' + k + '">' + esc(bk) + '</button>'; }).join('') + '</div><span class="m-mark" aria-hidden="true"></span></div>';
+    }).join('') + '</div>';
+    var rows = $all('.s-row', el);
+    $('.act-body', el).addEventListener('click', function (e) {
+      var b = e.target.closest('[data-k]'); if (!b || b.disabled) return;
+      var row = b.closest('.s-row'); pick[row.dataset.n] = +b.dataset.k;
+      $all('[data-k]', row).forEach(function (x) { x.classList.toggle('on', x === b); });
+      row.classList.remove('ok', 'bad'); $('.m-mark', row).textContent = '';
+    });
+    function setMark(row, ok) { row.classList.toggle('ok', ok); row.classList.toggle('bad', !ok); $('.m-mark', row).textContent = ok ? '✓' : '✗'; }
+    checkFlow(el, {
+      complete: function () { return rows.every(function (r) { return pick[r.dataset.n] != null; }); },
+      mark: function () { var right = 0; rows.forEach(function (r) { var ok = pick[r.dataset.n] === d.items[+r.dataset.n][1]; if (ok) right++; setMark(r, ok); }); return { right: right, total: rows.length }; },
+      reveal: function () { rows.forEach(function (r) { var k = d.items[+r.dataset.n][1]; pick[r.dataset.n] = k; $all('[data-k]', r).forEach(function (x) { x.classList.toggle('on', +x.dataset.k === k); }); setMark(r, true); }); },
+      done: done
+    });
+  }
+  function classifyActivity(el, d, done) {
+    var keys = Object.keys(d.items), queue = [], count = 0, right = 0, viewer = null, body = $('.act-body', el), fb = $('.act-fb', el);
+    body.innerHTML = '<div class="cl-count hint"></div><div class="cl-strip"></div><div class="options"></div>';
+    function nextItem() {
+      if (!queue.length) queue = shuffle(keys);
+      var rid = queue.shift();
+      if (!viewer) viewer = StripViewer($('.cl-strip', el), { rhythm: rid, hideCaption: true, hideHR: true }); else viewer.set(rid);
+      $('.cl-count', el).textContent = count < d.n ? 'Strip ' + (count + 1) + ' of ' + d.n : 'Extra practice · ' + right + ' of ' + count + ' correct so far';
+      fb.innerHTML = '';
+      var answered = false, correct = d.items[rid];
+      optionButtons($('.options', el), d.options, function (n) {
+        if (answered) return;
+        answered = true; count++;
+        var ok = n === correct; if (ok) right++;
+        markOptions($('.options', el), correct, n);
+        viewer.reveal();
+        var r = RHYTHMS[rid];
+        fb.innerHTML = '<div class="explain"><div class="verdict ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ Correct' : '✗ Not quite') + ' — ' + esc(d.options[correct]) + '</div><p style="margin:0">This strip is <b>' + esc(r.name) + '</b>. ' + esc(r.tips[0]) + '</p>' +
+          '<div style="margin-top:12px;display:flex;justify-content:flex-end;gap:10px;align-items:center">' + (count === d.n ? '<span class="lf-mark ok">Activity complete — ' + right + ' of ' + count + ' correct.</span>' : '') +
+          '<button class="btn btn-primary btn-sm cl-next">' + (count >= d.n ? 'More practice →' : 'Next strip →') + '</button></div></div>';
+        $('.cl-next', el).addEventListener('click', nextItem);
+        if (count === d.n) done();
+      });
+    }
+    nextItem();
+  }
+  function drillActivity(el, d, done) {
+    var body = $('.act-body', el), right = 0, tries = 0, prob;
+    function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+    function gen() {
+      var n;
+      if (d.kind === 'boxes') {
+        var k = pick([0, 1, 2, 3]);
+        if (k === 0) { n = pick([2, 3, 4, 5, 6, 7, 8]); return { q: 'A measurement spans <b>' + n + ' small boxes</b>. How many seconds is that?', a: n * 0.04, unit: 's', tol: 0.005, how: n + ' × 0.04 s = ' + (n * 0.04).toFixed(2) + ' s' }; }
+        if (k === 1) { n = pick([1, 2, 3, 4, 5]); return { q: 'How many seconds are in <b>' + n + ' large box' + (n > 1 ? 'es' : '') + '</b>?', a: n * 0.2, unit: 's', tol: 0.005, how: n + ' × 0.20 s = ' + (n * 0.2).toFixed(2) + ' s' }; }
+        if (k === 2) { var s = pick([0.08, 0.12, 0.16, 0.20, 0.24, 0.28]); return { q: 'An interval measures <b>' + s.toFixed(2) + ' s</b>. How many small boxes is that?', a: Math.round(s / 0.04), unit: 'small boxes', tol: 0.01, how: s.toFixed(2) + ' ÷ 0.04 = ' + Math.round(s / 0.04) + ' small boxes' }; }
+        n = pick([1, 2, 3, 6]); return { q: 'How many large boxes make <b>' + n + ' second' + (n > 1 ? 's' : '') + '</b>?', a: n * 5, unit: 'large boxes', tol: 0.01, how: '5 large boxes per second × ' + n + ' = ' + n * 5 };
+      }
+      var j = pick([0, 1, 2]);
+      if (j === 0) { n = pick([4, 5, 6, 7, 8, 9, 11, 12, 14, 16]); return { q: 'A 6-second strip contains <b>' + n + ' QRS complexes</b>. What is the rate?', a: n * 10, unit: '/min', tol: 0.5, how: n + ' × 10 = ' + n * 10 + '/min (6-second method)' }; }
+      if (j === 1) { n = pick([2, 3, 4, 5, 6]); return { q: 'A regular rhythm has <b>' + n + ' large boxes</b> between R waves. What is the rate?', a: Math.round(300 / n), unit: '/min', tol: 1, how: '300 ÷ ' + n + ' = ' + Math.round(300 / n) + '/min (300 method)' }; }
+      n = pick([10, 12, 15, 20, 25, 30]); return { q: 'A regular rhythm has <b>' + n + ' small boxes</b> between R waves. What is the rate?', a: Math.round(1500 / n), unit: '/min', tol: 1, how: '1500 ÷ ' + n + ' = ' + Math.round(1500 / n) + '/min (1500 method)' };
+    }
+    function render() {
+      prob = gen();
+      body.innerHTML = '<p class="drill-q">' + prob.q + '</p><div class="inline-form"><input type="text" inputmode="decimal" aria-label="Your answer" placeholder="Answer"><span class="unit-tag">' + esc(prob.unit) + '</span><button class="btn btn-navy btn-sm" data-d="check">Check</button></div>';
+      var inp = $('input', body); inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); check(); } });
+    }
+    function check() {
+      var inp = $('input', body); if (inp.disabled) return;
+      var v = parseFloat(inp.value.replace(/[^0-9.]/g, ''));
+      if (isNaN(v)) { $('.act-fb', el).innerHTML = '<p class="lf-mark bad">Enter a number.</p>'; return; }
+      inp.disabled = true; tries++;
+      var ok = Math.abs(v - prob.a) <= prob.tol; if (ok) right++;
+      $('.act-status', el).innerHTML = right >= 3 ? '<span class="badge">✓ Complete</span>' : '<span class="hint">' + right + ' of 3 correct</span>';
+      $('.act-fb', el).innerHTML = '<div class="explain"><div class="verdict ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ Correct' : '✗ Not quite') + '</div><p style="margin:0">' + prob.how + '</p>' +
+        '<div style="margin-top:10px;display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" data-d="next">Next problem →</button></div></div>';
+      if (right >= 3) done();
+    }
+    el.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-d]'); if (!b) return;
+      if (b.dataset.d === 'check') check(); else { $('.act-fb', el).innerHTML = ''; render(); $('input', body).focus(); }
+    });
+    render();
+  }
+  function measureTruth(sig, what) {
+    var q = sig.qrsTimes.filter(function (t) { return t > 0.3 && t < sig.duration - 0.3; });
+    if (what === 'rr') { var rr = []; for (var i = 1; i < q.length; i++) rr.push(q[i] - q[i - 1]); rr.sort(function (a, b) { return a - b; }); return rr[Math.floor(rr.length / 2)]; }
+    var prs = [];
+    sig.pTimes.forEach(function (p) { var n = q.filter(function (t) { return t > p && t - p < 0.5; })[0]; if (n != null) prs.push(n - p); });
+    prs.sort(function (a, b) { return a - b; });
+    return prs[Math.floor(prs.length / 2)];
+  }
+  function measureActivity(el, d, done) {
+    var body = $('.act-body', el), viewer = null, count = 0, right = 0, last = null;
+    body.innerHTML = '<div class="ms-strip"></div><div class="inline-form"><label><b>' + (d.what === 'pr' ? 'PR interval' : 'R-to-R interval') + ':</b></label><input type="text" inputmode="decimal" placeholder="0.00" aria-label="Your measurement in seconds"><span class="unit-tag">seconds</span><button class="btn btn-navy btn-sm" data-m="check">Check</button><button class="btn btn-ghost btn-sm" data-m="new">New strip</button></div>';
+    function load() {
+      var c = shuffle(d.pool), rid = c[0] === last && c.length > 1 ? c[1] : c[0]; last = rid;
+      if (!viewer) viewer = StripViewer($('.ms-strip', el), { rhythm: rid, hideCaption: true, hideHR: true }); else viewer.set(rid);
+      $('input', body).value = ''; $('input', body).disabled = false; $('.act-fb', el).innerHTML = '';
+    }
+    function check() {
+      var inp = $('input', body); if (inp.disabled) return;
+      var v = parseFloat(inp.value.replace(/[^0-9.]/g, ''));
+      if (isNaN(v)) { $('.act-fb', el).innerHTML = '<p class="lf-mark bad">Enter your measurement in seconds, for example 0.16.</p>'; return; }
+      var sig = viewer.sig(), truth = measureTruth(sig, d.what), tol = 0.04, ok = Math.abs(v - truth) <= tol;
+      inp.disabled = true; count++; if (ok) right++;
+      var boxes = Math.round(truth / 0.04), extra;
+      if (d.what === 'pr') extra = truth > 0.205 ? 'That is longer than 0.20 s — a prolonged PR (first-degree AV block).' : truth < 0.115 ? 'That is shorter than 0.12 s.' : 'That is within the normal 0.12–0.20 s range.';
+      else extra = 'Rate = 60 ÷ ' + truth.toFixed(2) + ' ≈ ' + Math.round(60 / truth) + '/min, or 1500 ÷ ' + boxes + ' small boxes ≈ ' + Math.round(1500 / boxes) + '/min.';
+      $('.act-status', el).innerHTML = count >= 2 ? '<span class="badge">✓ Complete</span>' : '<span class="hint">' + count + ' of 2 strips</span>';
+      $('.act-fb', el).innerHTML = '<div class="explain"><div class="verdict ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ Within one small box' : '✗ Off by more than one small box') + '</div>' +
+        '<p style="margin:0">The ' + (d.what === 'pr' ? 'PR interval' : 'R-to-R interval') + ' is about <b>' + truth.toFixed(2) + ' s</b> (' + boxes + ' small boxes). ' + extra + ' This strip: ' + esc(RHYTHMS[sig.id].name) + '.</p>' +
+        '<div style="margin-top:10px;display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" data-m="new">Next strip →</button></div></div>';
+      viewer.reveal();
+      if (count >= 2) done();
+    }
+    el.addEventListener('click', function (e) { var b = e.target.closest('[data-m]'); if (!b) return; if (b.dataset.m === 'check') check(); else load(); });
+    $('input', body).addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); check(); } });
+    load();
+  }
+  function walkActivity(el, pool, done) {
+    var body = $('.act-body', el), viewer = null, last = null, rid, checked;
+    var RATE = { slow: 'Slow (under 60)', normal: 'Normal (60–100)', fast: 'Fast (over 100)' };
+    function sel(name, label, opts) {
+      return '<label class="wk-row"><span class="wk-lbl">' + label + '</span><select data-w="' + name + '"><option value="">Choose…</option>' +
+        Object.keys(opts).map(function (k) { return '<option value="' + k + '">' + esc(opts[k]) + '</option>'; }).join('') + '</select><span class="lf-mark" data-for="' + name + '"></span></label>';
+    }
+    function load() {
+      var c = shuffle(pool); rid = c[0] === last && c.length > 1 ? c[1] : c[0]; last = rid; checked = false;
+      if (!viewer) { body.innerHTML = '<div class="wk-strip"></div><div class="wk-form"></div>'; viewer = StripViewer($('.wk-strip', el), { rhythm: rid, hideCaption: true, hideHR: true }); } else viewer.set(rid);
+      var names = {}; pool.forEach(function (r) { names[r] = RHYTHMS[r].name; });
+      $('.wk-form', el).innerHTML = sel('rate', '1 · Rate', RATE) + sel('reg', '2 · Rhythm', { regular: 'Regular', irregular: 'Irregular' }) + sel('p', '3 · P waves', LAB_LABELS.p) +
+        sel('pr', '4 · PR interval', { normal: 'Normal (0.12–0.20 s)', long: 'Long (over 0.20 s)', none: 'Not measurable / no P waves', short: 'Short (under 0.12 s)' }) +
+        sel('qrs', '5 · QRS', { narrow: LAB_LABELS.qrs.narrow, wide: LAB_LABELS.qrs.wide }) + sel('name', 'Rhythm', names) +
+        '<div class="act-btns"><button class="btn btn-navy btn-sm" data-w-act="check">Check my worksheet</button><button class="btn btn-ghost btn-sm" data-w-act="new">New strip</button></div>';
+      $('.act-fb', el).innerHTML = '';
+    }
+    function prTruth(id) {
+      if (id === 'firstDeg') return ['long'];
+      if (['nsr', 'sbrady', 'stach', 'sarrhythmia', 'sarrest', 'pac'].indexOf(id) >= 0) return ['normal'];
+      if (['junctEscape', 'accelJunct', 'junctTach', 'pjc'].indexOf(id) >= 0) return ['short', 'none'];
+      return ['none'];
+    }
+    function check() {
+      var sig = viewer.sig(), truth = labTruthRhythm(rid, sig), val = function (n) { return $('[data-w="' + n + '"]', el).value; };
+      if (['rate', 'reg', 'p', 'pr', 'qrs', 'name'].some(function (n) { return !val(n); })) { $('.act-fb', el).innerHTML = '<p class="lf-mark bad">Answer all five steps and name the rhythm first.</p>'; return; }
+      var rateCat = truth.rate == null ? null : truth.rate < 60 ? 'slow' : truth.rate > 100 ? 'fast' : 'normal';
+      var rows = [
+        ['rate', rateCat ? [rateCat] : null, rateCat ? RATE[rateCat] + ' — about ' + truth.rate + '/min' : 'not measurable'],
+        ['reg', truth.reg, truth.reg.map(function (k) { return LAB_LABELS.reg[k]; }).join(' / ')],
+        ['p', truth.p, truth.p.map(function (k) { return LAB_LABELS.p[k]; }).join(' / ')],
+        ['pr', prTruth(rid), prTruth(rid).map(function (k) { return { normal: 'Normal', long: 'Long', none: 'Not measurable', short: 'Short' }[k]; }).join(' / ')],
+        ['qrs', truth.qrs, truth.qrs.map(function (k) { return LAB_LABELS.qrs[k]; }).join(' / ')],
+        ['name', [rid], RHYTHMS[rid].name]
+      ];
+      var right = 0;
+      rows.forEach(function (r) {
+        var v = val(r[0]), m = $('.lf-mark[data-for="' + r[0] + '"]', el), ok = r[1] ? (v && r[1].indexOf(v) >= 0) : true;
+        if (ok) right++;
+        m.className = 'lf-mark ' + (ok ? 'ok' : 'bad'); m.textContent = ok ? '✓' : '✗ ' + r[2];
+      });
+      viewer.reveal();
+      $('.act-fb', el).innerHTML = '<div class="explain"><div class="verdict ' + (right === rows.length ? 'ok' : 'bad') + '">' + right + ' of ' + rows.length + ' correct — ' + esc(RHYTHMS[rid].name) + '</div>' + criteriaTable(RHYTHMS[rid]) + '</div>';
+      if (!checked) { checked = true; done(); }
+    }
+    el.addEventListener('click', function (e) { var b = e.target.closest('[data-w-act]'); if (!b) return; if (b.dataset.wAct === 'check') check(); else load(); });
+    load();
+  }
+  function caseActivity(el, d, done) {
+    StripViewer($('.case-strip', el), { rhythm: d.rhythm, hideCaption: true });
+    var answered = 0;
+    $('.case-qs', el).innerHTML = d.qs.map(function (q, n) { return '<div class="case-q" data-q="' + n + '"><h4>' + (n + 1) + '. ' + esc(q.q) + '</h4><div class="options"></div><div class="kc-fb"></div></div>'; }).join('');
+    d.qs.forEach(function (q, n) {
+      var box = $('[data-q="' + n + '"]', el), s = shuffledQ(q), fin = false;
+      optionButtons($('.options', box), s.labels, function (k) {
+        if (fin) return;
+        fin = true;
+        var ok = k === s.correct;
+        markOptions($('.options', box), s.correct, k);
+        $('.kc-fb', box).innerHTML = '<div class="explain"><div class="verdict ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ Correct' : '✗ Not quite') + '</div><p style="margin:0">' + esc(s.why) + '</p></div>';
+        if (++answered === d.qs.length) done();
+      });
+    });
   }
 
   function optionButtons(host, labels, onPick) {
@@ -932,6 +1223,10 @@
       var n = +bt.dataset.k; bt.disabled = true;
       if (n === correct) bt.classList.add('correct'); else if (n === picked) bt.classList.add('wrong');
     });
+  }
+  function seeLink(q) {
+    var u = CRS.unitById(q.unit), l = u && u.lessons.filter(function (x) { return x.id === q.see; })[0];
+    return l ? '<a href="#course-' + u.id + '-' + l.id + '">Unit ' + (unitIndex(u) + 1) + ', ' + esc(l.title) + '</a>' : '';
   }
   function shuffledQ(q) {
     var order = shuffle(q.o.map(function (_, n) { return n; }));
@@ -1059,7 +1354,7 @@
         if (ok) score++; else missed.push(Q);
         markOptions($('.options', root), correct, n);
         if (viewer) viewer.reveal();
-        $('#explain').innerHTML = (Q.r ? rhythmExplain(Q.r, ok) : '<div class="explain"><div class="verdict ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ Correct' : '✗ Not quite') + '</div><p style="margin:0">' + esc(Q.c.why) + '</p>') +
+        $('#explain').innerHTML = (Q.r ? rhythmExplain(Q.r, ok) : '<div class="explain"><div class="verdict ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓ Correct' : '✗ Not quite') + '</div><p style="margin:0">' + esc(Q.c.why) + '</p>' + (seeLink(Q.c) ? '<p class="hint" style="margin:8px 0 0">Covered in ' + seeLink(Q.c) + '</p>' : '')) +
           '<div style="margin-top:16px;display:flex;justify-content:flex-end"><button class="btn btn-primary" id="nextq">' + (qi === N - 1 ? 'See results' : 'Next question →') + '</button></div></div>';
         $('#nextq').addEventListener('click', next);
         $('#nextq').focus({ preventScroll: true });
@@ -1079,7 +1374,7 @@
       var nu = exam ? null : UNITS[unitIndex(u) + 1];
       var cont = !pass ? '' : exam ? '<a class="btn btn-primary" href="#course-cert">View your certificate →</a>' : nu ? '<a class="btn btn-primary" href="#course-' + nu.id + '">Continue to Unit ' + (unitIndex(u) + 2) + ' →</a>' : '<a class="btn btn-primary" href="#course-exam">Take the final exam →</a>';
       var review = missed.map(function (Q) {
-        return Q.r ? '<li>Strip: <a href="#m-' + RHYTHMS[Q.r].module + '-r-' + Q.r + '">' + esc(RHYTHMS[Q.r].name) + '</a></li>' : '<li>' + esc(Q.c.q) + ' <span class="muted">— ' + esc(Q.c.o[Q.c.a]) + '</span></li>';
+        return Q.r ? '<li>Strip: <a href="#m-' + RHYTHMS[Q.r].module + '-r-' + Q.r + '">' + esc(RHYTHMS[Q.r].name) + '</a></li>' : '<li>' + esc(Q.c.q) + ' <span class="muted">— ' + esc(Q.c.o[Q.c.a]) + '</span>' + (seeLink(Q.c) ? '<br><span class="hint">Review: ' + seeLink(Q.c) + '</span>' : '') + '</li>';
       }).join('');
       root.innerHTML = '<div class="panel result"><div class="ring" style="--p:' + pct + ';--rc:' + (pass ? 'var(--ok)' : 'var(--red)') + '"><div>' + pct + '%</div></div>' +
         '<h2>' + (pass ? (exam ? 'You passed the final exam!' : 'Unit passed — great work!') : 'Not quite — review and try again') + '</h2>' +

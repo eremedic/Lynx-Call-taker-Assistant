@@ -19,11 +19,11 @@ It is a static website (HTML, CSS and plain JavaScript, with no build step and n
 
 ### Self-paced course: Basic ECG Interpretation (`#course`)
 
-A guided course on its own **Course** tab, with 9 units and 33 lessons taken in order:
+A guided course on its own **Course** tab, with 9 units and 34 lessons taken in order:
 
-1. The heart's electrical system
+1. The heart's electrical system (including refractory periods)
 2. ECG paper, waves and leads
-3. The systematic approach and rate
+3. The systematic approach, rate and stability
 4. Sinus rhythms
 5. Atrial rhythms
 6. Junctional rhythms
@@ -34,16 +34,27 @@ A guided course on its own **Course** tab, with 9 units and 33 lessons taken in 
 Each lesson includes:
 
 - **Narration.** Lessons are read aloud with the browser's speech synthesis, with play/pause, skip and speed controls. The paragraph being read is highlighted, and rhythm explorers switch strips as the narration reaches each rhythm.
-- **Interactive strips.**
+- **Interactive strips** and comparison tables (PAC/PJC/PVC, irregular narrow rhythms, AV blocks).
 - **Knowledge checks.**
-- **Practice ECGs.** Unit 3 has rate practice. Each rhythm unit ends with an unlimited strip-identification practice lesson.
+- **Reinforcement activities.** These come in eight kinds:
+  - matching
+  - put-in-order
+  - sorting
+  - live-strip classification (for example regularity, narrow vs wide, shockable or not, PR pattern)
+  - box and rate calculation drills
+  - caliper measurement of PR and R-to-R intervals on live strips
+  - a guided five-step worksheet
+  - patient scenarios with a strip and follow-up questions
 
 How a student moves through the course:
 
-- A lesson is complete once its knowledge checks are answered (or, for a practice lesson, three strips are identified).
+- Each rhythm unit ends with unlimited practice ECGs and scenarios.
+- A lesson is complete once every knowledge check and activity in it is done. A to-do list at the bottom links to anything left.
 - Each unit ends with a quiz: 8 concept questions, or 4 concept questions plus 6 rhythm strips. Passing it with 80% unlocks the next unit.
 - After all 9 unit quizzes are passed, a 25-question final exam unlocks: 10 concept questions and 15 strips.
-- Passing the exam gives a printable certificate of completion.
+- Passing the exam gives a printable certificate.
+
+Every bank question names the lesson that teaches its answer (`see`), and quiz feedback links back to that lesson.
 
 Progress is stored in `localStorage` under `cshealthed-ecg-course-v1`.
 

@@ -179,7 +179,7 @@
       });
       return r;
     });
-    return { fs: FS, duration: this.duration, leads: out, spikes: spikes, qrsTimes: this.qrsTimes.slice().sort(function (a, b) { return a - b; }), meta: this.meta };
+    return { fs: FS, duration: this.duration, leads: out, spikes: spikes, qrsTimes: this.qrsTimes.slice().sort(function (a, b) { return a - b; }), pTimes: this.pTimes.slice().sort(function (a, b) { return a - b; }), meta: this.meta };
   };
 
   /* ------------------------------------------------------------------ */

@@ -740,3 +740,58 @@ a.lesson-row:hover { border-color: var(--c); }
   html.print-cert .cert { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; }
   .narr.narrating { background: none; box-shadow: none; }
 }
+
+/* ---------- course activities ---------- */
+.activity { border: 2px solid color-mix(in srgb, var(--c, #1b7a8c) 35%, var(--line)); border-radius: 14px; padding: 18px; background: var(--card); }
+.act-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.act-head b { color: var(--heading); font-size: 1.05rem; }
+.act-tag { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 800; color: var(--c, var(--teal)); background: color-mix(in srgb, var(--c, #1b7a8c) 12%, var(--card)); border-radius: 99px; padding: 4px 10px; }
+.act-status { margin-left: auto; }
+.act-prompt { margin: 10px 0 0; color: var(--muted); }
+.act-body { margin-top: 14px; }
+.act-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.act-fb { margin-top: 10px; }
+.m-grid, .s-grid { display: grid; gap: 8px; }
+.m-row, .s-row { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(180px, 1.3fr) 28px; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.s-row { grid-template-columns: 1fr auto 28px; }
+.m-term, .s-text { font-weight: 600; color: var(--heading); }
+.m-row select { font: 500 .92rem var(--font); border: 1px solid var(--input-border); border-radius: 8px; padding: 7px 8px; width: 100%; }
+.m-row.ok, .s-row.ok { border-color: var(--ok-border); background: var(--ok-50); }
+.m-row.bad, .s-row.bad { border-color: var(--bad-border); background: var(--bad-50); }
+.m-mark { font-weight: 800; text-align: center; }
+.m-row.ok .m-mark, .s-row.ok .m-mark { color: var(--ok); }
+.m-row.bad .m-mark, .s-row.bad .m-mark { color: var(--bad); }
+.s-row .seg { flex-wrap: wrap; }
+.ord-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ord-item { display: grid; grid-template-columns: 30px 1fr auto auto; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
+.ord-item.ok { border-color: var(--ok-border); background: var(--ok-50); }
+.ord-item.bad { border-color: var(--bad-border); background: var(--bad-50); }
+.ord-n { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--c, var(--navy)); color: #fff; font-weight: 800; font-size: .82rem; }
+.ord-t { font-weight: 600; color: var(--heading); }
+.ord-item .tool-btn { padding: 4px 10px; }
+.drill-q { font-size: 1.05rem; margin: 0 0 10px; }
+.unit-tag { font-weight: 700; color: var(--muted); }
+.cl-count { margin-bottom: 8px; }
+.wk-form { display: grid; gap: 8px; margin-top: 14px; }
+.wk-row { display: grid; grid-template-columns: 130px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; }
+.wk-lbl { font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.wk-row select { font: 500 .92rem var(--font); border: 1px solid var(--input-border); border-radius: 8px; padding: 7px 8px; min-width: 0; }
+.case-text { margin: 12px 0 8px; }
+.case .vitals { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.case-q { margin-top: 16px; }
+.case-q h4 { margin: 0; font-size: 1rem; color: var(--heading); }
+.case-q .options { margin-top: 10px; }
+.todo { margin: 6px 0 0; padding-left: 18px; font-size: .9rem; }
+.todo a { color: var(--link); }
+.compare-table th, .compare-table td { font-size: .9rem; }
+.compare-table tr:first-child th { background: var(--chip); }
+@media (max-width: 760px) {
+  .m-row { grid-template-columns: 1fr 24px; }
+  .m-row select { grid-column: 1; grid-row: 2; }
+  .m-row .m-mark { grid-row: 1 / span 2; grid-column: 2; }
+  .s-row { grid-template-columns: 1fr 24px; }
+  .s-row .seg { grid-column: 1; }
+  .s-row .m-mark { grid-row: 1 / span 2; grid-column: 2; }
+  .wk-row { grid-template-columns: 1fr; gap: 4px; }
+  .ord-item { grid-template-columns: 28px 1fr auto auto; }
+}
