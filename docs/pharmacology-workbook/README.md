@@ -2,7 +2,7 @@
 
 A student workbook covering drug math, IV fluids and infusion pumps for paramedic programs.
 
-- `Paramedic-Pharmacology-Workbook.pdf` — print-ready, US Letter, one chapter per page break.
+- `Paramedic-Pharmacology-Workbook.pdf` — print-ready, US Letter, one chapter per page break (about 230 practice problems).
 - `Paramedic-Pharmacology-Workbook.html` — the same workbook as a web page (open in any browser).
 
 ## Contents
@@ -16,7 +16,8 @@ A student workbook covering drug math, IV fluids and infusion pumps for paramedi
 7. Drip rates II: concentration infusions (mcg/min, mcg/kg/min, dose from rate)
 8. Percent and ratio concentrations, dilutions (C₁V₁ = C₂V₂)
 9. IV infusion pumps (parts, terms, programming, secondary infusions, alarms, transports)
-10. Formula reference card
-11. Answer key with worked solutions
+10. Putting it all together: 100 mixed problems, weighted toward dose/volume, drip rates and concentrations
+11. Formula reference card
+12. Answer key with worked solutions (every practice problem)
 
 Doses and concentrations are teaching examples. Always follow local protocols and medical direction.
