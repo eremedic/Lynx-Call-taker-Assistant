@@ -477,15 +477,16 @@ function questionRow(q) {
 }
 
 // ------------------------------------------------------------- pop-outs
-// Questions pop out on the tab where the choice that calls for them is made:
-//   Trip tab:   the requested level's questions (BLS / ALS / SCT)
-//   Payer tab:  the medical-necessity and reasonableness questions, for every
-//               payer that needs them, and the payer's own questions
-// They are grouped by each question's criterion (set in the Question Bank),
-// so new questions land in the right place. All of them also stay on the
-// Questions tab, and answers stay in sync.
+// Nothing pops out until the insurance is chosen. Then, on the Payer Info tab:
+//   - decision trees from the Logic Builder (payer, level or trip type)
+//   - the medical-necessity and reasonableness questions (payers that need them)
+//   - the requested level's questions (BLS / ALS / SCT)
+//   - the payer's own questions
+// Questions are grouped by their Question Bank criterion, so new questions
+// land in the right place. All of them also stay on the Questions tab, and
+// answers stay in sync.
 const LEVEL_CRITERIA = {
-  BLS: { criteria: ['condition'], label: 'BLS', intro: 'A Yes to any of these conditions supports a BLS ambulance. Bed confinement, the other way to qualify, is asked on the Payer Info tab.' },
+  BLS: { criteria: ['condition'], label: 'BLS', intro: 'A Yes to any of these conditions supports a BLS ambulance. Bed confinement, the other way to qualify, is in the medical-necessity questions above.' },
   ALS: { criteria: ['als'], label: 'ALS', intro: 'ALS requires a need for advanced life support during transport. A Yes here supports ALS. Without one, the trip qualifies at most as BLS.' },
   SCT: { criteria: ['sct'], label: 'Specialty Care Transport', intro: 'SCT requires care beyond the scope of a paramedic, such as titrated drips or ventilator management.' },
 };
@@ -546,6 +547,15 @@ function renderTrees(containerId, trees) {
 
 function renderPopouts() {
   if (!state.evaluation) return;
+  // No questions pop out until the insurance is chosen; then they all
+  // appear together on the Payer Info tab.
+  if (!state.payer) {
+    $('#payer-trees').innerHTML = '';
+    $('#trip-trees').innerHTML = '';
+    for (const id of ['level-questions', 'necessity-questions', 'payer-questions']) { $(`#${id}`).hidden = true; popped[id] = null; }
+    for (const key of Object.keys(popped)) if (key.startsWith('tree-')) delete popped[key];
+    return;
+  }
   const trees = state.evaluation.trees || [];
   const newlyShown = [
     renderTrees('trip-trees', trees.filter((t) => !t.payerTree)),
@@ -561,7 +571,7 @@ function renderPopouts() {
   const payer = state.config.payers.find((p) => p.code === state.payer);
   const level = LEVEL_CRITERIA[state.details.requested_level];
 
-  // Trip tab: the chosen level's questions (none for private / facility pay).
+  // The chosen level's questions (none for private / facility pay).
   newlyShown.splice(1, 0, renderPopout('level-questions', {
     questions: level ? state.questions.filter((q) => shown(q) && level.criteria.includes(q.criterion)) : [],
     title: level ? `${level.label} questions` : '',
