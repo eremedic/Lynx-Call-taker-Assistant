@@ -24,7 +24,7 @@ const HEX = THEME.colors;
 const pres = new pptxgen();
 pres.layout = "LAYOUT_WIDE"; // 13.333 x 7.5
 pres.title = "Cardiac Arrest Management & Rhythm Interpretation";
-pres.subject = "ACLS for paramedics - 2025 AHA Guidelines";
+pres.subject = "ACLS for paramedics - cardiac arrest, heart blocks, paced rhythms - 2025 AHA Guidelines";
 pres.author = "Paramedic Education";
 pres.theme = { headFontFace: THEME.headFontFace, bodyFontFace: THEME.bodyFontFace };
 const C = pres.SchemeColor;
@@ -132,25 +132,26 @@ function rhythmSlide(sec, o) {
   pres.addSection({ title: "Introduction" });
   let s = pres.addSlide({ masterName: "TITLE_DARK", sectionTitle: "Introduction" });
   s.addText("Cardiac Arrest Management & Rhythm Interpretation", { placeholder: "title" });
-  s.addText("Heart blocks and atrial rhythms for paramedics  ·  Aligned to the 2025 AHA Guidelines for CPR & ECC", { placeholder: "body" });
+  s.addText("Heart blocks, paced rhythms and 50 practice strips  ·  Aligned to the 2025 AHA Guidelines for CPR & ECC", { placeholder: "body" });
   strip(s, "nsr", 0.7, 4.6, 11.93);
-  s.addNotes("Welcome. This module is built on the 2025 American Heart Association Guidelines for CPR and Emergency Cardiovascular Care and the paramedic-level National EMS Education Standards. Three parts: cardiac arrest management, heart block interpretation, and atrial rhythm interpretation. Remind learners that local medical direction and protocols take precedence over anything on these slides.");
+  s.addNotes("Welcome. This module is built on the 2025 American Heart Association Guidelines for CPR and Emergency Cardiovascular Care and the paramedic-level National EMS Education Standards. Four parts: cardiac arrest management, heart block interpretation, paced rhythms, and a 50-strip interpretation practice set. Remind learners that local medical direction and protocols take precedence over anything on these slides.");
 
   // ===================== 2. ROADMAP =====================
   s = content("What you will be able to do", "Introduction");
   const road = [
     ["FaHeartbeat", C.accent1, "1  Cardiac arrest", ["Deliver high-quality CPR with minimal pauses", "Run the VF/pVT and asystole/PEA pathways", "Find and treat reversible causes", "Manage the post-ROSC patient"]],
     ["FaWaveSquare", C.accent4, "2  Heart blocks", ["Apply a 5-step rhythm approach", "Differentiate 1st, 2nd (I & II) and 3rd degree", "Recognize which blocks are unstable", "Apply the bradycardia algorithm"]],
-    ["FaBolt", C.accent2, "3  Atrial rhythms", ["Identify PACs, MAT, SVT, flutter and AF", "Separate regular from irregular narrow tachycardia", "Choose vagal, adenosine, rate control or cardioversion", "Select synchronized energy correctly"]],
+    ["FaBolt", C.accent2, "3  Paced rhythms", ["Read atrial, ventricular and dual-chamber pacing", "Spot failure to capture, sense or pace", "Run transcutaneous pacing"]],
+    ["FaClipboardCheck", C.accent3, "4  Strip practice", ["Interpret 50 strips", "Answer and field action after each"]],
   ];
   road.forEach(([ic, col, h, items], i) => {
-    const x = 0.6 + i * 4.18;
-    card(s, x, 1.5, 3.85, 5.1, { shadow: true, fill: C.background1, line: "E7E0E2", name: `roadmap-card-${i + 1}` });
-    iconCircle(s, ic, x + 0.35, 1.8, 0.8, col);
-    text(s, h, { x: x + 0.35, y: 2.8, w: 3.2, h: 0.5, fontSize: 22, bold: true, fontFace: THEME.headFontFace });
-    text(s, bullets(items), { x: x + 0.35, y: 3.45, w: 3.2, h: 3.0, fontSize: 15 });
+    const x = 0.6 + i * 3.08;
+    card(s, x, 1.5, 2.8, 5.1, { shadow: true, fill: C.background1, line: "E7E0E2", name: `roadmap-card-${i + 1}` });
+    iconCircle(s, ic, x + 0.3, 1.8, 0.8, col);
+    text(s, h, { x: x + 0.3, y: 2.75, w: 2.3, h: 0.8, fontSize: 20, bold: true, fontFace: THEME.headFontFace });
+    text(s, bullets(items), { x: x + 0.3, y: 3.65, w: 2.3, h: 2.8, fontSize: 15 });
   });
-  s.addNotes("Learning objectives. Part 1 covers the adult cardiac arrest algorithm. Parts 2 and 3 cover interpretation and field management of AV blocks and atrial rhythms, tied to the bradycardia and tachycardia algorithms.");
+  s.addNotes("Learning objectives. Part 1 covers the adult cardiac arrest algorithm. Parts 2 and 3 cover interpretation and field management of AV blocks and paced rhythms, tied to the bradycardia algorithm. Part 4 is 50 practice strips with interpretations.");
 
   // ===================== SECTION 1 =====================
   const S1 = "Cardiac Arrest";
@@ -463,117 +464,153 @@ function rhythmSlide(sec, o) {
     { x: 8.6, y: 2.5, w: 3.9, h: 3.9, fontSize: 14 });
   s.addNotes("Adult bradycardia algorithm. First decide whether the bradycardia is causing the symptoms. Atropine 1 mg IV every 3-5 minutes up to 3 mg. If ineffective: transcutaneous pacing, or a chronotropic infusion - dopamine 5-20 mcg/kg/min or epinephrine 2-10 mcg/min. For high-degree blocks with wide QRS, move to pacing early. Confirm mechanical capture with a femoral pulse, not the carotid (muscle twitch artifact). Consider and treat causes: hypoxia, hyperkalemia, drug toxicity (beta-blocker, calcium channel blocker, digoxin), inferior MI.");
 
-  // ===================== SECTION 3 =====================
-  const S3 = "Atrial Rhythms";
+  // ===================== SECTION 3: PACED RHYTHMS =====================
+  const S3 = "Paced Rhythms";
   pres.addSection({ title: S3 });
   s = pres.addSlide({ masterName: "SECTION", sectionTitle: S3 });
-  s.addText("Part 3 · Atrial Rhythms", { placeholder: "title" });
-  s.addText("When the atria take over: ectopy, re-entry, flutter and fibrillation", { placeholder: "body" });
+  s.addText("Part 3 · Paced Rhythms", { placeholder: "title" });
+  s.addText("Recognizing normal pacing, spotting malfunction, and pacing in the field", { placeholder: "body" });
   iconCircle(s, "FaBolt", 0.7, 1.3, 1.1, C.accent2);
-  s.addNotes("Section 3: atrial and supraventricular rhythms, linked to the adult tachycardia algorithm.");
+  s.addNotes("Section 3: permanent pacemaker rhythms, pacemaker malfunction, and transcutaneous pacing.");
 
-  rhythmSlide(S3, {
-    title: "Premature atrial contractions (PACs)", strip: "pac", icon: "FaLightbulb", iconColor: C.accent2, clueTitle: "Clue: early beat, odd P wave",
-    criteria: [["Rate", "Underlying rhythm rate"], ["Rhythm", "Irregular where the PAC occurs"], ["P waves", "Early P with different shape (4th beat)"], ["PR interval", "Normal or slightly different"], ["QRS", "Narrow; usually followed by a non-compensatory pause"]],
-    points: ["Ectopic atrial focus fires before the SA node", "Triggers: caffeine, nicotine, stress, hypoxia, electrolytes", "Usually no treatment; correct the cause", "Frequent PACs can herald AF or SVT"],
-    notes: "PACs: an early beat with an abnormal P wave that comes from somewhere other than the SA node. The QRS is usually narrow. The pause after the PAC is typically non-compensatory because the SA node is reset. Look at the 4th complex on this strip - early, peaked P wave, normal QRS.",
-  });
-  rhythmSlide(S3, {
-    title: "Multifocal atrial tachycardia (MAT)", strip: "mat", icon: "FaLungs", iconColor: C.accent4, clueTitle: "Clue: 3+ P-wave shapes",
-    criteria: [["Rate", "> 100 (wandering atrial pacemaker if < 100)"], ["Rhythm", "Irregularly irregular"], ["P waves", "At least 3 different morphologies"], ["PR interval", "Varies with each P"], ["QRS", "Narrow"]],
-    points: ["Classic in COPD, hypoxia, pneumonia, sepsis", "Treat the underlying cause — oxygen, bronchodilators", "Cardioversion is not effective", "Often mistaken for AF — look for distinct P waves"],
-    notes: "MAT: multiple ectopic atrial foci, so P waves change shape and PR intervals vary. It is irregularly irregular like AF, but has discernible P waves before each QRS. Strongly associated with COPD and hypoxia. Synchronized cardioversion does not work; treatment is of the underlying respiratory or metabolic problem.",
-  });
-  rhythmSlide(S3, {
-    title: "Supraventricular tachycardia (SVT)", strip: "svt", icon: "FaHeartbeat", iconColor: C.accent1, clueTitle: "Stable? Vagal, then adenosine",
-    criteria: [["Rate", "150–250 (here ~180)"], ["Rhythm", "Regular"], ["P waves", "Usually hidden in QRS or T waves"], ["PR interval", "Not measurable"], ["QRS", "Narrow (< 0.12 s)"]],
-    points: ["Usually AV-nodal re-entry: sudden onset and offset", "Modified Valsalva (strain, then lie flat, legs raised)", "Adenosine 6 mg rapid IV push + flush; then 12 mg", "Unstable: synchronized cardioversion 50–100 J"],
-    notes: "SVT usually refers to re-entrant tachycardia (AVNRT or AVRT). Regular, narrow, rapid, P waves not visible. Stable: vagal manoeuvres first - the modified Valsalva is more effective than standard. Then adenosine 6 mg rapid IV push in a proximal (antecubital) vein with a 20 mL flush; if no conversion, 12 mg. Warn the patient about transient chest discomfort and a sense of doom. Record a strip during adenosine - it may unmask flutter waves. Unstable: synchronized cardioversion.",
-  });
-  rhythmSlide(S3, {
-    title: "Atrial flutter", strip: "flutter", icon: "FaWaveSquare", iconColor: C.accent3, clueTitle: "Clue: sawtooth F waves",
-    criteria: [["Rate", "Atrial ~300; ventricular depends on ratio"], ["Rhythm", "Usually regular (here 4:1 ≈ 75)"], ["P waves", "Flutter waves — sawtooth, best in II, III, aVF"], ["PR interval", "Not measured"], ["QRS", "Narrow"]],
-    points: ["Regular narrow tachycardia at ~150? Suspect 2:1 flutter", "Stable: rate control (diltiazem or beta-blocker per protocol)", "Unstable: synchronized cardioversion 50–100 J", "Adenosine won't convert it but may reveal F waves"],
-    notes: "Atrial flutter: a macro re-entry circuit in the right atrium producing flutter waves at about 300/min. Conduction is often 2:1 (ventricular rate ~150) or 4:1 (~75). A regular narrow tachycardia at exactly 150 should make you hunt for hidden flutter waves. Flutter responds well to low-energy synchronized cardioversion when unstable.",
-  });
-  rhythmSlide(S3, {
-    title: "Atrial fibrillation", strip: "afib", icon: "FaWaveSquare", iconColor: C.accent1, clueTitle: "Clue: irregularly irregular, no P",
-    criteria: [["Rate", "Atrial 350–600; ventricular variable"], ["Rhythm", "Irregularly irregular"], ["P waves", "Absent — fibrillatory baseline"], ["PR interval", "None"], ["QRS", "Narrow (wide if aberrancy or pre-excitation)"]],
-    points: ["Rapid ventricular response > 100–110 often causes symptoms", "Stable: rate control — diltiazem 0.25 mg/kg over 2 min or beta-blocker", "Unstable: synchronized cardioversion 120–200 J biphasic", "Irregular, wide, very fast? Think WPW — avoid AV-nodal blockers"],
-    notes: "Atrial fibrillation: chaotic atrial activity, no P waves, irregularly irregular ventricular response. Ask about onset (stroke risk if > 48 hours), anticoagulants, and symptoms. Stable with RVR: rate control per protocol. Unstable: synchronized cardioversion 120-200 J biphasic. Pre-excited AF (WPW): irregular, very fast, wide and bizarre QRS - adenosine, diltiazem, beta-blockers, digoxin and amiodarone can be dangerous; cardioversion or procainamide per protocol.",
-  });
-
-  // ---- Atrial comparison
-  s = content("Atrial rhythms side by side", S3);
-  table(s, [
-    hdr(["Rhythm", "Rate", "Regularity", "P waves", "First-line (stable)"], C.accent2),
-    ["PACs", "Underlying", "Irregular at the PAC", "Early, abnormal", "Treat cause"],
-    ["MAT", "> 100", "Irregularly irregular", "≥ 3 morphologies", "Treat hypoxia / COPD"],
-    ["SVT", "150–250", "Regular", "Hidden", "Vagal → adenosine"],
-    ["Atrial flutter", "~150 (2:1) or ~75 (4:1)", "Usually regular", "Sawtooth F waves", "Rate control"],
-    ["Atrial fibrillation", "Variable", "Irregularly irregular", "None; fibrillatory", "Rate control"],
-  ].map((r, i) => i === 0 ? r : r.map((c, j) => ({ text: c, options: j === 0 ? { bold: true, color: C.accent2 } : {} }))),
-  { x: 0.6, y: 1.4, w: 12.13, colW: [2.3, 2.4, 2.5, 2.4, 2.53], rowH: 0.62, fontSize: 14 });
-  iconCircle(s, "FaSearch", 0.6, 5.55, 0.6, C.accent2);
-  text(s, "Narrow and irregular? Look for P waves: distinct and varied → MAT; none → AF. Narrow, regular and exactly ~150 → suspect 2:1 flutter.",
-    { x: 1.4, y: 5.45, w: 11.3, h: 0.95, fontSize: 15, valign: "middle" });
-  s.addNotes("Summary table. The two big discriminators for narrow-complex rhythms are regularity and P wave appearance.");
-
-  // ---- Tachycardia algorithm
-  s = content("Tachycardia with a pulse: stable or unstable?", S3);
-  card(s, 0.6, 1.4, 5.9, 5.25, { fill: C.text1, name: "unstable-card" });
-  iconCircle(s, "FaBolt", 0.85, 1.65, 0.65, C.accent1);
-  text(s, "Unstable → synchronized cardioversion", { x: 1.65, y: 1.65, w: 4.7, h: 0.65, fontSize: 18, bold: true, color: C.background1, valign: "middle", fontFace: THEME.headFontFace });
-  text(s, "Hypotension · acutely altered mental status · signs of shock · ischemic chest discomfort · acute heart failure", { x: 0.85, y: 2.45, w: 5.4, h: 0.75, fontSize: 14, color: C.accent6 });
-  const energy = [["Narrow, regular", "50–100 J"], ["Narrow, irregular (AF)", "120–200 J biphasic"], ["Wide, regular", "100 J"], ["Wide, irregular", "Defibrillation dose (unsynchronized)"]];
-  energy.forEach(([k, v], i) => {
-    const y = 3.35 + i * 0.78;
-    text(s, k, { x: 0.85, y, w: 2.6, h: 0.62, fontSize: 15, bold: true, color: C.background1, valign: "middle" });
-    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 3.5, y, w: 2.75, h: 0.62, rectRadius: 0.08, fill: { color: C.accent1 }, line: { color: C.accent1 }, objectName: `energy-${i + 1}` });
-    text(s, v, { x: 3.55, y, w: 2.65, h: 0.62, fontSize: 14, bold: true, color: C.background1, align: "center", valign: "middle" });
-  });
-  card(s, 6.83, 1.4, 5.9, 5.25, { name: "stable-card" });
-  iconCircle(s, "FaHeartbeat", 7.08, 1.65, 0.65, C.accent2);
-  text(s, "Stable → identify and treat", { x: 7.88, y: 1.65, w: 4.7, h: 0.65, fontSize: 18, bold: true, valign: "middle", fontFace: THEME.headFontFace });
-  text(s, [
-    { text: "Narrow, regular (SVT)", options: { bold: true, color: C.accent2, breakLine: true } },
-    { text: "Vagal manoeuvres → adenosine 6 mg rapid push, then 12 mg", options: { breakLine: true, paraSpaceAfter: 10 } },
-    { text: "Narrow, irregular (AF / flutter)", options: { bold: true, color: C.accent2, breakLine: true } },
-    { text: "Rate control: diltiazem or beta-blocker per protocol", options: { breakLine: true, paraSpaceAfter: 10 } },
-    { text: "Wide QRS (≥ 0.12 s)", options: { bold: true, color: C.accent2, breakLine: true } },
-    { text: "Treat as VT until proven otherwise; adenosine only if regular and monomorphic; consider amiodarone or procainamide; expert consult" },
-  ], { x: 7.08, y: 2.5, w: 5.4, h: 4.0, fontSize: 15 });
-  s.addNotes("Adult tachycardia with a pulse algorithm. First question: is the tachycardia causing instability? If yes, synchronized cardioversion - sedate if time allows. Energy guide: narrow regular 50-100 J; narrow irregular (AF) 120-200 J biphasic; wide regular 100 J; wide irregular (polymorphic VT) - defibrillate, do not synchronize. If stable: obtain a 12-lead, classify by QRS width and regularity. Re-sync after every cardioversion - many monitors default back to unsynchronized mode.");
-
-  // ---- Practice strips
-  s = content("Practice: name these rhythms", S3);
-  const quiz = [["A", "afib_rvr"], ["B", "brady"], ["C", "avb2i"]];
-  quiz.forEach(([L, n], i) => {
-    const y = 1.35 + i * 1.8;
-    s.addShape(pres.shapes.OVAL, { x: 0.6, y: y + 0.32, w: 0.75, h: 0.75, fill: { color: C.accent1 }, line: { color: C.accent1 }, objectName: `quiz-badge-${L}` });
-    text(s, L, { x: 0.6, y: y + 0.32, w: 0.75, h: 0.75, fontSize: 24, bold: true, color: C.background1, align: "center", valign: "middle" });
-    strip(s, n, 1.6, y, 8.75, `Practice strip ${L}`);
-  });
-  card(s, 10.65, 1.35, 2.08, 5.0, { name: "quiz-steps" });
-  text(s, [{ text: "Use the 5 steps", options: { bold: true, breakLine: true, paraSpaceAfter: 8 } }, ...bullets(["Rate", "Rhythm", "P waves", "PR", "QRS"])],
-    { x: 10.85, y: 1.6, w: 1.75, h: 4.6, fontSize: 15 });
-  s.addNotes("Give learners 2-3 minutes per strip. Answers on the next slide. A: atrial fibrillation with rapid ventricular response. B: sinus bradycardia. C: second-degree AV block type I (Wenckebach).");
-
-  s = content("Practice answers", S3);
-  const ans = [
-    ["A", "Atrial fibrillation with RVR", "Irregularly irregular, ~140/min, no P waves, narrow QRS. Stable → rate control; unstable → sync 120–200 J."],
-    ["B", "Sinus bradycardia", "Regular ~45/min, upright P before every QRS, normal PR. Treat only if symptomatic: atropine 1 mg."],
-    ["C", "2nd-degree AV block type I", "PR lengthens beat by beat until a P is not conducted; grouped beating, narrow QRS."],
+  // ---- Pacemaker code
+  s = content("Reading a pacemaker: the spike and the code", S3);
+  const code = [
+    ["I", "Chamber paced", "A · V · D (both)"],
+    ["II", "Chamber sensed", "A · V · D · O (none)"],
+    ["III", "Response to sensing", "I inhibit · T trigger · D both"],
+    ["IV", "Rate response", "R = rate rises with activity"],
   ];
-  ans.forEach(([L, h, b], i) => {
-    const y = 1.45 + i * 1.75;
-    card(s, 0.6, y, 12.13, 1.5, { name: `answer-${L}` });
-    s.addShape(pres.shapes.OVAL, { x: 0.85, y: y + 0.35, w: 0.8, h: 0.8, fill: { color: C.accent2 }, line: { color: C.accent2 }, objectName: `answer-badge-${L}` });
-    text(s, L, { x: 0.85, y: y + 0.35, w: 0.8, h: 0.8, fontSize: 24, bold: true, color: C.background1, align: "center", valign: "middle" });
-    text(s, h, { x: 1.95, y: y + 0.2, w: 10.5, h: 0.45, fontSize: 20, bold: true, fontFace: THEME.headFontFace });
-    text(s, b, { x: 1.95, y: y + 0.7, w: 10.5, h: 0.65, fontSize: 15 });
+  code.forEach(([n, h, b], i) => {
+    const y = 1.4 + i * 1.3;
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 0.6, y, w: 1.0, h: 1.1, rectRadius: 0.1, fill: { color: C.accent2 }, line: { color: C.accent2 }, objectName: `code-pos-${n}` });
+    text(s, n, { x: 0.6, y, w: 1.0, h: 1.1, fontSize: 26, bold: true, color: C.background1, align: "center", valign: "middle", fontFace: THEME.headFontFace });
+    card(s, 1.75, y, 4.75, 1.1, { name: `code-desc-${n}` });
+    text(s, h, { x: 1.95, y: y + 0.14, w: 4.4, h: 0.4, fontSize: 18, bold: true });
+    text(s, b, { x: 1.95, y: y + 0.56, w: 4.4, h: 0.4, fontSize: 14, color: C.accent5 });
   });
-  s.addNotes("Discuss how each was identified using the five steps. Ask: which of these would you expect to respond to atropine? (B and C, if symptomatic.)");
+  const modes = [
+    ["AAI", "Paces and senses the atrium; inhibited by native P waves. Sinus node disease with intact AV conduction."],
+    ["VVI", "Paces and senses the ventricle; fires only when the native rate falls below the set rate."],
+    ["DDD", "Paces and senses both chambers; tracks sinus P waves and paces the ventricle after them."],
+  ];
+  modes.forEach(([m, d], i) => {
+    const y = 1.4 + i * 1.3;
+    card(s, 6.83, y, 5.9, 1.1, { shadow: true, fill: C.background1, line: "E7E0E2", name: `mode-${m}` });
+    text(s, m, { x: 7.05, y, w: 1.2, h: 1.1, fontSize: 24, bold: true, color: C.accent2, valign: "middle", fontFace: THEME.headFontFace });
+    text(s, d, { x: 8.3, y, w: 4.25, h: 1.1, fontSize: 14, valign: "middle" });
+  });
+  card(s, 6.83, 5.3, 5.9, 1.1, { fill: C.text1, name: "spike-tip" });
+  iconCircle(s, "FaLightbulb", 7.05, 5.5, 0.7, C.accent3);
+  text(s, "A pacer spike is a sharp vertical line. Spike → P = atrial capture. Spike → wide QRS = ventricular capture.", { x: 7.95, y: 5.3, w: 4.6, h: 1.1, fontSize: 14, color: C.background1, valign: "middle" });
+  s.addNotes("The NBG code: position I is the chamber paced, II the chamber sensed, III how the device responds to a sensed beat, IV rate modulation. Most field patients have VVI(R) or DDD(R) devices. Spikes may be tiny with bipolar leads - turn up the gain or look in another lead. Ventricular-paced complexes are wide and look like a left bundle branch block.");
+
+  rhythmSlide(S3, {
+    title: "Atrial paced rhythm", strip: "pace_a", icon: "FaLightbulb", iconColor: C.accent2, clueTitle: "Clue: spike, then a P wave",
+    criteria: [["Rate", "The programmed rate (here 70)"], ["Rhythm", "Regular"], ["P waves", "Paced — each follows an atrial spike"], ["PR interval", "Normal (≈ 0.18 s)"], ["QRS", "Narrow — patient's own conduction"]],
+    points: ["Typical of AAI or DDD pacing for sinus node disease", "Every spike followed by a P = atrial capture", "Narrow QRS shows AV conduction is intact", "Normal function; ask for the device card"],
+    notes: "Atrial pacing: a spike immediately precedes a P wave, then normal conduction through the AV node produces a narrow QRS. Indicates sick sinus syndrome with intact AV conduction.",
+  });
+  rhythmSlide(S3, {
+    title: "Ventricular paced rhythm", strip: "pace_v", icon: "FaLightbulb", iconColor: C.accent2, clueTitle: "Clue: spike, then a wide QRS",
+    criteria: [["Rate", "The programmed rate (here 70)"], ["Rhythm", "Regular"], ["P waves", "Absent or unrelated"], ["PR interval", "None"], ["QRS", "Wide, LBBB-like; T wave opposite the QRS"]],
+    points: ["Every spike followed by a wide QRS = 100% capture", "Normal finding in VVI pacing", "Wide paced QRS masks STEMI — rely on symptoms, Sgarbossa, transmit the 12-lead", "Don't treat the wide QRS as VT"],
+    notes: "Ventricular pacing from a right ventricular lead produces a wide complex with a left bundle branch block pattern and discordant T waves. That is normal for a paced beat. Ischemia is hard to read on a paced ECG; use Sgarbossa criteria and the clinical picture.",
+  });
+  rhythmSlide(S3, {
+    title: "AV sequential (dual-chamber) pacing", strip: "pace_ddd", icon: "FaLightbulb", iconColor: C.accent2, clueTitle: "Clue: two spikes per beat",
+    criteria: [["Rate", "The programmed rate (here 70)"], ["Rhythm", "Regular"], ["P waves", "Paced P after the atrial spike"], ["AV delay", "Spike-to-spike ≈ 0.18 s"], ["QRS", "Wide, after the ventricular spike"]],
+    points: ["DDD pacing both chambers in sequence", "Preserves atrial 'kick' for better cardiac output", "If sinus is faster, the device tracks P waves and paces only the ventricle", "Normal function"],
+    notes: "Dual-chamber pacing: atrial spike, paced P, programmed AV delay, ventricular spike, wide paced QRS. When the native sinus rate exceeds the lower rate, the device senses the P and only paces the ventricle (atrial-sensed ventricular pacing).",
+  });
+  rhythmSlide(S3, {
+    title: "Malfunction 1: failure to capture", strip: "pace_ftc", icon: "FaExclamationTriangle", iconColor: C.accent1, clueTitle: "Clue: spike with nothing after it",
+    criteria: [["Rate", "Ventricular rate slower than the spike rate"], ["Rhythm", "Irregular"], ["Spikes", "Regular, at the set rate"], ["Capture", "Some spikes not followed by a QRS"], ["QRS", "Wide when captured"]],
+    points: ["Pacer fires but the myocardium doesn't respond", "Causes: lead displacement or fracture, battery depletion, hyperkalemia, ischemia, drugs", "Symptomatic: pads on, transcutaneous pacing", "Treat hyperkalemia if suspected"],
+    notes: "Failure to capture: the device generates a stimulus but it does not depolarize the chamber - a spike with no P wave (atrial) or no QRS (ventricular) after it. If the patient is pacemaker-dependent this can cause severe bradycardia or asystole.",
+  });
+  rhythmSlide(S3, {
+    title: "Malfunction 2: failure to sense (undersensing)", strip: "pace_fts", icon: "FaExclamationTriangle", iconColor: C.accent1, clueTitle: "Clue: spikes ignore native beats",
+    criteria: [["Rate", "Native rate plus extra paced beats"], ["Rhythm", "Irregular"], ["Spikes", "Fixed rate, ignoring native QRS complexes"], ["Capture", "Only when the ventricle isn't refractory"], ["QRS", "Native narrow beats + some wide paced beats"]],
+    points: ["Device doesn't 'see' the patient's own beats", "Spikes landing on the T wave risk R-on-T VT/VF", "Causes: lead problem, low sensing amplitude, new BBB", "Monitor closely; pads ready; transport"],
+    notes: "Undersensing: the pacemaker fails to detect intrinsic activity and fires anyway, competing with the native rhythm. Spikes appear at inappropriate places - inside QRS complexes or on T waves. A spike on the T wave can trigger VT or VF.",
+  });
+  rhythmSlide(S3, {
+    title: "Malfunction 3: failure to pace (oversensing)", strip: "pace_ftp", icon: "FaExclamationTriangle", iconColor: C.accent1, clueTitle: "Clue: a pause with no spike",
+    criteria: [["Rate", "Below the programmed rate"], ["Rhythm", "Irregular — pauses"], ["Spikes", "Missing when they should appear"], ["Capture", "Normal on the beats that are paced"], ["QRS", "Wide paced beats"]],
+    points: ["Device senses 'noise' (muscle activity, EMI, T waves) and withholds pacing", "Pacemaker-dependent patients may become syncopal or asystolic", "Pads on; TCP if pauses recur or patient is unstable", "Note any electrical exposure / unusual activity"],
+    notes: "Oversensing / failure to pace: the device inappropriately detects signals and inhibits output, producing a pause longer than the programmed interval with no spike. In hospital a magnet makes the device pace asynchronously; in the field, treat symptomatic pauses with transcutaneous pacing per protocol.",
+  });
+  rhythmSlide(S3, {
+    title: "Transcutaneous pacing in the field", strip: "pace_tcp", icon: "FaHeartbeat", iconColor: C.accent1, clueTitle: "Confirm both kinds of capture",
+    caption: "Electrical capture: every large pacing artifact is followed by a wide QRS and a broad T wave",
+    criteria: [["Pads", "Anterior–posterior preferred; clear of any device"], ["Mode", "Demand (synchronous) mode"], ["Rate", "60–80/min"], ["Output", "Increase mA until every spike captures, then +10%"], ["Comfort", "Analgesia / sedation as soon as feasible"]],
+    points: ["Electrical: wide QRS + T after every spike", "Mechanical: palpable FEMORAL pulse at the paced rate, BP improves", "Avoid the carotid — muscle twitch mimics a pulse", "Reassess capture after every move"],
+    notes: "Transcutaneous pacing is indicated for unstable bradycardia not responding to atropine, or immediately for high-degree blocks with wide QRS. Electrical capture is seen on the monitor; mechanical capture must be confirmed with a femoral pulse or improved perfusion. Not recommended for asystolic cardiac arrest.",
+  });
+
+  // ---- Pacemaker / ICD patient
+  s = content("Caring for the patient with a pacemaker or ICD", S3);
+  const dev = [
+    ["FaSearch", "Identify the device", "Bulge below the clavicle; ask for the device card — type, mode, rate, ICD or not."],
+    ["FaHeartbeat", "Cardiac arrest", "Standard ACLS. Place pads ≥ 8 cm from the device, or anterior–posterior."],
+    ["FaBolt", "ICD shocks", "Safe to touch the patient. Repeated shocks: think VT storm — sedate, monitor, transport."],
+    ["FaExclamationTriangle", "Bradycardia despite a pacer", "Suspect malfunction, hyperkalemia or drug toxicity. TCP if unstable."],
+    ["FaWaveSquare", "Chest pain", "Paced QRS hides ischemia. Use symptoms, Sgarbossa criteria and transmit the 12-lead."],
+    ["FaHospital", "Magnet", "Pacer → fixed-rate pacing; ICD → shocks suspended. Use only per protocol."],
+  ];
+  dev.forEach(([ic, h, b], i) => {
+    const col = i % 3, row = Math.floor(i / 3);
+    const x = 0.6 + col * 4.18, y = 1.45 + row * 2.6;
+    card(s, x, y, 3.85, 2.35, { name: `device-${i + 1}` });
+    iconCircle(s, ic, x + 0.3, y + 0.3, 0.6, C.accent2);
+    text(s, h, { x: x + 1.05, y: y + 0.3, w: 2.65, h: 0.6, fontSize: 17, bold: true, valign: "middle", fontFace: THEME.headFontFace });
+    text(s, b, { x: x + 0.3, y: y + 1.05, w: 3.3, h: 1.2, fontSize: 14 });
+  });
+  s.addNotes("Practical points for device patients. Defibrillation is safe but keep pads at least 8 cm from the generator (or use anterior-posterior placement) to avoid damaging it and to reduce current diversion. An ICD shock delivered while you touch the patient is felt as a mild jolt and is not dangerous. Multiple shocks suggest electrical storm or lead malfunction. Magnet use varies by device and protocol.");
+
+  // ===================== SECTION 4: 50-STRIP PRACTICE =====================
+  const S4 = "Strip Practice";
+  pres.addSection({ title: S4 });
+  s = pres.addSlide({ masterName: "SECTION", sectionTitle: S4 });
+  s.addText("Part 4 · 50-Strip Interpretation Practice", { placeholder: "title" });
+  s.addText("Each strip is followed by its interpretation. Use the same 5 steps every time: rate, rhythm, P waves, PR, QRS.", { placeholder: "body" });
+  iconCircle(s, "FaClipboardCheck", 0.7, 1.3, 1.1, C.accent3);
+  s.addNotes("Fifty 6-second lead II strips covering everything in this course - sinus, junctional and ventricular rhythms, arrest rhythms, AV blocks and paced rhythms - in mixed order. Give learners time on each strip before advancing to the interpretation. The 6-second method: count QRS complexes in the strip and multiply by 10.");
+
+  const practice = require("./practice.json");
+  for (const it of practice) {
+    // question slide
+    s = content(`Strip ${it.n} of 50`, S4);
+    iconCircle(s, "FaUserMd", 0.6, 1.3, 0.55, C.accent4);
+    text(s, it.stem, { x: 1.35, y: 1.3, w: 11.35, h: 0.55, fontSize: 18, italic: true, valign: "middle" });
+    strip(s, it.file, 0.6, 2.1, 12.13, `Practice strip ${it.n}`);
+    text(s, "Lead II  ·  25 mm/s  ·  6-second strip (count QRS × 10)", { x: 0.6, y: 4.1, w: 12.13, h: 0.3, fontSize: 11, color: C.accent5, italic: true });
+    ["Rate", "Rhythm", "P waves", "PR interval", "QRS"].forEach((h, i) => {
+      const x = 0.6 + i * 2.48;
+      card(s, x, 4.6, 2.25, 1.9, { fill: C.background1, line: "D9CFD2", lineW: 1, name: `answer-box-${i + 1}` });
+      s.addShape(pres.shapes.OVAL, { x: x + 0.18, y: 4.78, w: 0.5, h: 0.5, fill: { color: C.accent4 }, line: { color: C.accent4 }, objectName: `step-num-${i + 1}` });
+      text(s, String(i + 1), { x: x + 0.18, y: 4.78, w: 0.5, h: 0.5, fontSize: 16, bold: true, color: C.background1, align: "center", valign: "middle" });
+      text(s, h, { x: x + 0.8, y: 4.78, w: 1.4, h: 0.5, fontSize: 16, bold: true, valign: "middle" });
+    });
+    s.addNotes(`Strip ${it.n}. Scenario: ${it.stem} Let learners work through the five steps. Answer on the next slide: ${it.name}.`);
+
+    // interpretation slide
+    s = content(`Strip ${it.n} · Interpretation`, S4);
+    strip(s, it.file, 0.6, 1.3, 12.13, `Practice strip ${it.n}: ${it.name}`);
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 0.6, y: 3.45, w: 12.13, h: 0.65, rectRadius: 0.1, fill: { color: C.accent1 }, line: { color: C.accent1 }, objectName: "answer-banner" });
+    text(s, it.name, { x: 0.85, y: 3.45, w: 11.7, h: 0.65, fontSize: 22, bold: true, color: C.background1, valign: "middle", fontFace: THEME.headFontFace });
+    const rows = it.rows.map(([k, v]) => [
+      { text: k, options: { bold: true, color: C.accent1, fill: { color: C.background2 } } },
+      { text: v },
+    ]);
+    table(s, rows, { x: 0.6, y: 4.3, w: 6.5, colW: [1.75, 4.75], rowH: 0.38, fontSize: 14 });
+    card(s, 7.35, 4.3, 5.38, 2.4, { name: "action-card" });
+    iconCircle(s, "FaAmbulance", 7.55, 4.48, 0.55, C.accent1);
+    text(s, "Field action", { x: 8.25, y: 4.48, w: 4.3, h: 0.55, fontSize: 18, bold: true, valign: "middle", fontFace: THEME.headFontFace });
+    text(s, bullets(it.action), { x: 7.55, y: 5.15, w: 5.0, h: 1.45, fontSize: 14 });
+    s.addNotes(`Strip ${it.n}: ${it.name}. ${it.rows.map(([k, v]) => `${k}: ${v}`).join(". ")}. Field action: ${it.action.join("; ")}.`);
+  }
 
   // ===================== CLOSE =====================
   pres.addSection({ title: "Summary" });
@@ -583,7 +620,7 @@ function rhythmSlide(sec, o) {
     ["FaCompressArrowsAlt", "Compressions first", "100–120/min, 5–6 cm, minimal pauses, ETCO₂-guided"],
     ["FaSyringe", "Right drug, right time", "Epi ASAP in nonshockable; after failed shocks in VF/pVT"],
     ["FaWaveSquare", "PR and P:QRS tell the block", "Mobitz II and complete block → pace early"],
-    ["FaBolt", "Stable vs unstable decides", "Unstable tachycardia → synchronized cardioversion"],
+    ["FaBolt", "Spike → capture?", "Every pacer spike needs a response; confirm TCP with a femoral pulse"],
   ];
   take.forEach(([ic, h, b], i) => {
     const x = 0.7 + i * 3.03;

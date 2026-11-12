@@ -1,0 +1,1646 @@
+[
+ {
+  "n": 1,
+  "file": "practice_01",
+  "name": "P-wave asystole (ventricular standstill)",
+  "stem": "Pulseless; monitor shows only small bumps.",
+  "rows": [
+   [
+    "Rate",
+    "Atrial 75/min; ventricular 0"
+   ],
+   [
+    "Rhythm",
+    "P–P regular; no QRS"
+   ],
+   [
+    "P waves",
+    "Present, no QRS follows"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "None"
+   ]
+  ],
+  "action": [
+   "Treat as asystole: CPR, epinephrine",
+   "Pacing is not recommended in arrest"
+  ]
+ },
+ {
+  "n": 2,
+  "file": "practice_02",
+  "name": "Sinus rhythm with ventricular trigeminy",
+  "stem": "COPD patient with hypokalemia.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 70/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Regularly irregular — every 3rd beat early"
+   ],
+   [
+    "P waves",
+    "Before sinus beats only"
+   ],
+   [
+    "PR interval",
+    "0.16 s on sinus beats"
+   ],
+   [
+    "QRS",
+    "Two narrow, then one wide"
+   ]
+  ],
+  "action": [
+   "Correct the cause: K⁺, hypoxia, ischemia",
+   "Monitor"
+  ]
+ },
+ {
+  "n": 3,
+  "file": "practice_03",
+  "name": "CPR artifact",
+  "stem": "Recorded while compressions are ongoing.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 110/min (compressions)"
+   ],
+   [
+    "Rhythm",
+    "Regular, matches compression rate"
+   ],
+   [
+    "P waves",
+    "None"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Not cardiac — artifact"
+   ]
+  ],
+  "action": [
+   "You cannot interpret a rhythm during compressions",
+   "Analyze during the planned 2-minute pause (< 10 s)"
+  ]
+ },
+ {
+  "n": 4,
+  "file": "practice_04",
+  "name": "Pacemaker spikes with no capture (underlying asystole)",
+  "stem": "Pacemaker patient, unresponsive and pulseless.",
+  "rows": [
+   [
+    "Rate",
+    "0 — spikes only"
+   ],
+   [
+    "Rhythm",
+    "Spikes regular; no QRS"
+   ],
+   [
+    "P waves",
+    "None"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "None"
+   ],
+   [
+    "Pacer spikes",
+    "Regular, no capture"
+   ]
+  ],
+  "action": [
+   "This is cardiac arrest: start CPR",
+   "Treat as asystole; place pads ≥ 8 cm from the device"
+  ]
+ },
+ {
+  "n": 5,
+  "file": "practice_05",
+  "name": "AV sequential (dual-chamber) paced rhythm",
+  "stem": "Dual-chamber pacemaker, routine transport.",
+  "rows": [
+   [
+    "Rate",
+    "72/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Paced P after each atrial spike"
+   ],
+   [
+    "PR interval",
+    "AV delay ≈ 0.18 s (spike to spike)"
+   ],
+   [
+    "QRS",
+    "Wide, after ventricular spike"
+   ],
+   [
+    "Pacer spikes",
+    "Two per beat — atrial and ventricular"
+   ]
+  ],
+  "action": [
+   "Both chambers paced and captured",
+   "Normal function"
+  ]
+ },
+ {
+  "n": 6,
+  "file": "practice_06",
+  "name": "Sinus rhythm with demand (VVI) ventricular pacing",
+  "stem": "Sinus rate slows; pacemaker takes over.",
+  "rows": [
+   [
+    "Rate",
+    "59/min"
+   ],
+   [
+    "Rhythm",
+    "Irregular at the transition"
+   ],
+   [
+    "P waves",
+    "Present on the first 3 beats only"
+   ],
+   [
+    "PR interval",
+    "0.16 s on native beats"
+   ],
+   [
+    "QRS",
+    "Narrow native, then wide paced"
+   ],
+   [
+    "Pacer spikes",
+    "Ventricular, only after the pause"
+   ]
+  ],
+  "action": [
+   "Demand pacing: fires only when the native rate falls",
+   "Normal sensing and capture"
+  ]
+ },
+ {
+  "n": 7,
+  "file": "practice_07",
+  "name": "2nd-degree AV block type I (Wenckebach), 5:4",
+  "stem": "Elderly patient on digoxin.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 70/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Regularly irregular — grouped beats"
+   ],
+   [
+    "P waves",
+    "Atrial 79/min; every 5th not conducted"
+   ],
+   [
+    "PR interval",
+    "Progressively lengthens, then drop"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Look for digoxin toxicity",
+   "Monitor; treat if symptomatic"
+  ]
+ },
+ {
+  "n": 8,
+  "file": "practice_08",
+  "name": "Ventricular tachycardia (rapid)",
+  "stem": "Patient pale, diaphoretic, BP 70 systolic — has a pulse.",
+  "rows": [
+   [
+    "Rate",
+    "210/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Not seen"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Wide, uniform"
+   ]
+  ],
+  "action": [
+   "Unstable VT with a pulse: synchronized cardioversion 100 J",
+   "Sedate if time allows; amiodarone after"
+  ]
+ },
+ {
+  "n": 9,
+  "file": "practice_09",
+  "name": "Idioventricular rhythm",
+  "stem": "Unresponsive 82-year-old; weak carotid pulse, BP 70/40.",
+  "rows": [
+   [
+    "Rate",
+    "35/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "None"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Wide (≥ 0.12 s)"
+   ]
+  ],
+  "action": [
+   "Ventricular escape — the heart's last back-up",
+   "Do NOT suppress with antiarrhythmics; pace / support perfusion"
+  ]
+ },
+ {
+  "n": 10,
+  "file": "practice_10",
+  "name": "2nd-degree AV block type II (Mobitz II), 4:3",
+  "stem": "Syncope at home; now alert.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 70/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Irregular"
+   ],
+   [
+    "P waves",
+    "Atrial 86/min; every 4th not conducted"
+   ],
+   [
+    "PR interval",
+    "0.18 s, constant"
+   ],
+   [
+    "QRS",
+    "Wide (≥ 0.12 s)"
+   ]
+  ],
+  "action": [
+   "High risk of complete block",
+   "Pads on, prepare to pace, transport to PCI/cardiac centre"
+  ]
+ },
+ {
+  "n": 11,
+  "file": "practice_11",
+  "name": "2nd-degree AV block, 2:1 conduction (wide)",
+  "stem": "Fatigue and dyspnea, BP 88/52.",
+  "rows": [
+   [
+    "Rate",
+    "42/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Atrial 83/min; 2 P waves per QRS"
+   ],
+   [
+    "PR interval",
+    "0.20 s, constant on conducted beats"
+   ],
+   [
+    "QRS",
+    "Wide (≥ 0.12 s)"
+   ]
+  ],
+  "action": [
+   "Wide QRS → likely infranodal (behaves like Mobitz II)",
+   "Pads on; pacing if unstable"
+  ]
+ },
+ {
+  "n": 12,
+  "file": "practice_12",
+  "name": "Transcutaneous pacing WITHOUT capture",
+  "stem": "Pacing at 70/min, 40 mA; patient remains hypotensive.",
+  "rows": [
+   [
+    "Rate",
+    "Ventricular 30/min (escape); pacer 70/min"
+   ],
+   [
+    "Rhythm",
+    "Pacer spikes regular; slow escape beats unrelated"
+   ],
+   [
+    "P waves",
+    "Atrial 80/min"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Wide escape beats only"
+   ],
+   [
+    "Pacer spikes",
+    "Large artifacts not followed by QRS"
+   ]
+  ],
+  "action": [
+   "Increase mA until each spike is followed by a wide QRS",
+   "Check pad position (anterior–posterior)"
+  ]
+ },
+ {
+  "n": 13,
+  "file": "practice_13",
+  "name": "Junctional rhythm",
+  "stem": "67-year-old on a beta-blocker, BP 100/64.",
+  "rows": [
+   [
+    "Rate",
+    "48/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Inverted, just before the QRS"
+   ],
+   [
+    "PR interval",
+    "Short (< 0.12 s)"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Junctional escape (40–60/min)",
+   "Treat as bradycardia if symptomatic; review medications"
+  ]
+ },
+ {
+  "n": 14,
+  "file": "practice_14",
+  "name": "2nd-degree AV block type II (Mobitz II), 3:2",
+  "stem": "Anterior MI, BP 84/50, confused.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 60/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Irregular"
+   ],
+   [
+    "P waves",
+    "Atrial 88/min; some not conducted"
+   ],
+   [
+    "PR interval",
+    "0.18 s, constant"
+   ],
+   [
+    "QRS",
+    "Wide (≥ 0.12 s)"
+   ]
+  ],
+  "action": [
+   "Unstable — pads on, transcutaneous pacing",
+   "Atropine unlikely to work; don't delay pacing"
+  ]
+ },
+ {
+  "n": 15,
+  "file": "practice_15",
+  "name": "Accelerated junctional rhythm",
+  "stem": "Patient taking digoxin, nauseated.",
+  "rows": [
+   [
+    "Rate",
+    "82/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Not visible"
+   ],
+   [
+    "PR interval",
+    "Not measurable"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Rate 60–100 from the junction",
+   "Consider digoxin toxicity; monitor"
+  ]
+ },
+ {
+  "n": 16,
+  "file": "practice_16",
+  "name": "Agonal rhythm",
+  "stem": "Arrest, 25 min of resuscitation, no ROSC.",
+  "rows": [
+   [
+    "Rate",
+    "< 20/min"
+   ],
+   [
+    "Rhythm",
+    "Irregular / very slow"
+   ],
+   [
+    "P waves",
+    "None"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Very wide, low amplitude"
+   ]
+  ],
+  "action": [
+   "Dying heart — treat as PEA if pulseless",
+   "Often a terminal rhythm; consider TOR with medical direction"
+  ]
+ },
+ {
+  "n": 17,
+  "file": "practice_17",
+  "name": "Transcutaneous pacing with electrical capture",
+  "stem": "You are pacing a patient in complete heart block.",
+  "rows": [
+   [
+    "Rate",
+    "70/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Obscured by artifact"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Wide, with large T wave after each spike"
+   ],
+   [
+    "Pacer spikes",
+    "Large pacing artifacts at the set rate"
+   ]
+  ],
+  "action": [
+   "Electrical capture confirmed — now check a FEMORAL pulse",
+   "Give analgesia / sedation"
+  ]
+ },
+ {
+  "n": 18,
+  "file": "practice_18",
+  "name": "Atrial-sensed, ventricular paced rhythm",
+  "stem": "Pacemaker patient walking briskly — rate rises.",
+  "rows": [
+   [
+    "Rate",
+    "88/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Native sinus P waves"
+   ],
+   [
+    "PR interval",
+    "≈ 0.16 s (P to V spike)"
+   ],
+   [
+    "QRS",
+    "Wide, after each ventricular spike"
+   ],
+   [
+    "Pacer spikes",
+    "Ventricular only, after each P"
+   ]
+  ],
+  "action": [
+   "Device tracks the sinus rate (DDD/VDD)",
+   "Normal function"
+  ]
+ },
+ {
+  "n": 19,
+  "file": "practice_19",
+  "name": "Coarse ventricular fibrillation",
+  "stem": "Witnessed collapse in a shopping centre; pulseless.",
+  "rows": [
+   [
+    "Rate",
+    "Not measurable"
+   ],
+   [
+    "Rhythm",
+    "Chaotic"
+   ],
+   [
+    "P waves",
+    "None"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "No identifiable QRS"
+   ]
+  ],
+  "action": [
+   "Shock immediately, resume CPR 2 min",
+   "Epinephrine after initial shocks fail; amiodarone / lidocaine"
+  ]
+ },
+ {
+  "n": 20,
+  "file": "practice_20",
+  "name": "Pacemaker failure to pace (oversensing)",
+  "stem": "Pacemaker patient with a syncopal episode.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 50/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Irregular — long pause"
+   ],
+   [
+    "P waves",
+    "None"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Wide paced beats"
+   ],
+   [
+    "Pacer spikes",
+    "Absent during a 2.6-second pause"
+   ]
+  ],
+  "action": [
+   "Device sensed 'noise' and withheld pacing → pause",
+   "Pads on; TCP if pauses recur or unstable"
+  ]
+ },
+ {
+  "n": 21,
+  "file": "practice_21",
+  "name": "2nd-degree AV block type I (Wenckebach), 4:3",
+  "stem": "Athlete at rest, asymptomatic.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 60/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Regularly irregular — grouped beats"
+   ],
+   [
+    "P waves",
+    "Atrial 71/min; every 4th not conducted"
+   ],
+   [
+    "PR interval",
+    "Lengthens 0.18 → 0.34 s, then drop"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Benign in athletes / high vagal tone",
+   "Monitor only"
+  ]
+ },
+ {
+  "n": 22,
+  "file": "practice_22",
+  "name": "VT degenerating into VF",
+  "stem": "Patient with a pulse loses consciousness during the strip.",
+  "rows": [
+   [
+    "Rate",
+    "VT ≈ 180/min → VF"
+   ],
+   [
+    "Rhythm",
+    "Regular, then chaotic"
+   ],
+   [
+    "P waves",
+    "None"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Wide, then no identifiable QRS"
+   ]
+  ],
+  "action": [
+   "Now pulseless and shockable: defibrillate",
+   "Begin VF/pVT algorithm"
+  ]
+ },
+ {
+  "n": 23,
+  "file": "practice_23",
+  "name": "Sinus rhythm with multifocal PVCs",
+  "stem": "Septic patient, SpO₂ 86%.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 80/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Irregular"
+   ],
+   [
+    "P waves",
+    "Before sinus beats only"
+   ],
+   [
+    "PR interval",
+    "0.16 s on sinus beats"
+   ],
+   [
+    "QRS",
+    "Narrow; PVCs of two different shapes"
+   ]
+  ],
+  "action": [
+   "Multifocal = irritable myocardium",
+   "Fix hypoxia, check electrolytes, 12-lead"
+  ]
+ },
+ {
+  "n": 24,
+  "file": "practice_24",
+  "name": "3rd-degree (complete) AV block, junctional escape",
+  "stem": "Inferior MI, alert, BP 104/66.",
+  "rows": [
+   [
+    "Rate",
+    "45/min"
+   ],
+   [
+    "Rhythm",
+    "Regular (R–R); P–P also regular"
+   ],
+   [
+    "P waves",
+    "Atrial 80/min; unrelated to QRS"
+   ],
+   [
+    "PR interval",
+    "None — varies (AV dissociation)"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Junctional escape is more stable",
+   "Pads on; atropine may be tried; pace if unstable"
+  ]
+ },
+ {
+  "n": 25,
+  "file": "practice_25",
+  "name": "Polymorphic VT — torsades de pointes",
+  "stem": "On methadone, long QT history; collapses.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 240/min"
+   ],
+   [
+    "Rhythm",
+    "Irregular"
+   ],
+   [
+    "P waves",
+    "None"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Wide, twisting around the baseline"
+   ]
+  ],
+  "action": [
+   "Pulseless: defibrillate (unsynchronized)",
+   "Magnesium sulfate 1–2 g IV/IO"
+  ]
+ },
+ {
+  "n": 26,
+  "file": "practice_26",
+  "name": "Asystole",
+  "stem": "Found unresponsive, cool to touch; CPR started.",
+  "rows": [
+   [
+    "Rate",
+    "0 — no electrical activity"
+   ],
+   [
+    "Rhythm",
+    "None"
+   ],
+   [
+    "P waves",
+    "None"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "None"
+   ]
+  ],
+  "action": [
+   "Confirm in 2 leads; check leads and gain",
+   "CPR + epinephrine ASAP; consider TOR criteria"
+  ]
+ },
+ {
+  "n": 27,
+  "file": "practice_27",
+  "name": "Pacemaker failure to sense (undersensing)",
+  "stem": "Pacemaker patient with palpitations.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 80/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Irregular"
+   ],
+   [
+    "P waves",
+    "Native P waves present"
+   ],
+   [
+    "PR interval",
+    "0.16 s on native beats"
+   ],
+   [
+    "QRS",
+    "Mostly narrow native; some paced"
+   ],
+   [
+    "Pacer spikes",
+    "Fixed rate, some land on QRS/T"
+   ]
+  ],
+  "action": [
+   "Spikes fire regardless of native beats — risk of R-on-T",
+   "Monitor, transport; ensure pads are ready"
+  ]
+ },
+ {
+  "n": 28,
+  "file": "practice_28",
+  "name": "Pulseless electrical activity (PEA)",
+  "stem": "Monitor shows this — but NO carotid or femoral pulse.",
+  "rows": [
+   [
+    "Rate",
+    "92/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Upright, one before each QRS"
+   ],
+   [
+    "PR interval",
+    "0.16 s"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Organized rhythm + no pulse = PEA",
+   "CPR, epinephrine ASAP, hunt H's & T's (narrow + fast → mechanical cause)"
+  ]
+ },
+ {
+  "n": 29,
+  "file": "practice_29",
+  "name": "Sinus bradycardia",
+  "stem": "Fit 30-year-old runner, routine monitoring.",
+  "rows": [
+   [
+    "Rate",
+    "48/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Upright, one before each QRS"
+   ],
+   [
+    "PR interval",
+    "0.16 s"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Asymptomatic: no treatment",
+   "If symptomatic: atropine 1 mg IV, then pacing / infusion"
+  ]
+ },
+ {
+  "n": 30,
+  "file": "practice_30",
+  "name": "Advanced (high-grade) AV block, 3:1",
+  "stem": "Syncope, HR in the 30s, BP 76/40.",
+  "rows": [
+   [
+    "Rate",
+    "33/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Atrial 100/min; 3 P waves per QRS"
+   ],
+   [
+    "PR interval",
+    "0.20 s, constant on conducted beats"
+   ],
+   [
+    "QRS",
+    "Wide (≥ 0.12 s)"
+   ]
+  ],
+  "action": [
+   "High-grade block — treat like complete heart block",
+   "Transcutaneous pacing; epinephrine / dopamine bridge"
+  ]
+ },
+ {
+  "n": 31,
+  "file": "practice_31",
+  "name": "Sinus arrhythmia",
+  "stem": "Healthy 19-year-old; rate varies with breathing.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 70/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Irregular — cyclic with respiration"
+   ],
+   [
+    "P waves",
+    "Upright, identical, one before each QRS"
+   ],
+   [
+    "PR interval",
+    "0.16 s, constant"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Normal variant, common in the young",
+   "No treatment"
+  ]
+ },
+ {
+  "n": 32,
+  "file": "practice_32",
+  "name": "Ventricular paced rhythm (100% capture)",
+  "stem": "History of complete heart block; feels well.",
+  "rows": [
+   [
+    "Rate",
+    "70/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Not seen"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Wide, after each spike"
+   ],
+   [
+    "Pacer spikes",
+    "Ventricular — before each QRS"
+   ]
+  ],
+  "action": [
+   "Normal ventricular pacing",
+   "Wide paced QRS hides STEMI — use clinical picture / Sgarbossa"
+  ]
+ },
+ {
+  "n": 33,
+  "file": "practice_33",
+  "name": "Fine ventricular fibrillation",
+  "stem": "Unwitnessed arrest, ~10 min down-time; CPR in progress.",
+  "rows": [
+   [
+    "Rate",
+    "Not measurable"
+   ],
+   [
+    "Rhythm",
+    "Chaotic, low amplitude"
+   ],
+   [
+    "P waves",
+    "None"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "No identifiable QRS"
+   ]
+  ],
+  "action": [
+   "Still shockable — defibrillate",
+   "Confirm it isn't asystole: check leads and gain"
+  ]
+ },
+ {
+  "n": 34,
+  "file": "practice_34",
+  "name": "Sinus rhythm with sinus arrest (pause)",
+  "stem": "80-year-old with a near-syncope episode.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 50/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Regular, interrupted by a 2.5-second pause"
+   ],
+   [
+    "P waves",
+    "Upright; none during the pause"
+   ],
+   [
+    "PR interval",
+    "0.16 s"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Symptomatic pauses suggest sick sinus syndrome",
+   "Pads on; atropine / pacing if symptomatic"
+  ]
+ },
+ {
+  "n": 35,
+  "file": "practice_35",
+  "name": "Sinus tachycardia",
+  "stem": "Febrile 70-year-old, BP 96/60.",
+  "rows": [
+   [
+    "Rate",
+    "125/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Upright, one before each QRS"
+   ],
+   [
+    "PR interval",
+    "0.14 s"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "A response, not a primary problem — treat the cause",
+   "Fever, sepsis, hypovolemia, pain, hypoxia"
+  ]
+ },
+ {
+  "n": 36,
+  "file": "practice_36",
+  "name": "Sinus rhythm with a PVC couplet",
+  "stem": "55-year-old, post-MI, feels 'skipped beats'.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 80/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Irregular at the couplet"
+   ],
+   [
+    "P waves",
+    "Before sinus beats only"
+   ],
+   [
+    "PR interval",
+    "0.16 s on sinus beats"
+   ],
+   [
+    "QRS",
+    "Narrow; two consecutive wide PVCs"
+   ]
+  ],
+  "action": [
+   "Couplets suggest an irritable ventricle",
+   "Monitor closely; 12-lead; treat ischemia"
+  ]
+ },
+ {
+  "n": 37,
+  "file": "practice_37",
+  "name": "2nd-degree AV block type I (Wenckebach), 3:2",
+  "stem": "Inferior MI, mildly lightheaded.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 50/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Regularly irregular — grouped beats"
+   ],
+   [
+    "P waves",
+    "Atrial 65/min; some not conducted"
+   ],
+   [
+    "PR interval",
+    "0.18 → 0.28 s, then dropped beat"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Usually nodal, often transient",
+   "Atropine if symptomatic"
+  ]
+ },
+ {
+  "n": 38,
+  "file": "practice_38",
+  "name": "Sinus tachycardia",
+  "stem": "Trauma patient, pale, BP 88/60.",
+  "rows": [
+   [
+    "Rate",
+    "140/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Upright, close to the preceding T"
+   ],
+   [
+    "PR interval",
+    "0.12 s"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Compensating for hypovolemia — don't slow it down",
+   "Hemorrhage control, fluids/blood, rapid transport"
+  ]
+ },
+ {
+  "n": 39,
+  "file": "practice_39",
+  "name": "Sinus rhythm with a unifocal PVC",
+  "stem": "62-year-old with palpitations.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 80/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Regular except for one early beat"
+   ],
+   [
+    "P waves",
+    "Absent before the early wide beat"
+   ],
+   [
+    "PR interval",
+    "0.16 s on sinus beats"
+   ],
+   [
+    "QRS",
+    "Narrow; the PVC is wide and bizarre"
+   ]
+  ],
+  "action": [
+   "Isolated PVCs: treat the patient, not the ectopy",
+   "Check K⁺/Mg²⁺ risk, ischemia, hypoxia"
+  ]
+ },
+ {
+  "n": 40,
+  "file": "practice_40",
+  "name": "Monomorphic ventricular tachycardia",
+  "stem": "Pulseless 59-year-old, CPR started by bystander.",
+  "rows": [
+   [
+    "Rate",
+    "170/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Not seen"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Wide, uniform"
+   ]
+  ],
+  "action": [
+   "Pulseless VT = shock (defibrillation dose)",
+   "With a pulse and unstable: synchronized 100 J"
+  ]
+ },
+ {
+  "n": 41,
+  "file": "practice_41",
+  "name": "Atrial paced rhythm",
+  "stem": "Patient has a pacemaker for sick sinus syndrome.",
+  "rows": [
+   [
+    "Rate",
+    "70/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Each P preceded by a pacer spike"
+   ],
+   [
+    "PR interval",
+    "0.18 s"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ],
+   [
+    "Pacer spikes",
+    "Atrial — before each P wave"
+   ]
+  ],
+  "action": [
+   "Normal atrial pacing — device working",
+   "Ask for device card; note rate"
+  ]
+ },
+ {
+  "n": 42,
+  "file": "practice_42",
+  "name": "Sinus bradycardia with 1st-degree AV block",
+  "stem": "Inferior STEMI patient, alert, BP 118/70.",
+  "rows": [
+   [
+    "Rate",
+    "50/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Upright, one before each QRS"
+   ],
+   [
+    "PR interval",
+    "0.30 s, constant"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Watch for progression in inferior MI",
+   "Atropine only if symptomatic"
+  ]
+ },
+ {
+  "n": 43,
+  "file": "practice_43",
+  "name": "Sinus rhythm with 1st-degree AV block",
+  "stem": "72-year-old on diltiazem, routine transport.",
+  "rows": [
+   [
+    "Rate",
+    "65/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Upright, one before each QRS"
+   ],
+   [
+    "PR interval",
+    "0.28 s, constant"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Benign conduction delay; monitor",
+   "Note AV-nodal blocking medications"
+  ]
+ },
+ {
+  "n": 44,
+  "file": "practice_44",
+  "name": "Normal sinus rhythm",
+  "stem": "58-year-old, dizzy after standing; now feels well.",
+  "rows": [
+   [
+    "Rate",
+    "75/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Upright, one before each QRS"
+   ],
+   [
+    "PR interval",
+    "0.16 s"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Normal rhythm — look for a non-cardiac cause of the dizziness",
+   "Orthostatic vitals, glucose, history"
+  ]
+ },
+ {
+  "n": 45,
+  "file": "practice_45",
+  "name": "3rd-degree (complete) AV block, ventricular escape",
+  "stem": "Grey, diaphoretic 78-year-old, BP 70/40.",
+  "rows": [
+   [
+    "Rate",
+    "34/min"
+   ],
+   [
+    "Rhythm",
+    "Regular (R–R); P–P also regular"
+   ],
+   [
+    "P waves",
+    "Atrial 85/min; unrelated to QRS"
+   ],
+   [
+    "PR interval",
+    "None — varies (AV dissociation)"
+   ],
+   [
+    "QRS",
+    "Wide (≥ 0.12 s)"
+   ]
+  ],
+  "action": [
+   "Unstable: transcutaneous pacing now",
+   "Infusion bridge: epinephrine 2–10 mcg/min or dopamine"
+  ]
+ },
+ {
+  "n": 46,
+  "file": "practice_46",
+  "name": "Accelerated idioventricular rhythm (AIVR)",
+  "stem": "Occurs 10 min after successful reperfusion in a STEMI patient.",
+  "rows": [
+   [
+    "Rate",
+    "68/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "None"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Wide (≥ 0.12 s)"
+   ]
+  ],
+  "action": [
+   "Classic reperfusion rhythm; usually transient",
+   "Do not treat with antiarrhythmics if perfusing"
+  ]
+ },
+ {
+  "n": 47,
+  "file": "practice_47",
+  "name": "2nd-degree AV block, 2:1 conduction (narrow)",
+  "stem": "Weak and dizzy, BP 98/60.",
+  "rows": [
+   [
+    "Rate",
+    "43/min"
+   ],
+   [
+    "Rhythm",
+    "Regular"
+   ],
+   [
+    "P waves",
+    "Atrial 86/min; 2 P waves per QRS"
+   ],
+   [
+    "PR interval",
+    "0.20 s, constant on conducted beats"
+   ],
+   [
+    "QRS",
+    "Narrow (≈ 0.08 s)"
+   ]
+  ],
+  "action": [
+   "Type can't be determined from 2:1 alone",
+   "Narrow QRS → likely nodal; atropine may help"
+  ]
+ },
+ {
+  "n": 48,
+  "file": "practice_48",
+  "name": "Ventricular pacing with failure to capture",
+  "stem": "Pacemaker patient, presyncope, BP 86/50.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 40/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Irregular (ventricular)"
+   ],
+   [
+    "P waves",
+    "Not seen"
+   ],
+   [
+    "PR interval",
+    "None"
+   ],
+   [
+    "QRS",
+    "Wide when captured; absent after some spikes"
+   ],
+   [
+    "Pacer spikes",
+    "Regular — not all followed by QRS"
+   ]
+  ],
+  "action": [
+   "Malfunction: lead displacement, battery, high threshold, hyperkalemia",
+   "Transcutaneous pacing if unstable; transport"
+  ]
+ },
+ {
+  "n": 49,
+  "file": "practice_49",
+  "name": "Sinus rhythm with ventricular bigeminy",
+  "stem": "74-year-old with chest tightness.",
+  "rows": [
+   [
+    "Rate",
+    "≈ 80/min (6-second count)"
+   ],
+   [
+    "Rhythm",
+    "Regularly irregular — every other beat early"
+   ],
+   [
+    "P waves",
+    "Before sinus beats only"
+   ],
+   [
+    "PR interval",
+    "0.16 s on sinus beats"
+   ],
+   [
+    "QRS",
+    "Alternating narrow and wide"
+   ]
+  ],
+  "action": [
+   "Consider ischemia, electrolytes, digoxin",
+   "12-lead ECG; monitor for runs of VT"
+  ]
+ },
+ {
+  "n": 50,
+  "file": "practice_50",
+  "name": "3rd-degree (complete) AV block, slow ventricular escape",
+  "stem": "Found on floor, GCS 11, BP 64 palpable.",
+  "rows": [
+   [
+    "Rate",
+    "30/min"
+   ],
+   [
+    "Rhythm",
+    "Regular (R–R); P–P also regular"
+   ],
+   [
+    "P waves",
+    "Atrial 100/min; unrelated to QRS"
+   ],
+   [
+    "PR interval",
+    "None — varies (AV dissociation)"
+   ],
+   [
+    "QRS",
+    "Wide (≥ 0.12 s)"
+   ]
+  ],
+  "action": [
+   "Peri-arrest: pace immediately",
+   "Prepare for arrest; consider hyperkalemia / drug toxicity"
+  ]
+ }
+]
