@@ -10,8 +10,8 @@
   --bg:#F5F4F6; --surface:#FFFFFF; --surface-2:#F1EFF2; --ink:#16181D; --ink-2:#3F4350; --muted:#676C7A; --line:#E3E0E6; --line-2:#D3CFD7;
   --accent:#B01E35; --accent-ink:#FFFFFF; --accent-soft:#F9E7EA;
   --ok:#0D7A55; --ok-soft:#E2F3EB; --bad:#C2410C; --bad-soft:#FCEBE2;
-  --paper:#FFF7F8; --grid-minor:#F6D7DD; --grid-major:#E9A7B4; --trace:#191B21;
-  --mon-bg:#070B0A; --mon-panel:#0D1412; --mon-grid:#12201A; --mon-grid-2:#1A3226; --mon-trace:#3DF08E; --mon-text:#D6F3E2; --mon-dim:#6E8F7F;
+  --paper:#FFF7F8; --grid-minor:#EDB1BD; --grid-major:#D45C74; --trace:#191B21;
+  --mon-bg:#070B0A; --mon-panel:#0D1412; --mon-grid:#1B3328; --mon-grid-2:#2D5C45; --mon-trace:#3DF08E; --mon-text:#D6F3E2; --mon-dim:#6E8F7F;
   --mon-hr:#3DF08E; --mon-bp:#FF6B7D; --mon-spo2:#4FD8F2; --mon-co2:#F5C842;
   --shadow:0 1px 2px rgba(22,24,29,.06),0 8px 24px -12px rgba(22,24,29,.18);
   --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
@@ -22,12 +22,12 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0F1115; --surface:#171A20; --surface-2:#1E222A; --ink:#ECEEF2; --ink-2:#C3C7D0; --muted:#969CA9; --line:#2A2F39; --line-2:#363C48;
   --accent:#F0566B; --accent-ink:#1B080C; --accent-soft:#3A1920; --ok:#3CCB94; --ok-soft:#11302A; --bad:#F48A55; --bad-soft:#3B2117;
-  --paper:#1A1416; --grid-minor:#2D2024; --grid-major:#5B2D38; --trace:#F2EDEF;
+  --paper:#1A1416; --grid-minor:#4B2A33; --grid-major:#9A3F53; --trace:#F2EDEF;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0F1115; --surface:#171A20; --surface-2:#1E222A; --ink:#ECEEF2; --ink-2:#C3C7D0; --muted:#969CA9; --line:#2A2F39; --line-2:#363C48;
   --accent:#F0566B; --accent-ink:#1B080C; --accent-soft:#3A1920; --ok:#3CCB94; --ok-soft:#11302A; --bad:#F48A55; --bad-soft:#3B2117;
-  --paper:#1A1416; --grid-minor:#2D2024; --grid-major:#5B2D38; --trace:#F2EDEF;
+  --paper:#1A1416; --grid-minor:#4B2A33; --grid-major:#9A3F53; --trace:#F2EDEF;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7); color-scheme:dark}
 
 *{box-sizing:border-box}
@@ -246,15 +246,66 @@ main{padding-block:28px 64px}
 .case-scores button b{display:block;font-family:var(--f-mono);font-size:15px}
 .confirm{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--ink-2)}
 .empty{color:var(--muted);font-size:14px}
+.share-card{margin-top:18px;padding:18px 22px;display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.share-l{display:grid;gap:4px;min-width:0;flex:1 1 320px}
+.share-l p{color:var(--ink-2);font-size:14.5px}
+.cohort{display:grid;gap:5px;font-size:12.5px;color:var(--muted);flex:0 1 280px}
+.cohort input,.sel select{font:inherit;font-size:14.5px;color:var(--ink);background:var(--surface);border:1.5px solid var(--line-2);border-radius:9px;padding:9px 11px;width:100%}
+.cohort input:focus,.sel select:focus{outline:none;border-color:var(--accent)}
+.chip.sync{display:inline-flex;align-items:center;gap:6px}
+@media (max-width:1240px){.tally .chip:not(.sync){display:none}}
+.sbt td:first-child{min-width:190px}
+.chip.sync::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.chip.sync[data-s="synced"]::before{background:var(--ok)}
+.chip.sync[data-s="saving"]::before{background:var(--mon-co2)}
+.chip.sync[data-s="readonly"]::before,.chip.sync[data-s="error"]::before{background:var(--bad)}
+.sb-tools{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.sel{display:grid;gap:4px;font-size:11.5px;color:var(--muted);font-family:var(--f-mono);letter-spacing:.06em;text-transform:uppercase}
+.sel select{padding:8px 10px;font-family:var(--f-body);letter-spacing:0;text-transform:none;min-width:130px}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:18px}
+@media (max-width:860px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{padding:16px 18px;display:grid;gap:2px}
+.stat small{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.stat b{font-family:var(--f-display);font-size:38px;font-weight:600;line-height:1}
+.stat span{font-size:12.5px;color:var(--muted)}
+.sb-grid{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:980px){.sb-grid{grid-template-columns:minmax(0,1fr)}}
+.tablewrap{overflow-x:auto}
+.sbt{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+.sbt th{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.sbt td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.sbt tr.row{cursor:pointer}
+.sbt tr.row:hover td{background:var(--surface-2)}
+.sbt tr.open td{background:var(--surface-2)}
+.sbt .who{display:flex;align-items:center;gap:10px;min-width:0}
+.sbt .who img{width:28px;height:28px;border-radius:50%;flex:none}
+.sbt .who b{font-weight:600;display:block}
+.sbt .who small{color:var(--muted);font-size:12px}
+.sbt .mono{font-family:var(--f-mono);font-size:13px;white-space:nowrap}
+.mini{display:flex;align-items:center;gap:8px;min-width:120px}
+.mini .track{flex:1;height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.mini .track i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.mini b{font-family:var(--f-mono);font-size:13px;font-weight:600;width:40px;text-align:right}
+.detail td{padding:0 12px 16px;background:var(--surface-2)}
+.detail .inner{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;padding-top:8px}
+@media (max-width:760px){.detail .inner{grid-template-columns:minmax(0,1fr)}}
+.detail h4{margin:0 0 8px;font-size:12px;font-family:var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tags span{font-size:12.5px;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:3px 8px}
+.hard{display:grid;gap:8px}
+.hard button{display:grid;grid-template-columns:44px minmax(0,1fr) 54px;gap:10px;align-items:center;text-align:left;background:var(--surface-2);border:0;border-radius:9px;padding:9px 12px;cursor:pointer;font-size:13.5px}
+.hard button:hover{background:var(--accent-soft)}
+.hard button b{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.hard button em{font-style:normal;font-family:var(--f-mono);font-size:12.5px;color:var(--bad);text-align:right}
 .note{font-size:12.5px;color:var(--muted);margin-top:28px;max-width:80ch}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <pattern id="pMinor" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" style="stroke:var(--grid-minor)" stroke-width="1" vector-effect="non-scaling-stroke"/></pattern>
-    <pattern id="pMajor" width="200" height="200" patternUnits="userSpaceOnUse"><rect width="200" height="200" fill="url(#pMinor)"/><path d="M200 0H0V200" fill="none" style="stroke:var(--grid-major)" stroke-width="1.4" vector-effect="non-scaling-stroke"/></pattern>
+    <pattern id="pMinor" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" style="stroke:var(--grid-minor)" stroke-width="1.1" vector-effect="non-scaling-stroke"/></pattern>
+    <pattern id="pMajor" width="200" height="200" patternUnits="userSpaceOnUse"><rect width="200" height="200" fill="url(#pMinor)"/><path d="M200 0H0V200" fill="none" style="stroke:var(--grid-major)" stroke-width="2" vector-effect="non-scaling-stroke"/></pattern>
     <pattern id="mMinor" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" style="stroke:var(--mon-grid)" stroke-width="1" vector-effect="non-scaling-stroke"/></pattern>
-    <pattern id="mMajor" width="200" height="200" patternUnits="userSpaceOnUse"><rect width="200" height="200" fill="url(#mMinor)"/><path d="M200 0H0V200" fill="none" style="stroke:var(--mon-grid-2)" stroke-width="1.2" vector-effect="non-scaling-stroke"/></pattern>
+    <pattern id="mMajor" width="200" height="200" patternUnits="userSpaceOnUse"><rect width="200" height="200" fill="url(#mMinor)"/><path d="M200 0H0V200" fill="none" style="stroke:var(--mon-grid-2)" stroke-width="1.6" vector-effect="non-scaling-stroke"/></pattern>
   </defs>
 </svg>
 
@@ -266,12 +317,14 @@ main{padding-block:28px 64px}
     </a>
     <nav class="tabs" aria-label="Sections">
       <a href="#home" data-v="home">Overview</a>
-      <a href="#strips" data-v="strips">100 Strips</a>
+      <a href="#strips" data-v="strips">Strips</a>
+      <a href="#scoreboard" data-v="scoreboard" id="tabBoard" hidden>Scoreboard</a>
       <a href="#megacode" data-v="megacode">Megacode</a>
       <a href="#results" data-v="results">Results</a>
     </nav>
     <div class="tally" aria-live="polite">
-      <span class="chip">Strips <b class="num" id="tStrips">0/100</b></span>
+      <span class="chip">Strips <b class="num" id="tStrips">0/0</b></span>
+      <span class="chip sync" id="tSync" data-s="local">Saved on this device</span>
       <span class="chip">Megacode <b class="num" id="tMega">0/0</b></span>
     </div>
   </div>
@@ -284,9 +337,9 @@ main{padding-block:28px 64px}
       <div>
         <div class="eyebrow">2025 AHA ACLS · Paramedic rhythm training</div>
         <h1>Read the strip.<br><em>Run the code.</em></h1>
-        <p class="lede">Work through 100 six-second rhythm strips with instant feedback, then manage 20 cardiac arrest megacodes decision by decision. Every wrong answer explains what you missed. Your score is tallied at the end.</p>
+        <p class="lede">Work through <span class="nStrips">102</span> six-second rhythm strips with instant feedback, then manage 20 cardiac arrest megacodes decision by decision. Every wrong answer explains what you missed. Your score is tallied at the end.</p>
         <div class="meta">
-          <div><b class="num">100</b><span>ECG strips</span></div>
+          <div><b class="num nStrips">102</b><span>ECG strips</span></div>
           <div><b class="num">20</b><span>Megacode cases</span></div>
           <div><b class="num" id="hQ">66</b><span>Treatment decisions</span></div>
         </div>
@@ -307,11 +360,11 @@ main{padding-block:28px 64px}
     <div class="modules">
       <article class="card module">
         <header>
-          <div><div class="eyebrow">Module 1</div><h2>100 ECG strips</h2></div>
+          <div><div class="eyebrow">Module 1</div><h2><span class="nStrips">102</span> ECG strips</h2></div>
           <svg class="ring" viewBox="0 0 64 64" id="ringStrips"></svg>
         </header>
         <p>Choose the rhythm, then see the full interpretation: rate, regularity, P waves, PR, QRS and the field action.</p>
-        <ul><li>Sinus, junctional and ventricular rhythms</li><li>Arrest rhythms, AV blocks and paced rhythms</li><li>When you're wrong, a side-by-side shows how your choice differs</li></ul>
+        <ul><li>Equal sets of sinus, atrial, junctional, ventricular, AV block and paced rhythms</li><li>Every strip is unique</li><li>When you're wrong, a side-by-side shows how your choice differs</li></ul>
         <div class="actions"><a class="btn btn-primary" href="#strips" id="goStrips">Start strips</a></div>
       </article>
       <article class="card module">
@@ -332,13 +385,17 @@ main{padding-block:28px 64px}
       <div><small>04</small><b>PR</b><br><span>0.12–0.20 s, constant?</span></div>
       <div><small>05</small><b>QRS</b><br><span>&lt; 0.12 s narrow</span></div>
     </div>
+    <div class="card share-card">
+      <div class="share-l"><div class="eyebrow">Your results</div><p id="shareMsg">Your progress is saved on this device.</p></div>
+      <label class="cohort" for="cohort"><span>Class or cohort (optional)</span><input id="cohort" type="text" maxlength="40" placeholder="e.g. PCP Spring 2026" autocomplete="off"></label>
+    </div>
     <p class="note">Strips are synthetic lead II teaching tracings at 25 mm/s: 1 small box = 0.04 s, 1 large box = 0.20 s. Treatment content follows the adult ACLS algorithms. Always follow your local protocols and medical direction. Progress is saved in this browser only.</p>
   </section>
 
   <!-- STRIPS -->
   <section class="view" id="v-strips" hidden>
     <div class="qhead">
-      <div><div class="eyebrow">Module 1 · Rhythm interpretation</div><h2>Strip <span id="sNum" class="num">1</span><span> / 100</span></h2></div>
+      <div><div class="eyebrow">Module 1 · Rhythm interpretation</div><h2>Strip <span id="sNum" class="num">1</span><span> / <span class="nStrips">102</span></span></h2></div>
       <div class="qstats"><span>Answered <b id="sAns" class="num">0</b></span><span>Correct <b id="sCor" class="num">0</b></span><span>Score <b id="sPct" class="num">–</b></span></div>
     </div>
     <div class="progress" style="margin-bottom:16px"><i id="sBar" style="width:0"></i></div>
@@ -359,7 +416,7 @@ main{padding-block:28px 64px}
       </div>
     </div>
     <details class="card grid-nav" id="sGrid">
-      <summary>All 100 strips</summary>
+      <summary>All <span class="nStrips">102</span> strips</summary>
       <div class="dots" id="sDots"></div>
       <div class="legend"><span><i style="background:var(--ok)"></i>Correct</span><span><i style="background:var(--bad)"></i>Incorrect</span><span><i style="background:var(--line-2)"></i>Not answered</span></div>
     </details>
@@ -377,6 +434,19 @@ main{padding-block:28px 64px}
     <div id="mRun" hidden></div>
   </section>
 
+  <!-- SCOREBOARD (instructors) -->
+  <section class="view" id="v-scoreboard" hidden>
+    <div class="qhead">
+      <div><div class="eyebrow">Instructor view · live</div><h2>Class scoreboard</h2></div>
+      <div class="sb-tools">
+        <label class="sel" for="sbCohort"><span>Cohort</span><select id="sbCohort"><option value="">All</option></select></label>
+        <label class="sel" for="sbSort"><span>Sort</span><select id="sbSort"><option value="recent">Last active</option><option value="score">Overall score</option><option value="name">Name</option><option value="progress">Progress</option></select></label>
+        <button class="btn btn-ghost" id="sbCsv" hidden>Download CSV</button>
+      </div>
+    </div>
+    <div id="sbBody"><div class="card panel"><p class="empty">Loading results…</p></div></div>
+  </section>
+
   <!-- RESULTS -->
   <section class="view" id="v-results" hidden>
     <div id="rBody"></div>
@@ -390,11 +460,13 @@ main{padding-block:28px 64px}
 (function(){
 "use strict";
 var D = window.TRAINER, P = D.practice, CASES = D.cases, CATS = D.cats;
+var N = P.length;
+document.querySelectorAll(".nStrips").forEach(function(e){e.textContent=N});
 var TOTAL_Q = CASES.reduce(function(a,c){return a+c.stages.length},0);
-var KEY = "ecg-megacode-lab-v1";
+var KEY = "ecg-megacode-lab-v2";
 var S = {p:{}, m:{}, pi:1, ci:null};
-try{ var raw = localStorage.getItem(KEY); if(raw){ var o = JSON.parse(raw); if(o && o.p) S = Object.assign(S,o); } }catch(e){}
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+try{ var raw = localStorage.getItem(KEY); if(raw){ var o = JSON.parse(raw); if(o && o.p) S = Object.assign(S,o); if(S.pi>N) S.pi=1; } }catch(e){}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} if(window.__push) window.__push(); }
 var $ = function(id){return document.getElementById(id)};
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 
@@ -450,9 +522,9 @@ function ring(el, frac, label){
 function updateTally(){
   var s=stripScore(), m=megaScore();
   $("tStrips").textContent = s.c+"/"+s.a; $("tMega").textContent = m.c+"/"+m.a;
-  ring($("ringStrips"), s.a/100, s.a+"%");
+  ring($("ringStrips"), s.a/N, pct(s.a,N)+"%");
   ring($("ringMega"), m.a/TOTAL_Q, pct(m.a,TOTAL_Q)+"%");
-  $("goStrips").textContent = s.a===0 ? "Start strips" : (s.a===100 ? "Review strips" : "Resume at strip "+S.pi);
+  $("goStrips").textContent = s.a===0 ? "Start strips" : (s.a===N ? "Review strips" : "Resume at strip "+S.pi);
   $("hQ").textContent = TOTAL_Q;
 }
 
@@ -467,7 +539,7 @@ function renderStrip(){
   $("sPaper").innerHTML = stripSVG(q.strip, "paper", false);
   var sc = stripScore();
   $("sAns").textContent = sc.a; $("sCor").textContent = sc.c; $("sPct").textContent = sc.a? pct(sc.c,sc.a)+"%" : "–";
-  $("sBar").style.width = sc.a+"%";
+  $("sBar").style.width = pct(sc.a,N)+"%";
   var letters="ABCD";
   $("sOpts").innerHTML = q.options.map(function(o,i){
     var cls = "";
@@ -476,7 +548,7 @@ function renderStrip(){
   }).join("");
   $("sFb").innerHTML = done ? stripFeedback(q, chosen) : "";
   $("sPrev").disabled = S.pi===1;
-  $("sNext").textContent = S.pi===100 ? "See results →" : (done ? "Next strip →" : "Skip →");
+  $("sNext").textContent = S.pi===N ? "See results →" : (done ? "Next strip →" : "Skip →");
   renderDots();
   updateTally();
 }
@@ -504,7 +576,7 @@ $("sOpts").addEventListener("click", function(e){
   var fb=$("sFb"); if(fb.firstChild && fb.getBoundingClientRect().top > window.innerHeight*0.8) fb.scrollIntoView({behavior:"smooth",block:"nearest"});
 });
 $("sPrev").addEventListener("click", function(){ if(S.pi>1){S.pi--; save(); renderStrip(); scrollTop();} });
-$("sNext").addEventListener("click", function(){ if(S.pi<100){S.pi++; save(); renderStrip(); scrollTop();} else location.hash="results"; });
+$("sNext").addEventListener("click", function(){ if(S.pi<N){S.pi++; save(); renderStrip(); scrollTop();} else location.hash="results"; });
 $("sDots").addEventListener("click", function(e){ var b=e.target.closest(".dot"); if(!b)return; S.pi=+b.getAttribute("data-n"); save(); renderStrip(); scrollTop(); });
 function scrollTop(){ window.scrollTo({top:0,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); }
 document.addEventListener("keydown", function(e){
@@ -588,23 +660,23 @@ function bindRun(){
 }
 
 /* ================= RESULTS ================= */
-var GROUPS = [["sinus","Sinus rhythms"],["escape","Junctional & escape"],["ectopy","Ventricular ectopy"],["arrest","Arrest rhythms"],["block","AV blocks"],["paced","Paced rhythms"]];
+var GROUPS = D.groups;
 var confirmReset = false;
 function renderResults(){
-  var s=stripScore(), m=megaScore(), totC=s.c+m.c, totT=100+TOTAL_Q, done=s.a+m.a;
+  var s=stripScore(), m=megaScore(), totC=s.c+m.c, totT=N+TOTAL_Q, done=s.a+m.a;
   var overall = pct(totC,totT), r=62, C=2*Math.PI*r;
   var msg = done===0 ? "Answer strips and megacode decisions to build your score." :
     (done<totT ? "You've answered "+done+" of "+totT+" items. Your score counts unanswered items as incorrect, so finish both modules for a final result." :
     (overall>=90 ? "Excellent. You're reading rhythms and running codes at a high level." : overall>=84 ? "Solid pass-level performance. Review the items below to tighten up." : "Keep practising. Review the missed strips and retry the cases below."));
   var h = '<div class="card score-hero"><svg class="big-ring" viewBox="0 0 150 150"><circle class="t" cx="75" cy="75" r="'+r+'"/><circle class="v" cx="75" cy="75" r="'+r+'" stroke-dasharray="'+(C*overall/100).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 75 75)"/><text x="75" y="86" text-anchor="middle" font-size="40">'+overall+'%</text></svg>'+
     '<div><div class="eyebrow">Final score</div><h2><span class="num">'+totC+'</span> of <span class="num">'+totT+'</span> correct</h2><p>'+msg+'</p>'+
-    '<div class="legend" style="margin-top:12px"><span>Strips: <b class="num">'+s.c+'/100</b> ('+pct(s.c,100)+'%)</span><span>Megacode: <b class="num">'+m.c+'/'+TOTAL_Q+'</b> ('+pct(m.c,TOTAL_Q)+'%)</span></div></div></div>';
+    '<div class="legend" style="margin-top:12px"><span>Strips: <b class="num">'+s.c+'/'+N+'</b> ('+pct(s.c,N)+'%)</span><span>Megacode: <b class="num">'+m.c+'/'+TOTAL_Q+'</b> ('+pct(m.c,TOTAL_Q)+'%)</span></div></div></div>';
   var bars = GROUPS.map(function(g){ var t=0,c=0,a=0; P.forEach(function(q){ if(CATS[q.cat].group===g[0]){t++; var x=S.p[q.n]; if(x!=null){a++; if(x===q.cat)c++;}} });
     return '<div class="barrow"><span>'+g[1]+'</span><span class="track"><i style="width:'+pct(c,t)+'%"></i></span><b>'+c+'/'+t+'</b></div>'; }).join("");
   var missed = P.filter(function(q){ var x=S.p[q.n]; return x!=null && x!==q.cat; });
   var ml = missed.length ? missed.map(function(q){ return '<button data-n="'+q.n+'"><b>#'+q.n+'</b><span style="color:var(--ink)">'+esc(q.name)+'</span></button>'; }).join("") : '<p class="empty">'+(s.a?"No missed strips. Well done.":"No strips answered yet.")+'</p>';
   var cs = CASES.map(function(c,ci){ var k=caseScore(ci); return '<button data-c="'+ci+'"><span style="color:var(--muted);font-size:11.5px">Case '+c.n+'</span><b>'+(k.a?k.c+'/'+k.t:'—')+'</b><span>'+esc(c.title)+'</span></button>'; }).join("");
-  h += '<div class="split"><div class="card panel"><h3>Strips by rhythm family <span class="num">'+s.c+'/100</span></h3><div class="bars">'+bars+'</div><h3 style="margin-top:6px">Missed strips <span class="num">'+missed.length+'</span></h3><div class="missed" id="rMissed">'+ml+'</div></div>'+
+  h += '<div class="split"><div class="card panel"><h3>Strips by rhythm family <span class="num">'+s.c+'/'+N+'</span></h3><div class="bars">'+bars+'</div><h3 style="margin-top:6px">Missed strips <span class="num">'+missed.length+'</span></h3><div class="missed" id="rMissed">'+ml+'</div></div>'+
        '<div class="card panel"><h3>Megacode by case <span class="num">'+m.c+'/'+TOTAL_Q+'</span></h3><div class="case-scores" id="rCases">'+cs+'</div>'+
        '<h3 style="margin-top:6px">Start over</h3><div class="confirm" id="rReset">'+(confirmReset?'<span>Erase all answers in this browser?</span><button class="btn btn-primary" id="rYes">Erase</button><button class="btn btn-ghost" id="rNo">Cancel</button>':'<button class="btn btn-ghost" id="rAsk">Reset all progress</button>')+'</div></div></div>';
   $("rBody").innerHTML = h;
@@ -612,11 +684,11 @@ function renderResults(){
   $("rCases").onclick=function(e){ var b=e.target.closest("button"); if(!b)return; S.ci=+b.getAttribute("data-c"); var k=caseScore(S.ci); S.si=k.a>=k.t?k.t:k.a; save(); location.hash="megacode"; };
   var b; if((b=$("rAsk"))) b.onclick=function(){confirmReset=true; renderResults();};
   if((b=$("rNo"))) b.onclick=function(){confirmReset=false; renderResults();};
-  if((b=$("rYes"))) b.onclick=function(){ S={p:{},m:{},pi:1,ci:null}; save(); confirmReset=false; renderResults(); updateTally(); };
+  if((b=$("rYes"))) b.onclick=function(){ S={p:{},m:{},pi:1,ci:null,cohort:S.cohort||""}; save(); confirmReset=false; renderResults(); updateTally(); };
 }
 
 /* ================= ROUTER ================= */
-var VIEWS=["home","strips","megacode","results"];
+var VIEWS=["home","strips","megacode","results","scoreboard"];
 function route(){
   var v=(location.hash||"#home").slice(1); if(VIEWS.indexOf(v)<0) v="home";
   VIEWS.forEach(function(x){ $("v-"+x).hidden = x!==v; });
@@ -625,10 +697,169 @@ function route(){
   if(v==="megacode") renderMega();
   if(v==="results") renderResults();
   if(v==="home") updateTally();
+  if(v==="scoreboard"){ if(SB.admin){ watchBoard(); renderBoard(); } else { $("sbCsv").hidden=true; $("sbBody").innerHTML='<div class="card panel"><h3>Instructor view</h3><p class="empty">The class scoreboard is visible to the page owner and Editors only. Your own results are on the Results tab.</p></div>'; } }
 }
 window.addEventListener("hashchange", function(){ route(); window.scrollTo(0,0); });
 $("heroScreen").innerHTML = stripSVG(D.strips.p1 ? heroKey() : Object.keys(D.strips)[0], "monitor", "loop", 3000);
 function heroKey(){ for(var i=0;i<P.length;i++) if(P[i].cat==="Normal sinus rhythm") return P[i].strip; return P[0].strip; }
-updateTally(); route();
+/* ================= SHARED SCOREBOARD ================= */
+var SB = {db:null, user:null, uid:null, admin:false, ready:false, state:"local", rows:null, open:null, last:"", timer:null, writing:false, again:false, err:null};
+var SYNC_TXT = {local:"Saved on this device", synced:"Shared with instructor", saving:"Saving…", readonly:"Not shared", error:"Sync paused"};
+var SHARE_TXT = {
+  local:"Your progress is saved on this device. Open this page signed in to claude.ai to share results with your instructor.",
+  synced:"Your results are shared with your instructor automatically after every answer.",
+  saving:"Saving your latest answer for your instructor…",
+  readonly:"Your results can't be shared yet: your access to this page is view-only. Ask your instructor to give you Contributor access.",
+  error:"Your last answer couldn't reach the scoreboard. It's saved on this device and will sync on your next answer."};
+function setSync(st){ SB.state=st; var c=$("tSync"); c.setAttribute("data-s",st); c.textContent=SYNC_TXT[st]; $("shareMsg").textContent=SHARE_TXT[st]; }
+function summaryDoc(){
+  var s=stripScore(), m=megaScore(), groups={};
+  GROUPS.forEach(function(g){ var t=0,c=0,a=0; P.forEach(function(q){ if(CATS[q.cat].group===g[0]){ t++; var x=S.p[q.n]; if(x!=null){a++; if(x===q.cat)c++;} } }); groups[g[0]]=[c,a,t]; });
+  var cases=CASES.map(function(_,ci){ var k=caseScore(ci); return [k.c,k.a,k.t]; });
+  return {v:2, cohort:(S.cohort||"").slice(0,40), strips:{c:s.c,a:s.a,n:N}, mega:{c:m.c,a:m.a,n:TOTAL_Q},
+    overall:pct(s.c+m.c, N+TOTAL_Q), groups:groups, cases:cases, p:S.p, m:S.m};
+}
+function pushNow(){
+  if(!SB.db || !SB.uid || SB.state==="readonly") return;
+  var doc=summaryDoc(), sig=JSON.stringify(doc);
+  if(sig===SB.last) return;
+  if(SB.writing){ SB.again=true; return; }
+  SB.writing=true; setSync("saving");
+  doc.updatedAt=Date.now();
+  SB.db.doc("scores/"+SB.uid).set(doc).then(function(){ SB.last=sig; setSync("synced"); })
+  .catch(function(e){ setSync(e && e.code==="invalid_argument" ? "readonly" : "error"); })
+  .then(function(){ SB.writing=false; if(SB.again){ SB.again=false; pushNow(); } });
+}
+window.__push=function(){ if(!SB.ready) return; clearTimeout(SB.timer); SB.timer=setTimeout(pushNow, 700); };
+$("cohort").value = S.cohort || "";
+$("cohort").addEventListener("change", function(){ S.cohort=this.value.trim().slice(0,40); save(); });
+
+function initShared(){
+  if(!window.claude || typeof window.claude.use!=="function"){ setSync("local"); return; }
+  Promise.all([window.claude.use("user"), window.claude.use("db")]).then(function(r){
+    SB.user=r[0]; SB.db=r[1];
+    if(!SB.user || !SB.db){ setSync("local"); return; }
+    return Promise.all([SB.user.id(), SB.user.isOwner(), SB.user.canEdit(), SB.user.can("data.write")]).then(function(v){
+      SB.uid=v[0]; SB.admin=!!(v[1]||v[2]);
+      if(v[3]===false && !SB.admin){ if(SB.uid){ setSync("readonly"); } else setSync("local"); SB.uid=null; return; }
+      if(SB.admin){ $("tabBoard").hidden=false; if(location.hash==="#scoreboard") route(); }
+      if(!SB.uid){ setSync("local"); return; }
+      return SB.db.doc("scores/"+SB.uid).get().then(function(snap){
+        var remote = snap.exists ? snap.data() : null, localCount=Object.keys(S.p).length+Object.keys(S.m).length;
+        if(remote && localCount===0 && remote.p && (Object.keys(remote.p).length+Object.keys(remote.m||{}).length)>0){
+          S.p=remote.p||{}; S.m=remote.m||{}; S.cohort=remote.cohort||S.cohort||""; $("cohort").value=S.cohort;
+          try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
+          SB.last=JSON.stringify(summaryDoc()); setSync("synced"); route();
+        } else if(remote){ setSync("synced"); }
+        else setSync(SB.state==="local"?"synced":SB.state);
+        SB.ready=true;
+        if(localCount>0) pushNow();
+      }, function(){ SB.ready=true; setSync("synced"); });
+    });
+  }).catch(function(){ setSync("local"); });
+}
+
+/* ----- instructor view ----- */
+var sbUnsub=null, sbTimer=null, nameCache={}, avatarCache={};
+function watchBoard(){
+  if(sbUnsub || !SB.db) return;
+  sbTimer=setTimeout(function(){ if(SB.rows===null){ $("sbBody").innerHTML='<div class="card panel"><p class="empty">The scoreboard is taking longer than usual to load. Results will appear here as soon as they arrive.</p></div>'; } }, 10000);
+  sbUnsub = SB.db.collection("scores").onSnapshot(function(snap){
+    clearTimeout(sbTimer);
+    SB.rows = snap.docs.filter(function(d){return d.exists}).map(function(d){ var o=d.data()||{}; o.id=d.id; return o; });
+    resolveNames(SB.rows.map(function(r){return r.id})).then(renderBoard);
+  }, function(){ clearTimeout(sbTimer); sbUnsub=null; $("sbBody").innerHTML='<div class="card panel"><p class="empty">The scoreboard isn\'t available in this view. Open the page in claude.ai while signed in as the instructor.</p></div>'; });
+}
+function resolveNames(ids){
+  if(!SB.user || !ids.length) return Promise.resolve();
+  return SB.user.profiles(ids).then(function(ps){ ids.forEach(function(id){ var p=ps[id]; nameCache[id]=(p&&p.name)||""; avatarCache[id]=p&&p.avatarUrl||""; }); }, function(){});
+}
+function nameOf(r, i){ return nameCache[r.id] || ("Student "+(i+1)); }
+function num(x){ return typeof x==="number" && isFinite(x) ? x : 0; }
+function boardRows(){
+  var rows=(SB.rows||[]).slice(), co=$("sbCohort").value, sort=$("sbSort").value;
+  if(co) rows=rows.filter(function(r){return (r.cohort||"")===co});
+  rows.forEach(function(r,i){ r._i=i; r._name=nameOf(r,i); r._prog=num(r.strips&&r.strips.a)+num(r.mega&&r.mega.a); });
+  rows.sort(function(a,b){
+    if(sort==="score") return num(b.overall)-num(a.overall);
+    if(sort==="name") return a._name.localeCompare(b._name);
+    if(sort==="progress") return b._prog-a._prog;
+    return num(b.updatedAt)-num(a.updatedAt);
+  });
+  return rows;
+}
+function ago(ts){ if(!ts) return "—"; var m=Math.round((Date.now()-ts)/60000); if(m<1) return "just now"; if(m<60) return m+" min ago"; var h=Math.round(m/60); if(h<24) return h+" h ago"; return Math.round(h/24)+" d ago"; }
+function mini(c,t){ var p=pct(c,t); return '<div class="mini"><span class="track"><i style="width:'+p+'%"></i></span><b>'+p+'%</b></div>'; }
+function renderBoard(){
+  if(location.hash!=="#scoreboard") return;
+  var all=SB.rows||[];
+  var cohorts={}; all.forEach(function(r){ if(r.cohort) cohorts[r.cohort]=1; });
+  var sel=$("sbCohort"), cur=sel.value;
+  sel.innerHTML='<option value="">All</option>'+Object.keys(cohorts).sort().map(function(c){return '<option'+(c===cur?' selected':'')+'>'+esc(c)+'</option>'}).join("");
+  var rows=boardRows();
+  $("sbCsv").hidden = !rows.length;
+  if(!rows.length){
+    $("sbBody").innerHTML='<div class="card panel"><h3>No results yet</h3><p class="empty">Share this page with your students as <b>Contributors</b> (Share menu). Each signed-in student\'s score appears here live as they answer. Students with view-only access can practise, but their results stay on their own device.</p></div>';
+    return;
+  }
+  var n=rows.length, avg=Math.round(rows.reduce(function(a,r){return a+num(r.overall)},0)/n);
+  var sAvg=Math.round(rows.reduce(function(a,r){return a+pct(num(r.strips&&r.strips.c), N)},0)/n);
+  var mAvg=Math.round(rows.reduce(function(a,r){return a+pct(num(r.mega&&r.mega.c), TOTAL_Q)},0)/n);
+  var done=rows.filter(function(r){ return num(r.strips&&r.strips.a)>=N && num(r.mega&&r.mega.a)>=TOTAL_Q; }).length;
+  var h='<div class="stats">'+
+    '<div class="card stat"><small>Students</small><b class="num">'+n+'</b><span>with saved results</span></div>'+
+    '<div class="card stat"><small>Average score</small><b class="num">'+avg+'%</b><span>of '+(N+TOTAL_Q)+' items</span></div>'+
+    '<div class="card stat"><small>Strips</small><b class="num">'+sAvg+'%</b><span>class average</span></div>'+
+    '<div class="card stat"><small>Megacode</small><b class="num">'+mAvg+'%</b><span>class average</span></div>'+
+    '<div class="card stat"><small>Finished</small><b class="num">'+done+'</b><span>completed both modules</span></div></div>';
+  var body=rows.map(function(r){
+    var s=r.strips||{}, m=r.mega||{}, open=SB.open===r.id;
+    var weak="—", wv=101; (GROUPS).forEach(function(g){ var x=(r.groups||{})[g[0]]; if(x && x[1]>=3){ var p=pct(x[0],x[1]); if(p<wv){wv=p; weak=g[1]+" ("+p+"%)";} } });
+    var av=avatarCache[r.id]?'<img src="'+esc(avatarCache[r.id])+'" alt="">':'';
+    var tr='<tr class="row'+(open?' open':'')+'" data-id="'+esc(r.id)+'" tabindex="0" aria-expanded="'+open+'"><td><div class="who">'+av+'<div><b class="nm" data-id="'+esc(r.id)+'"></b>'+(r.cohort?'<small class="co"></small>':'')+'</div></div></td>'+
+      '<td class="mono">'+num(s.c)+' / '+num(s.a)+'<br><small style="color:var(--muted)">of '+N+' answered</small></td>'+
+      '<td class="mono">'+num(m.c)+' / '+num(m.a)+'<br><small style="color:var(--muted)">of '+TOTAL_Q+' answered</small></td>'+
+      '<td>'+mini(num(s.c)+num(m.c), N+TOTAL_Q)+'</td><td>'+esc(weak)+'</td><td class="mono">'+ago(r.updatedAt)+'</td></tr>';
+    if(open) tr+='<tr class="detail"><td colspan="6">'+detailHTML(r)+'</td></tr>';
+    return tr;
+  }).join("");
+  h+='<div class="sb-grid"><div class="card panel"><h3>Students <span class="num">'+n+'</span></h3><div class="tablewrap"><table class="sbt"><thead><tr><th>Student</th><th>Strips</th><th>Megacode</th><th>Overall</th><th>Weakest family</th><th>Last active</th></tr></thead><tbody id="sbRows">'+body+'</tbody></table></div><p class="empty">Overall counts unanswered items as incorrect. Select a student for detail.</p></div>'+
+     '<div class="card panel"><h3>Most-missed strips</h3><div class="hard" id="sbHard">'+hardHTML(rows)+'</div></div></div>';
+  $("sbBody").innerHTML=h;
+  rows.forEach(function(r){ var el=$("sbRows").querySelector('.nm[data-id="'+CSS.escape(r.id)+'"]'); if(el){ el.textContent=r._name; var co=el.parentNode.querySelector(".co"); if(co) co.textContent=r.cohort; } });
+}
+function detailHTML(r){
+  var g=GROUPS.map(function(x){ var v=(r.groups||{})[x[0]]||[0,0,0]; return '<div class="barrow"><span>'+esc(x[1])+'</span><span class="track"><i style="width:'+pct(v[0],v[2])+'%"></i></span><b>'+v[0]+'/'+v[2]+'</b></div>'; }).join("");
+  var missed=P.filter(function(q){ var x=(r.p||{})[q.n]; return x!=null && x!==q.cat; });
+  var ml=missed.length? missed.slice(0,40).map(function(q){ return '<span>#'+q.n+' '+esc(q.name)+'</span>'; }).join("")+(missed.length>40?'<span>+'+(missed.length-40)+' more</span>':'') : '<span>None missed</span>';
+  var cs=(r.cases||[]).map(function(k,ci){ return k&&k[1]? '<span>Case '+(ci+1)+': '+k[0]+'/'+k[2]+'</span>' : ''; }).join("") || '<span>No cases started</span>';
+  return '<div class="inner"><div><h4>Strips by rhythm family</h4><div class="bars">'+g+'</div></div><div><h4>Missed strips ('+missed.length+')</h4><div class="tags">'+ml+'</div><h4 style="margin-top:14px">Megacode cases</h4><div class="tags">'+cs+'</div></div></div>';
+}
+function hardHTML(rows){
+  var stat={}; rows.forEach(function(r){ var p=r.p||{}; Object.keys(p).forEach(function(n){ var q=P[n-1]; if(!q) return; stat[n]=stat[n]||[0,0]; stat[n][1]++; if(p[n]!==q.cat) stat[n][0]++; }); });
+  var list=Object.keys(stat).filter(function(n){return stat[n][0]>0}).sort(function(a,b){ return (stat[b][0]/stat[b][1])-(stat[a][0]/stat[a][1]) || stat[b][0]-stat[a][0]; }).slice(0,12);
+  if(!list.length) return '<p class="empty">No missed strips yet.</p>';
+  return list.map(function(n){ var q=P[n-1], s=stat[n]; return '<button data-n="'+n+'"><b>#'+n+'</b><span>'+esc(q.name)+'</span><em>'+s[0]+'/'+s[1]+'</em></button>'; }).join("");
+}
+$("sbBody").addEventListener("click", function(e){
+  var hb=e.target.closest(".hard button"); if(hb){ S.pi=+hb.getAttribute("data-n"); save(); location.hash="strips"; return; }
+  var tr=e.target.closest("tr.row"); if(tr){ var id=tr.getAttribute("data-id"); SB.open = SB.open===id ? null : id; renderBoard(); }
+});
+$("sbBody").addEventListener("keydown", function(e){ if((e.key==="Enter"||e.key===" ") && e.target.matches("tr.row")){ e.preventDefault(); e.target.click(); } });
+$("sbCohort").addEventListener("change", renderBoard);
+$("sbSort").addEventListener("change", renderBoard);
+$("sbCsv").addEventListener("click", function(){
+  var btn=this, rows=boardRows();
+  var head=["Student","Cohort","Strips correct","Strips answered","Strips total","Megacode correct","Megacode answered","Megacode total","Overall %"].concat(GROUPS.map(function(g){return g[1]+" %"})).concat(["Last active"]);
+  var lines=[head].concat(rows.map(function(r){ var s=r.strips||{}, m=r.mega||{};
+    return [r._name, r.cohort||"", num(s.c), num(s.a), N, num(m.c), num(m.a), TOTAL_Q, num(r.overall)].concat(GROUPS.map(function(g){ var v=(r.groups||{})[g[0]]||[0,0,1]; return pct(v[0],v[2]); })).concat([r.updatedAt? new Date(r.updatedAt).toISOString():""]); }));
+  var csv=lines.map(function(l){ return l.map(function(c){ c=String(c); return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c; }).join(","); }).join("\n");
+  window.claude.use("downloads").then(function(dl){
+    if(!dl){ btn.textContent="Download unavailable here"; btn.disabled=true; return; }
+    return dl.save({filename:"ecg-megacode-scores.csv", data:csv}).catch(function(e){ if(e && e.code!=="declined"){ btn.textContent="Download unavailable here"; btn.disabled=true; } });
+  });
+});
+
+updateTally(); route(); initShared();
 })();
 </script>
