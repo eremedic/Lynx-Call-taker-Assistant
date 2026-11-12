@@ -99,7 +99,7 @@ CASES = [
      ("Stop pacing: capture proves he's fixed", N, "He depends on the pacer; stopping returns him to complete block."),
      ("Give atropine now", N, "Not needed once effective pacing is established.")]},
    {"strip": "tcp_cap", "vitals": "Femoral pulse 80 · BP 104/62 · grimacing", "prompt": "Patient is perfusing but in pain. What now?", "options": [
-     ("Analgesia or sedation per protocol, and transport to a centre that can place a transvenous pacer", Y, "TCP is painful. Treat it, then arrange definitive pacing."),
+     ("Analgesia or sedation per protocol, and transport to a center that can place a transvenous pacer", Y, "TCP is painful. Treat it, then arrange definitive pacing."),
      ("Turn the mA below threshold to stop the pain", N, "Losing capture returns him to unstable bradycardia."),
      ("Adenosine 6 mg", N, "Adenosine has no role here."),
      ("Remove pads for comfort", N, "The pads are delivering therapy.")]},
@@ -118,7 +118,7 @@ CASES = [
      ("Amiodarone first, then shock", N, "Never delay defibrillation for drugs."),
      ("30-second pulse check", N, "Too long. Start compressions and shock.")]},
    {"strip": "nsr", "vitals": "Pulse present · BP 98/60 · after 1 shock", "prompt": "Pulse returns. What now?", "options": [
-     ("Post-ROSC care, 12-lead ECG, consider an antiarrhythmic infusion per protocol, transport to a PCI centre", Y, "Stabilize, look for ischemia, and prevent recurrence."),
+     ("Post-ROSC care, 12-lead ECG, consider an antiarrhythmic infusion per protocol, transport to a PCI center", Y, "Stabilize, look for ischemia, and prevent recurrence."),
      ("Resume CPR for 2 minutes", N, "A pulse is present."),
      ("Lidocaine 3 mg/kg bolus", N, "That is the maximum total dose, not a bolus."), EXTRA_EPI]},
   ]},
@@ -189,7 +189,7 @@ CASES = [
      ("ROSC", N, "ROSC would cause a sudden rise in ETCO₂."),
      ("Give bicarbonate", N, "Not indicated.")]},
    {"strip": "nsr", "vitals": "Pulse present · 12-lead: anterior STEMI", "prompt": "ROSC with STEMI. Destination?", "options": [
-     ("PCI-capable centre with a pre-alert", Y, "Coronary occlusion is the likely cause and needs emergent reperfusion."),
+     ("PCI-capable center with a pre-alert", Y, "Coronary occlusion is the likely cause and needs emergent reperfusion."),
      ("The nearest hospital, regardless of capability", N, "Bypass to PCI where your system allows."),
      ("Nitroglycerin 0.4 mg SL", N, "He is post-arrest and his BP is unknown or soft."), HYPERVENT]},
   ]},
@@ -255,7 +255,7 @@ CASES = [
      ("Amiodarone", N, "Not indicated.")]},
    {"strip": "vf", "vitals": "Pulse: none", "prompt": "He arrests.", "options": shock_first()},
    {"strip": "nsr", "vitals": "Pulse present · BP 90/56", "prompt": "ROSC. Destination?", "options": [
-     ("PCI centre with a STEMI pre-alert; post-ROSC care", Y, "He needs emergent reperfusion."),
+     ("PCI center with a STEMI pre-alert; post-ROSC care", Y, "He needs emergent reperfusion."),
      HYPERVENT, EXTRA_EPI, ("The closest non-PCI hospital", N, "Bypass to PCI per system design.")]},
   ]},
  {"title": "Inferior MI and grouped beats", "focus": "Wenckebach and atropine",
@@ -287,7 +287,7 @@ CASES = [
      ("Defibrillate", N, "He has a pulse.")]},
    {"strip": "vt_vf", "vitals": "Suddenly unresponsive", "prompt": "The rhythm changes during the strip.", "options": shock_first()},
    {"strip": "nsr", "vitals": "Pulse present · BP 102/64", "prompt": "ROSC. Next?", "options": [ROSC_CARE, HYPERVENT, EXTRA_EPI,
-     ("Give a second dose of fibrinolytic", N, "Not indicated. Continue to the PCI centre.")]},
+     ("Give a second dose of fibrinolytic", N, "Not indicated. Continue to the PCI center.")]},
   ]},
  {"title": "After ROSC", "focus": "Post-cardiac arrest care",
   "scenario": "A 57-year-old regains a pulse after 2 shocks for VF.",
@@ -303,7 +303,7 @@ CASES = [
      ("Re-arrest", N, "She still has a pulse."),
      ("Bag faster", N, "That lowers CO₂ further.")]},
    {"strip": "nsr", "vitals": "GCS 6 · glucose 3.0 mmol/L (54 mg/dL)", "prompt": "Other priorities?", "options": [
-     ("Treat hypoglycemia, prevent fever, transport to a cardiac arrest centre", Y, "These are part of the post-ROSC bundle."),
+     ("Treat hypoglycemia, prevent fever, transport to a cardiac arrest center", Y, "These are part of the post-ROSC bundle."),
      ("Ignore the glucose", N, "Hypoglycemia worsens brain injury."),
      ("Active warming to 38 °C", N, "Prevent fever; don't induce hyperthermia."), HYPERVENT]},
   ]},

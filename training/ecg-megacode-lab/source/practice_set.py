@@ -258,7 +258,7 @@ def build():
     for iv, sd, stem in (([0.46, 0.58, 0.42, 0.62, 0.5], 122, "COPD patient, SpO₂ 84%."), ([0.42, 0.5, 0.38, 0.54, 0.46], 123, "Pneumonia, working hard to breathe.")):
         T("Multifocal atrial tachycardia (MAT)", multi_p(iv, sd), stem, "Irregularly irregular", "≥ 3 shapes, changing beat to beat", "Varies", NARROW, ["Treat the cause: oxygen, bronchodilators", "Cardioversion is not effective"])
     for r, sd, stem in ((160, 124, "Sudden palpitations, BP 122/80, alert."), (185, 125, "Young woman, abrupt-onset racing heart."), (215, 126, "Pale, BP 82/50, chest discomfort.")):
-        act = ["Unstable: synchronized cardioversion 50–100 J"] if r == 215 else ["Stable: vagal manoeuvre, then adenosine 6 mg rapid push, then 12 mg", "Record the strip during adenosine"]
+        act = ["Unstable: synchronized cardioversion 50–100 J"] if r == 215 else ["Stable: vagal maneuver, then adenosine 6 mg rapid push, then 12 mg", "Record the strip during adenosine"]
         T("Supraventricular tachycardia (SVT)", svt(r, sd), stem, "Regular", "Not visible", "Not measurable", NARROW, act)
     for ratios, label, sd, stem in (([4], "4:1", 127, "75-year-old with palpitations."), ([2], "2:1", 128, "Regular rate of exactly ~150, BP 110/70."), ([3], "3:1", 129, "Known flutter, routine transport."), ([2, 4, 3, 4, 2, 3], "variable", 130, "Irregular pulse, mild dyspnea.")):
         st = flutter(ratios, sd)
@@ -311,10 +311,10 @@ def build():
     for pp, kind, sd, stem in ((0.7, "n", 178, "Weak and dizzy, BP 98/60."), (0.72, "w", 179, "Fatigue and dyspnea, BP 88/52.")):
         st = E.block_ratio(2, pp, kind, sd)
         T("2nd-degree AV block, 2:1", st, stem, "Regular", f"Atrial {E.ar(st)}; 2 per QRS", "0.20 s on conducted beats", NARROW if kind == "n" else WIDE, ["The type can't be determined from 2:1 alone", "Narrow: atropine may help. Wide: pace."])
-    for ratio, pp, sd, stem in ((3, 0.6, 180, "Syncope, HR in the 30s."), (4, 0.5, 181, "Grey and clammy, BP 74/40.")):
+    for ratio, pp, sd, stem in ((3, 0.6, 180, "Syncope, HR in the 30s."), (4, 0.5, 181, "Gray and clammy, BP 74/40.")):
         st = E.block_ratio(ratio, pp, "w", sd)
         T("Advanced (high-grade) AV block", st, stem, "Regular", f"Atrial {E.ar(st)}; {ratio} per QRS", "0.20 s on conducted beats", WIDE, ["Treat like complete heart block", "Transcutaneous pacing; epinephrine or dopamine bridge"], name=f"Advanced (high-grade) AV block, {ratio}:1")
-    for pr_, vr_, kind, sd, q0, stem in ((85, 34, "w", 182, 0.55, "Grey, diaphoretic 78-year-old, BP 70/40."), (80, 45, "n", 183, 0.35, "Inferior MI, alert, BP 104/66."), (100, 30, "w", 184, 0.8, "Found on the floor, GCS 11."), (70, 40, "n", 185, 0.4, "Lyme disease patient, fatigue.")):
+    for pr_, vr_, kind, sd, q0, stem in ((85, 34, "w", 182, 0.55, "Gray, diaphoretic 78-year-old, BP 70/40."), (80, 45, "n", 183, 0.35, "Inferior MI, alert, BP 104/66."), (100, 30, "w", 184, 0.8, "Found on the floor, GCS 11."), (70, 40, "n", 185, 0.4, "Lyme disease patient, fatigue.")):
         st = E.chb(pr_, vr_, kind, sd, q0=q0)
         T("3rd-degree (complete) AV block", st, stem, "R–R regular; P–P regular; unrelated", f"Atrial {E.ar(st)}; unrelated to QRS", "None, varies (AV dissociation)", NARROW if kind == "n" else WIDE, ["Unstable: transcutaneous pacing", "Bridge: epinephrine 2–10 mcg/min or dopamine"], name="3rd-degree (complete) AV block, " + ("junctional escape" if kind == "n" else "ventricular escape"))
     # ===== PACED (17) =====
