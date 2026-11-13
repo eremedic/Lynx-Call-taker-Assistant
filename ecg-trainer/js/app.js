@@ -6,6 +6,8 @@
   var RHYTHMS = ECGContent.RHYTHMS;
   var main = document.getElementById('main');
   var cleanup = [];
+  // Set by the platform bridge (end of file) when running inside CSHealthED.
+  var progressHooks = { saved: function () {}, attempt: function () {} };
 
   /* ------------------------------------------------------------ utils */
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -28,7 +30,7 @@
   var store = (function () {
     var data = { viewed: {}, quiz: {}, lessons: {}, lab: { attempted: 0, correct: 0, best: 0 } };
     try { var raw = localStorage.getItem(KEY); if (raw) data = Object.assign(data, JSON.parse(raw)); } catch (e) { /* storage unavailable */ }
-    function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { /* ignore */ } }
+    function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { /* ignore */ } progressHooks.saved(); }
     return {
       data: data,
       view: function (id) { if (!data.viewed[id]) { data.viewed[id] = true; save(); } },
@@ -593,6 +595,7 @@
     function results() {
       var pct = Math.round((score / N) * 100), pass = pct >= 80;
       store.score(m.id, pct);
+      progressHooks.attempt('quiz:' + m.id, pct);
       var uniqMissed = missed.filter(function (r, i) { return missed.indexOf(r) === i; });
       root.innerHTML = '<div class="panel result"><div class="ring" style="--p:' + pct + ';--rc:' + (pass ? 'var(--ok)' : 'var(--red)') + '"><div>' + pct + '%</div></div>' +
         '<h2>' + (pass ? 'Passed — great work!' : 'Keep practicing') + '</h2>' +
@@ -624,7 +627,7 @@
     var KEYC = 'cshealthed-ecg-course-v1';
     var d = { lessons: {}, kc: {}, quiz: {}, exam: null, name: '', passedOn: null, rate: 1 };
     try { var raw = localStorage.getItem(KEYC); if (raw) d = Object.assign(d, JSON.parse(raw)); } catch (e) { /* storage unavailable */ }
-    function save() { try { localStorage.setItem(KEYC, JSON.stringify(d)); } catch (e) { /* ignore */ } }
+    function save() { try { localStorage.setItem(KEYC, JSON.stringify(d)); } catch (e) { /* ignore */ } progressHooks.saved(); }
     return {
       data: d, save: save,
       done: function (k) { if (!d.lessons[k]) { d.lessons[k] = true; save(); } },
@@ -1354,6 +1357,7 @@
       if (exam) { if (!(course.data.exam >= pct)) course.data.exam = pct; if (pass && !course.data.passedOn) course.data.passedOn = new Date().toISOString().slice(0, 10); }
       else if (!(course.data.quiz[u.id] >= pct)) course.data.quiz[u.id] = pct;
       course.save();
+      progressHooks.attempt(exam ? 'course:exam' : 'course:' + u.id + '.quiz', pct);
       var nu = exam ? null : UNITS[unitIndex(u) + 1];
       var cont = !pass ? '' : exam ? '<a class="btn btn-primary" href="#course-cert">View your certificate →</a>' : nu ? '<a class="btn btn-primary" href="#course-' + nu.id + '">Continue to Unit ' + (unitIndex(u) + 2) + ' →</a>' : '<a class="btn btn-primary" href="#course-exam">Take the final exam →</a>';
       var review = missed.map(function (Q) {
@@ -1783,6 +1787,7 @@
     function results() {
       var pct = Math.round((score / N) * 100), pass = pct >= 80;
       store.score('twelve', pct);
+      progressHooks.attempt('quiz:twelve', pct);
       var um = missed.filter(function (r, i) { return missed.indexOf(r) === i; });
       root.innerHTML = '<div class="panel result"><div class="ring" style="--p:' + pct + ';--rc:' + (pass ? 'var(--ok)' : 'var(--red)') + '"><div>' + pct + '%</div></div>' +
         '<h2>' + (pass ? 'Passed — great work!' : 'Keep practicing') + '</h2>' +
@@ -2140,5 +2145,77 @@
   new MutationObserver(redrawForTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   syncThemeButton();
   $('#year').textContent = new Date().getFullYear();
+  /* ------------------------------------------------------------ platform progress bridge */
+  // Inside the CSHealthED platform (?embed=1, same-origin iframe) the trainer
+  // reports progress to the host page, which saves it to the student's account,
+  // and receives saved progress back so it follows the student between devices.
+  // Run on its own (no host page) this does nothing.
+  (function () {
+    var host = window.parent;
+    if (!document.documentElement.classList.contains('embedded') || !host || host === window) return;
+    var KEY_RE = /^[A-Za-z0-9:._-]{1,120}$/, timer = null, applying = false;
+    function post(msg) {
+      msg.source = 'cshealthed-trainer'; msg.trainer = 'ecg';
+      try { host.postMessage(msg, location.origin); } catch (e) { /* host gone */ }
+    }
+    function snapshot() {
+      var d = store.data, c = course.data, items = [];
+      Object.keys(d.viewed || {}).forEach(function (k) {
+        if (d.viewed[k]) items.push({ key: k.indexOf('12:') === 0 ? 'twelve:' + k.slice(3) : 'rhythm:' + k, status: 'completed' });
+      });
+      Object.keys(d.lessons || {}).forEach(function (k) { if (d.lessons[k]) items.push({ key: 'module:' + k, status: 'completed' }); });
+      Object.keys(d.quiz || {}).forEach(function (k) { if (d.quiz[k] != null) items.push({ key: 'quiz:' + k, score: d.quiz[k] }); });
+      if (d.lab && d.lab.attempted) items.push({ key: 'lab', status: 'in_progress', data: { attempted: d.lab.attempted, correct: d.lab.correct || 0, best: d.lab.best || 0 } });
+      Object.keys(c.lessons || {}).forEach(function (k) { if (c.lessons[k]) items.push({ key: 'course:' + k, status: 'completed' }); });
+      Object.keys(c.quiz || {}).forEach(function (k) { if (c.quiz[k] != null) items.push({ key: 'course:' + k + '.quiz', score: c.quiz[k] }); });
+      if (c.exam != null) items.push({ key: 'course:exam', score: c.exam });
+      return items.filter(function (it) { return KEY_RE.test(it.key); });
+    }
+    function sendSnapshot() { clearTimeout(timer); timer = null; post({ type: 'snapshot', items: snapshot() }); }
+    function max(a, b) { return a == null ? b : b == null ? a : Math.max(a, b); }
+    // Fold progress saved on the account into this browser's progress.
+    function apply(items) {
+      var d = store.data, c = course.data, changed = false;
+      function set(obj, k, v) { if (obj[k] !== v) { obj[k] = v; changed = true; } }
+      items.forEach(function (it) {
+        var k = String(it.item_key || ''), done = it.status === 'completed' || it.status === 'passed', sc = it.best_score;
+        if (k.indexOf('rhythm:') === 0) { if (done) set(d.viewed, k.slice(7), true); }
+        else if (k.indexOf('twelve:') === 0) { if (done) set(d.viewed, '12:' + k.slice(7), true); }
+        else if (k.indexOf('module:') === 0) { if (done) set(d.lessons, k.slice(7), true); }
+        else if (k.indexOf('quiz:') === 0) { if (sc != null) set(d.quiz, k.slice(5), max(d.quiz[k.slice(5)], sc)); }
+        else if (k === 'lab' && it.data) {
+          d.lab = d.lab || { attempted: 0, correct: 0, best: 0 };
+          ['attempted', 'correct', 'best'].forEach(function (f) { if (typeof it.data[f] === 'number') set(d.lab, f, max(d.lab[f], it.data[f])); });
+        }
+        else if (k === 'course:exam') {
+          if (sc != null) set(c, 'exam', max(c.exam, sc));
+          if (it.status === 'passed' && !c.passedOn && it.completed_at) set(c, 'passedOn', String(it.completed_at).slice(0, 10));
+        }
+        else if (/^course:[a-z]+\.quiz$/.test(k)) { if (sc != null) set(c.quiz, k.slice(7, -5), max(c.quiz[k.slice(7, -5)], sc)); }
+        else if (k.indexOf('course:') === 0) { if (done) set(c.lessons, k.slice(7), true); }
+      });
+      if (!changed) return;
+      applying = true; store.save(); course.save(); applying = false;
+      // Refresh the page to show restored progress, unless a quiz or the lab is in progress.
+      if (!/^#(q-|lab|course-[a-z]+-quiz|course-exam)/.test(location.hash)) route();
+    }
+    progressHooks.saved = function () {
+      if (applying) return;
+      clearTimeout(timer);
+      timer = setTimeout(sendSnapshot, 1500);
+    };
+    progressHooks.attempt = function (key, score) {
+      if (KEY_RE.test(key)) post({ type: 'attempt', key: key, score: Math.max(0, Math.min(100, Math.round(score))) });
+    };
+    window.addEventListener('message', function (e) {
+      if (e.origin !== location.origin || e.source !== host || !e.data || e.data.source !== 'cshealthed-host') return;
+      if (e.data.type === 'state' && Array.isArray(e.data.items)) { apply(e.data.items); sendSnapshot(); }
+    });
+    // Don't lose a pending save when the student leaves the page.
+    window.addEventListener('pagehide', function () { if (timer) sendSnapshot(); });
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && timer) sendSnapshot(); });
+    post({ type: 'ready' });
+  })();
+
   route();
 })();

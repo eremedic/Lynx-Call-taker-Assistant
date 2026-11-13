@@ -5,6 +5,8 @@
   var D = window.PharmData, L = window.PharmLabels, C = window.PharmCalc, SCN = window.PharmScenarios, Syringe = window.Syringe;
   var main = document.getElementById('main');
   var cleanup = [];
+  // Set by the platform bridge (end of file) when running inside CSHealthED.
+  var progressHooks = { saved: function () {}, attempt: function () {} };
 
   /* ---------------------------------------------------------------- utils */
   function $(s, r) { return (r || document).querySelector(s); }
@@ -22,7 +24,7 @@
   var store = (function () {
     var data = { known: {}, calc: { att: 0, cor: 0 }, draw: { att: 0, cor: 0 }, scen: {}, drips: {}, exam: null };
     try { var raw = localStorage.getItem(KEY); if (raw) data = Object.assign(data, JSON.parse(raw)); } catch (e) { /* storage unavailable */ }
-    function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { /* ignore */ } }
+    function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { /* ignore */ } progressHooks.saved(); }
     return {
       data: data, save: save,
       reset: function () { data.known = {}; data.calc = { att: 0, cor: 0 }; data.draw = { att: 0, cor: 0 }; data.scen = {}; data.drips = {}; data.exam = null; save(); }
@@ -479,6 +481,7 @@
     function finish() {
       var score = results.filter(Boolean).length, p = Math.round(score / results.length * 100);
       if (!(store.data.scen[s.id] >= p)) { store.data.scen[s.id] = p; store.save(); }
+      progressHooks.attempt('scenario:' + s.id, p);
       var nextS = SCN[(SCN.indexOf(s) + 1) % SCN.length];
       $('#step-host').innerHTML = '<div class="result"><div class="ring" style="--p:' + p + ';--rc:' + (p >= 80 ? 'var(--ok)' : 'var(--red)') + '"><div>' + p + '%</div></div><h2>' + (p === 100 ? 'Flawless run!' : p >= 80 ? 'Well managed' : 'Review and try again') + '</h2>' +
         '<p class="muted">' + score + ' of ' + results.length + ' steps correct on the first attempt.</p>' +
@@ -647,6 +650,7 @@
       var score = results.filter(Boolean).length, p = Math.round(score / results.length * 100);
       store.data.drips = store.data.drips || {};
       if (!(store.data.drips[c.id] >= p)) { store.data.drips[c.id] = p; store.save(); }
+      progressHooks.attempt('drip:' + c.id, p);
       var nxt = DRIPS[(DRIPS.indexOf(c) + 1) % DRIPS.length];
       $('#step-host').innerHTML = '<div class="result"><div class="ring" style="--p:' + p + ';--rc:' + (p >= 80 ? 'var(--ok)' : 'var(--red)') + '"><div>' + p + '%</div></div><h2>' + (p === 100 ? 'Drip running perfectly' : p >= 80 ? 'Well done' : 'Review and try again') + '</h2>' +
         '<p class="muted">' + score + ' of ' + results.length + ' steps correct on the first attempt. The drip keeps running on the left so you can practice counting.</p>' +
@@ -742,6 +746,7 @@
     function finish() {
       var p = Math.round(score / N * 100), pass = p >= 80;
       if (!(store.data.exam >= p)) { store.data.exam = p; store.save(); }
+      progressHooks.attempt('exam', p);
       root.innerHTML = '<div class="panel result"><div class="ring" style="--p:' + p + ';--rc:' + (pass ? 'var(--ok)' : 'var(--red)') + '"><div>' + p + '%</div></div><h2>' + (pass ? 'Passed — well done!' : 'Keep practicing') + '</h2><p class="muted">' + score + ' of ' + N + ' correct. ' + (pass ? '' : 'A score of 80% is needed to pass.') + '</p>' +
         (missed.length ? '<div class="review-list"><h3>Review these</h3><ul>' + missed.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') + '</ul></div>' : '') +
         '<div class="hero-cta" style="justify-content:center"><button class="btn btn-primary" id="ex-retry">New exam</button><a class="btn btn-ghost" href="#calc">Practice med math</a><a class="btn btn-ghost" href="#cards">Flashcards</a></div></div>';
@@ -826,5 +831,70 @@
   syncTheme();
 
   $('#year').textContent = new Date().getFullYear();
+  /* ---------------------------------------------------------------- platform progress bridge */
+  // Inside the CSHealthED platform (?embed=1, same-origin iframe) the trainer
+  // reports progress to the host page, which saves it to the student's account,
+  // and receives saved progress back so it follows the student between devices.
+  // Run on its own (no host page) this does nothing.
+  (function () {
+    var host = window.parent;
+    if (!document.documentElement.classList.contains('embedded') || !host || host === window) return;
+    var KEY_RE = /^[A-Za-z0-9:._-]{1,120}$/, timer = null, applying = false;
+    function post(msg) {
+      msg.source = 'cshealthed-trainer'; msg.trainer = 'pharm';
+      try { host.postMessage(msg, location.origin); } catch (e) { /* host gone */ }
+    }
+    function snapshot() {
+      var d = store.data, items = [];
+      Object.keys(d.scen || {}).forEach(function (k) { if (d.scen[k] != null) items.push({ key: 'scenario:' + k, score: d.scen[k] }); });
+      Object.keys(d.drips || {}).forEach(function (k) { if (d.drips[k] != null) items.push({ key: 'drip:' + k, score: d.drips[k] }); });
+      if (d.exam != null) items.push({ key: 'exam', score: d.exam });
+      var known = Object.keys(d.known || {}).filter(function (k) { return d.known[k]; }).length;
+      if (known) items.push({ key: 'flashcards', status: 'in_progress', data: { mastered: known } });
+      if (d.calc && d.calc.att) items.push({ key: 'calc', status: 'in_progress', data: { attempted: d.calc.att, correct: d.calc.cor } });
+      if (d.draw && d.draw.att) items.push({ key: 'drawup', status: 'in_progress', data: { attempted: d.draw.att, correct: d.draw.cor } });
+      return items.filter(function (it) { return KEY_RE.test(it.key); });
+    }
+    function sendSnapshot() { clearTimeout(timer); timer = null; post({ type: 'snapshot', items: snapshot() }); }
+    function max(a, b) { return a == null ? b : b == null ? a : Math.max(a, b); }
+    // Fold progress saved on the account into this browser's progress.
+    // (Individual flashcards aren't stored on the account, only the count.)
+    function apply(items) {
+      var d = store.data, changed = false;
+      function set(obj, k, v) { if (obj[k] !== v) { obj[k] = v; changed = true; } }
+      d.scen = d.scen || {}; d.drips = d.drips || {};
+      items.forEach(function (it) {
+        var k = String(it.item_key || ''), sc = it.best_score, x = it.data || {};
+        if (k.indexOf('scenario:') === 0) { if (sc != null) set(d.scen, k.slice(9), max(d.scen[k.slice(9)], sc)); }
+        else if (k.indexOf('drip:') === 0) { if (sc != null) set(d.drips, k.slice(5), max(d.drips[k.slice(5)], sc)); }
+        else if (k === 'exam') { if (sc != null) set(d, 'exam', max(d.exam, sc)); }
+        else if (k === 'calc' || k === 'drawup') {
+          var o = k === 'calc' ? d.calc : d.draw;
+          if (typeof x.attempted === 'number' && x.attempted > o.att) { o.att = x.attempted; o.cor = typeof x.correct === 'number' ? x.correct : o.cor; changed = true; }
+        }
+      });
+      if (!changed) return;
+      applying = true; store.save(); applying = false;
+      // Refresh the page to show restored progress, unless an activity is in progress.
+      if (!/^#(s-|dr-|exam|calc|drawup|cards)/.test(location.hash)) route();
+    }
+    progressHooks.saved = function () {
+      if (applying) return;
+      clearTimeout(timer);
+      timer = setTimeout(sendSnapshot, 1500);
+    };
+    progressHooks.attempt = function (key, score) {
+      if (KEY_RE.test(key)) post({ type: 'attempt', key: key, score: Math.max(0, Math.min(100, Math.round(score))) });
+    };
+    window.addEventListener('message', function (e) {
+      if (e.origin !== location.origin || e.source !== host || !e.data || e.data.source !== 'cshealthed-host') return;
+      if (e.data.type === 'state' && Array.isArray(e.data.items)) { apply(e.data.items); sendSnapshot(); }
+    });
+    // Don't lose a pending save when the student leaves the page.
+    window.addEventListener('pagehide', function () { if (timer) sendSnapshot(); });
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && timer) sendSnapshot(); });
+    post({ type: 'ready' });
+  })();
+
   route();
 })();
