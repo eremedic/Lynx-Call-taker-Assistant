@@ -861,3 +861,27 @@ input, select, textarea { background: var(--card); color: var(--ink); }
    instruction headings with bold words must flow as normal sentences. */
 .panel h3:not(:has(.ic)) { display: block; }
 .panel h3 .hint { display: block; margin-top: 6px; font-weight: 500; }
+
+/* Drip Lab: digital stopwatch beside the drip chamber */
+.drip-stage { position: relative; max-width: 300px; margin: 0 auto; }
+.drip-stage .drip-svg { max-width: none; }
+.dw { position: absolute; left: 0; top: 46.5%; width: 38%; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.dw-bezel { width: 100%; background: linear-gradient(160deg, #334155, #0f172a); border-radius: 14px; padding: 6px 6px 7px; box-shadow: 0 4px 10px rgba(15,23,42,.35), inset 0 1px 0 rgba(255,255,255,.12); }
+.dw-top { display: flex; justify-content: space-between; align-items: center; font: 800 .5rem var(--font); letter-spacing: .14em; color: #94a3b8; padding: 0 4px 3px; }
+.dw-run-dot { width: 6px; height: 6px; border-radius: 50%; background: #475569; }
+.dw.running .dw-run-dot { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+.dw-lcd { display: block; width: 100%; height: auto; background: linear-gradient(180deg, #c9d8b6, #b4c79c); border-radius: 6px; box-shadow: inset 0 1px 3px rgba(0,0,0,.35); }
+.dw-lcd polygon { fill: rgba(30, 41, 22, .045); }
+.dw-lcd polygon.dw-on, .dw-lcd .dw-on, .dw-lcd .dw-colon { fill: #1c2a12; }
+.dw.running .dw-colon { animation: dw-blink 1s steps(2, start) infinite; }
+@keyframes dw-blink { to { opacity: .15; } }
+.dw-cap { font: 800 5px var(--font); fill: #3f5230; letter-spacing: .1em; text-anchor: middle; }
+.dw-q { display: flex; justify-content: space-between; gap: 3px; margin-top: 5px; padding: 0 2px; }
+.dw-q span { flex: 1; text-align: center; font: 800 .52rem var(--font); color: #64748b; border-top: 3px solid #475569; padding-top: 2px; border-radius: 2px; }
+.dw-q span.lit { color: #4ade80; border-top-color: #22c55e; }
+.dw-btns { display: flex; gap: 5px; width: 100%; }
+.dw-btns button { flex: 1; font: 800 .66rem var(--font); padding: 6px 2px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #1e293b; cursor: pointer; }
+.dw-btns .dw-start { background: #16a34a; border-color: #15803d; color: #fff; }
+.dw.running .dw-start { background: #dc2626; border-color: #b91c1c; }
+.dw-btns button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.dw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

@@ -3,6 +3,8 @@
  * IV bag (simulated label + medication port) → drip chamber where drops form
  * and fall at the real gtt/min → tubing → roller clamp. Like a real clamp it
  * shows no numbers: students count drops (a 15-second counting timer helps).
+ * A digital stopwatch beside the drip chamber lets students time the drops
+ * themselves, as they would with a watch.
  */
 (function (global) {
   'use strict';
@@ -11,6 +13,83 @@
   var CURVE = 1.7;    // roller clamps open non-linearly
 
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  /* ---------- digital stopwatch (seven-segment LCD) ---------- */
+  // segments a–g of a seven-segment digit, as polygons in a w×h box
+  function segs(x, y, w, h, t) {
+    var m = y + h / 2, q = t / 2;
+    return [
+      [[x + q, y], [x + w - q, y], [x + w - t, y + t], [x + t, y + t]],                         // a
+      [[x + w, y + q], [x + w, m - q], [x + w - t, m - q / 2 - q], [x + w - t, y + t]],          // b
+      [[x + w, m + q], [x + w, y + h - q], [x + w - t, y + h - t], [x + w - t, m + q / 2 + q]],  // c
+      [[x + q, y + h], [x + w - q, y + h], [x + w - t, y + h - t], [x + t, y + h - t]],          // d
+      [[x, m + q], [x, y + h - q], [x + t, y + h - t], [x + t, m + q / 2 + q]],                  // e
+      [[x, y + q], [x, m - q], [x + t, m - q / 2 - q], [x + t, y + t]],                          // f
+      [[x + t * .6, m], [x + t, m - q], [x + w - t, m - q], [x + w - t * .6, m], [x + w - t, m + q], [x + t, m + q]] // g
+    ];
+  }
+  var DIGITS = ['abcdef', 'bc', 'abdeg', 'abcdg', 'bcfg', 'acdfg', 'acdefg', 'abc', 'abcdefg', 'abcdfg'];
+  function digitSvg(id, x, y, w, h, t) {
+    return '<g class="dw-dg" data-dg="' + id + '">' + segs(x, y, w, h, t).map(function (pts, i) {
+      return '<polygon data-s="' + 'abcdefg'[i] + '" points="' + pts.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ') + '"/>';
+    }).join('') + '</g>';
+  }
+  function watchHtml() {
+    return '<div class="dw" role="group" aria-label="Stopwatch for timing drops">' +
+      '<div class="dw-bezel"><div class="dw-top"><span>STOPWATCH</span><span class="dw-run-dot" aria-hidden="true"></span></div>' +
+      '<svg class="dw-lcd" viewBox="0 0 150 60" aria-hidden="true">' +
+      digitSvg('m1', 6, 7, 22, 40, 4.2) + digitSvg('m2', 33, 7, 22, 40, 4.2) +
+      '<circle class="dw-colon" cx="62" cy="19" r="2.6"/><circle class="dw-colon" cx="62" cy="35" r="2.6"/>' +
+      digitSvg('s1', 69, 7, 22, 40, 4.2) + digitSvg('s2', 96, 7, 22, 40, 4.2) +
+      '<circle cx="124" cy="45" r="1.8" class="dw-on"/>' + digitSvg('t', 129, 23, 13, 24, 2.6) +
+      '<text x="31" y="57" class="dw-cap">MIN</text><text x="94" y="57" class="dw-cap">SEC</text></svg>' +
+      '<div class="dw-q" aria-hidden="true"><span>15</span><span>30</span><span>45</span><span>60</span></div></div>' +
+      '<div class="dw-btns"><button type="button" class="dw-start">Start</button><button type="button" class="dw-reset">Reset</button></div>' +
+      '<span class="dw-sr" aria-live="polite"></span></div>';
+  }
+  function Stopwatch(root) {
+    this.root = root; this.ms = 0; this.t0 = 0; this.on = false; this.raf = null;
+    var self = this;
+    root.querySelector('.dw-start').addEventListener('click', function () { self.on ? self.stop() : self.start(); });
+    root.querySelector('.dw-reset').addEventListener('click', function () { self.reset(); });
+    this.draw();
+  }
+  Stopwatch.prototype.elapsed = function () { return this.on ? this.ms + (performance.now() - this.t0) : this.ms; };
+  Stopwatch.prototype.start = function () {
+    var self = this;
+    this.on = true; this.t0 = performance.now();
+    this.root.classList.add('running');
+    this.root.querySelector('.dw-start').textContent = 'Stop';
+    (function tick() { if (!self.on) return; self.draw(); self.raf = requestAnimationFrame(tick); })();
+  };
+  Stopwatch.prototype.stop = function () {
+    if (!this.on) return;
+    this.ms = this.elapsed(); this.on = false;
+    cancelAnimationFrame(this.raf);
+    this.root.classList.remove('running');
+    this.root.querySelector('.dw-start').textContent = 'Start';
+    this.draw();
+    var s = Math.floor(this.ms / 1000);
+    this.root.querySelector('.dw-sr').textContent = 'Stopped at ' + Math.floor(s / 60) + ' minutes ' + (s % 60) + ' seconds';
+  };
+  Stopwatch.prototype.reset = function () {
+    this.stop(); this.ms = 0; this.draw();
+    this.root.querySelector('.dw-sr').textContent = 'Reset';
+  };
+  Stopwatch.prototype.draw = function () {
+    var e = this.elapsed(), total = Math.floor(e / 1000) % 6000, min = Math.floor(total / 60), sec = total % 60, tenth = Math.floor(e / 100) % 10;
+    var vals = { m1: Math.floor(min / 10), m2: min % 10, s1: Math.floor(sec / 10), s2: sec % 10, t: tenth };
+    var root = this.root;
+    Object.keys(vals).forEach(function (k) {
+      var on = DIGITS[vals[k]];
+      Array.prototype.forEach.call(root.querySelectorAll('[data-dg="' + k + '"] polygon'), function (pg) { pg.classList.toggle('dw-on', on.indexOf(pg.dataset.s) >= 0); });
+    });
+    // quarter-minute marks: light up as each 15 s of the current minute passes
+    var q = Math.floor((sec + (e > 0 && sec === 0 && total > 0 ? 60 : 0)) / 15);
+    Array.prototype.forEach.call(root.querySelectorAll('.dw-q span'), function (sp, i) { sp.classList.toggle('lit', i < q); });
+    root.querySelector('.dw-bezel').setAttribute('aria-label', min + ' minutes ' + sec + ' seconds');
+  };
+  Stopwatch.prototype.destroy = function () { this.on = false; cancelAnimationFrame(this.raf); };
 
   function DripSet(host, opts) {
     opts = opts || {};
@@ -48,7 +127,7 @@
     var b = this.bag, self = this;
     var fluidShort = b.fluid.replace('0.9% Sodium Chloride', '0.9% NaCl');
     this.host.innerHTML =
-      '<div class="drip-wrap"><svg class="drip-svg" viewBox="0 0 300 600" role="img" aria-label="IV bag, drip chamber and tubing with roller clamp">' +
+      '<div class="drip-wrap"><div class="drip-stage"><svg class="drip-svg" viewBox="0 0 300 600" role="img" aria-label="IV bag, drip chamber and tubing with roller clamp">' +
       '<defs><linearGradient id="dr-bag" x1="0" x2="1"><stop offset="0" stop-color="#e2e8f0"/><stop offset=".5" stop-color="#f8fafc"/><stop offset="1" stop-color="#e2e8f0"/></linearGradient>' +
       '<linearGradient id="dr-ch" x1="0" x2="1"><stop offset="0" stop-color="#cbd5e1" stop-opacity=".7"/><stop offset=".45" stop-color="#ffffff" stop-opacity=".35"/><stop offset="1" stop-color="#cbd5e1" stop-opacity=".7"/></linearGradient></defs>' +
       // pole hook
@@ -96,7 +175,7 @@
       '<text x="64" y="452" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#475569">roller</text><text x="64" y="463" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="700" fill="#475569">clamp</text>' +
       '<path d="M66 455h56" stroke="#94a3b8" stroke-dasharray="3 3"/>' +
       '<text x="150" y="590" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="9" fill="#64748b">to patient</text>' +
-      '</svg>' +
+      '</svg>' + watchHtml() + '</div>' +
       '<div class="drip-controls">' +
       '<div class="drip-btns" role="group" aria-label="Roller clamp">' +
       '<button type="button" data-d="-10" title="Roll down (big step)">▼▼</button><button type="button" data-d="-1" title="Roll down (fine)">▼</button>' +
@@ -104,7 +183,9 @@
       '<button type="button" data-d="1" title="Roll up (fine)">▲</button><button type="button" data-d="10" title="Roll up (big step)">▲▲</button></div>' +
       '<div class="drip-count"><button type="button" class="btn btn-ghost btn-sm dr-count-btn">⏱ Count drops for 15 s</button><span class="dr-count-out" aria-live="polite"></span></div>' +
       '</div></div>';
-    this.svg = this.host.querySelector('svg');
+    this.svg = this.host.querySelector('.drip-svg');
+    if (this.watch) this.watch.destroy();
+    this.watch = new Stopwatch(this.host.querySelector('.dw'));
     this.dropsG = this.svg.querySelector('.dr-drops');
     this.wheel = this.svg.querySelector('.dr-wheel');
     // wheel drag (vertical)
@@ -209,8 +290,10 @@
   DripSet.prototype.destroy = function () {
     this.running = false;
     if (this.raf) cancelAnimationFrame(this.raf);
+    if (this.watch) this.watch.destroy();
     this.cancelCount();
   };
 
   global.DripSet = DripSet;
+  global.DripStopwatch = Stopwatch;
 })(window);
